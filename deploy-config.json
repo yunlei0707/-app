@@ -4,7 +4,6 @@
   "preview_branch": "preview",
   "auto_deploy": true,
   "notify_on_deploy": true,
-  
   "file_mapping": {
     "首页|时光轴": "src/pages/TimelinePage.jsx",
     "成长数据|统计": "src/pages/StatsPage.jsx",
@@ -19,22 +18,36 @@
     "App配置": "src/App.jsx",
     "版本说明": "版本说明.md"
   },
-  
   "keywords": {
     "文字|文案|内容": "修改文本内容",
     "颜色|样式|主题": "修改样式",
     "按钮|图标": "修改组件",
     "功能|逻辑": "修改代码逻辑"
   },
-  
   "preview_mode": {
     "enabled": true,
     "auto_merge": false,
     "vercel_preview_domain": "preview.ylmyyh.com"
   },
-  
   "webhook": {
     "enabled": true,
-    "events": ["deploy_success", "deploy_failed", "preview_ready"]
+    "events": [
+      "deploy_success",
+      "deploy_failed",
+      "preview_ready"
+    ]
+  },
+  "vercel": {
+    "deploy_hook": "https://api.vercel.com/v1/integrations/deploy/prj_VKRS9a1vPsP9iVn7leOYIoiQK45Z/5ud6ONdlVe",
+    "project_id": "prj_VKRS9a1vPsP9iVn7leOYIoiQK45Z",
+    "auto_deploy": true,
+    "notify_when_complete": true
+  },
+  "notification": {
+    "on_success": true,
+    "on_failed": true,
+    "on_preview_ready": true,
+    "include_commit_url": true,
+    "include_deploy_url": true
   }
 }
