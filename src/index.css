@@ -427,3 +427,84 @@
 .modal-content {
   @apply bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full p-6 animate-bounce-in;
 }
+
+/* ==================== 深夜模式全屏覆盖优化 ==================== */
+
+/* 确保html元素在深色模式下全屏覆盖 */
+html.dark,
+html:is(.dark *) {
+  background-color: #111827 !important;
+}
+
+/* 全屏覆盖 - 确保所有fixed/absolute元素有正确背景 */
+.dark body,
+.dark body * {
+  --tw-bg-opacity: 1;
+}
+
+/* 确保所有可能留白的区域都有深色背景 */
+.dark {
+  --color-bg: #111827;
+  --color-bg-secondary: #1f2937;
+  --color-text: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-border: #374151;
+  --color-border-light: #1f2937;
+}
+
+/* 表单元素深色模式背景 */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: #374151 !important;
+}
+
+/* 确保fixed定位的全屏覆盖元素 */
+.dark .fixed,
+.dark .absolute {
+  --tw-bg-opacity: 1;
+}
+
+/* 全屏模态框背景 */
+.dark .modal-backdrop,
+.dark .location-modal {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* 确保图片查看器全屏覆盖 */
+.dark .photo-viewer-backdrop {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+}
+
+/* 确保弹窗内容区域全屏覆盖 */
+.dark [class*="modal-content"] {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* 防止深色模式下出现白色闪烁 */
+html.dark {
+  background-color: #111827;
+}
+
+html.dark body {
+  background-color: #111827;
+}
+
+/* 确保所有全屏组件背景覆盖 */
+.dark [style*="fixed"] {
+  background-color: inherit;
+}

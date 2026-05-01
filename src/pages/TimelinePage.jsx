@@ -7,7 +7,7 @@ import { useApp } from '../store/AppContext';
 import { BabyHeader } from '../components/BabyHeader';
 import { MomentCard } from '../components/MomentCard';
 import { PhotoViewer } from '../components/PhotoViewer';
-import { UserAvatar } from '../components/UserAvatar';
+// UserAvatar 已移除
 import { groupByYearAndMonth } from '../utils/dateUtils';
 import { getMomentsOnSameDayLastYear, deleteMoment, getMomentsByBaby } from '../utils/db';
 import { Plus, Calendar, Clock, X } from 'lucide-react';
@@ -269,7 +269,7 @@ export function TimelinePage({
               <h1 className="text-xl font-bold">宝贝时光</h1>
             </div>
             <div className="flex items-center gap-2">
-              <UserAvatar />
+
               <button
                 onClick={checkSameDayLastYear}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-full text-sm hover:bg-white/30 transition-colors"

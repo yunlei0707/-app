@@ -4,7 +4,7 @@
 
 import { useMemo, useState, useRef, useCallback } from 'react';
 import { useApp } from '../store/AppContext';
-import { UserAvatar } from '../components/UserAvatar';
+// UserAvatar 已移除
 import { calculateAge } from '../utils/dateUtils';
 import { getMomentsByBaby, getCapsulesByBaby } from '../utils/db';
 import { Gift, TrendingUp, Camera, Calendar, Star } from 'lucide-react';
@@ -184,7 +184,7 @@ export function StatsPage({ onOpenCapsules, onStatClick }) {
         <div className="px-4 pt-4 pb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold">📊 成长数据</h1>
-            <UserAvatar />
+
           </div>
           
           {/* 年龄卡片 */}

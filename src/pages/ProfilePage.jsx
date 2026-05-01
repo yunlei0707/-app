@@ -11,6 +11,7 @@ import {
   Palette, Tag, Edit3, Plus, X, Check, Image, Users, Trophy, Sparkles, Copy, Check as CheckIcon
 } from 'lucide-react';
 import { exportAllData, importAllData, PRESET_AVATARS, generateInviteToken } from '../utils/db';
+import { MusicPlayer } from '../components/MusicPlayer';
 
 // 主题预设配置
 const THEME_PRESETS = [
@@ -374,7 +375,23 @@ export function ProfilePage({ onEditBaby, onAddBaby }) {
       {/* 头部 */}
       <header className="bg-gradient-to-b from-primary-400 to-primary-500 text-white safe-top">
         <div className="px-4 pt-4 pb-6">
-          <h1 className="text-xl font-bold mb-4">👤 我的</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold">👤 我的</h1>
+            <div 
+              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl overflow-hidden cursor-pointer"
+              onClick={() => setShowProfileModal(true)}
+            >
+              {currentUser?.avatar ? (
+                currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
+                  <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{currentUser.avatar}</span>
+                )
+              ) : (
+                <User className="w-5 h-5 text-white" />
+              )}
+            </div>
+          </div>
           
           {/* 用户信息 */}
           <div 
@@ -557,6 +574,12 @@ export function ProfilePage({ onEditBaby, onAddBaby }) {
         </div>
         
         {/* 数据管理 */}
+
+        {/* 音乐播放器卡片 */}
+        <div className="card mb-4 animate-fade-in" style={{ animationDelay: '0.08s' }}>
+          <h3 className="font-medium text-gray-600 dark:text-gray-400 mb-3">🎵 背景音乐</h3>
+          <MusicPlayer />
+        </div>
         <div className="card mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h3 className="font-medium text-gray-600 dark:text-gray-400 mb-3">数据管理</h3>
           
