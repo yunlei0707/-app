@@ -10,7 +10,7 @@ import { MusicProvider } from './store/MusicContext';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
-import { MusicPlayer } from './components/MusicPlayer';
+
 import { TimelinePage } from './pages/TimelinePage';
 import { StatsPage } from './pages/StatsPage';
 import { ProfilePage } from './pages/ProfilePage';
