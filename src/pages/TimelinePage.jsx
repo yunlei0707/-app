@@ -265,7 +265,17 @@ export function TimelinePage({
         <div className="px-4 pt-4 pb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">👶</span>
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg overflow-hidden">
+                {currentUser?.avatar ? (
+                  currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
+                    <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{currentUser.avatar}</span>
+                  )
+                ) : (
+                  <span>👶</span>
+                )}
+              </div>
               <h1 className="text-xl font-bold">宝贝时光</h1>
             </div>
             <div className="flex items-center gap-2">

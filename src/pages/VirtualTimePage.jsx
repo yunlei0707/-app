@@ -74,9 +74,19 @@ export function VirtualTimePage() {
       {/* 头部 */}
       <header className="bg-gradient-to-b from-violet-400 to-violet-500 text-white safe-top">
         <div className="px-4 pt-4 pb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Sparkles className="w-6 h-6" />
-            <h1 className="text-xl font-bold">✨ 虚拟时光</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg overflow-hidden">
+              {currentUser?.avatar ? (
+                currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
+                  <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{currentUser.avatar}</span>
+                )
+              ) : (
+                <span>👶</span>
+              )}
+            </div>
+            <h1 className="text-xl font-bold">宝贝时光</h1>
           </div>
           <p className="text-white/80 text-sm">
             {currentBaby ? `想象${currentBaby.nickname || currentBaby.name}未来的美好时光` : 'AI生成的温馨未来场景'}
