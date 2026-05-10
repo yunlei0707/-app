@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>时光印记 - 真正属于你的成长相册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: #FDF5E6;
+        }
+        
+        .slider-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            touch-action: pan-y;
+        }
+        
+        .page {
+            width: 100%;
+            height: 100%;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 50px 25px;
+            position: relative;
+            overflow-y: auto;
+            background: #FDF5E6;
+        }
+        
+        /* 标题样式 */
+        h1 {
+            font-size: 30px;
+            font-weight: 800;
+            color: #1A365D;
+            text-align: center;
+            line-height: 1.3;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1A365D;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .orange {
+            color: #FF8C42;
+        }
+        
+        .blue {
+            color: #1A365D;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            background: linear-gradient(135deg, #FF8C42, #FFA75A);
+            color: white;
+            border: none;
+            padding: 16px 36px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 140, 66, 0.4);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 140, 66, 0.5);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-gray {
+            background: #F0F0F0;
+            color: #666;
+            box-shadow: none;
+        }
+        
+        .btn-white {
+            background: white;
+            color: #FF8C42;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* 页码指示器 */
+        .pagination {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 100;
+        }
+        
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(26, 54, 93, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .dot.active {
+            background: #FF8C42;
+            width: 20px;
+            border-radius: 3px;
+        }
+        
+        /* 滑动提示 */
+        .swipe-hint {
+            position: fixed;
+            bottom: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(26, 54, 93, 0.4);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .swipe-hint::before {
+            content: '←';
+            animation: swipeLeft 1.5s ease-in-out infinite;
+        }
+        
+        .swipe-hint::after {
+            content: '→';
+            animation: swipeRight 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes swipeLeft {
+            0%, 100% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(-5px); opacity: 1; }
+        }
+        
+        @keyframes swipeRight {
+            0%, 100% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(5px); opacity: 1; }
+        }
+        
+        /* 占位框样式 */
+        .placeholder {
+            border: 2px dashed #CCC;
+            border-radius: 12px;
+            background: #F5F5F5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        /* ============ 左右分栏布局 ============ */
+        .two-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 360px;
+        }
+        
+        .two-column .left-col {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .two-column .right-col {
+            flex: 1;
+        }
+        
+        .phone-mockup {
+            width: 140px;
+            height: 280px;
+            border-radius: 20px;
+            border: 3px solid #1A365D;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+        
+        .phone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            width: 60px;
+            height: 6px;
+            background: #1A365D;
+            border-radius: 3px;
+        }
+        
+        .phone-mockup .screenshot-label {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            line-height: 1.5;
+            border: 2px dashed #DDD;
+            border-radius: 8px;
+            padding: 20px 10px;
+            width: 100%;
+        }
+        
+        .feature-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1A365D;
+            margin-bottom: 15px;
+            line-height: 1.3;
+        }
+        
+        .feature-title .emoji {
+            margin-right: 8px;
+        }
+        
+        .feature-desc {
+            font-size: 15px;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            margin-bottom: 18px;
+        }
+        
+        .feature-list li {
+            font-size: 14px;
+            color: #666;
+            padding: 6px 0;
+            padding-left: 22px;
+            position: relative;
+            line-height: 1.5;
+        }
+        
+        .feature-list li::before {
+            content: '•';
+            color: #FF8C42;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .feature-highlight {
+            background: #FFF0E0;
+            border-left: 4px solid #FF8C42;
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+            color: #FF8C42;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        
+        /* ============ 第1页：封面 ============ */
+        .page-1 {
+            background: linear-gradient(180deg, #FDF5E6 0%, #FFE8D0 100%);
+        }
+        
+        .cover-img {
+            width: 280px;
+            height: 180px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .cover-img::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, #FDF5E6);
+        }
+        
+        .page-1 h1 {
+            font-size: 34px;
+            color: #1A365D;
+        }
+        
+        .page-1 .subtitle {
+            font-size: 18px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        
+        /* ============ 第2页：我是谁 ============ */
+        .page-2 {
+            background: #FDF5E6;
+        }
+        
+        .profile-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            width: 100%;
+            max-width: 340px;
+        }
+        
+        .avatar-box {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF8C42, #FFA75A);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 0 25px rgba(255, 140, 66, 0.4);
+            animation: avatarPulse 2.5s ease-in-out infinite;
+        }
+        
+        @keyframes avatarPulse {
+            0%, 100% { box-shadow: 0 0 25px rgba(255, 140, 66, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(255, 140, 66, 0.6); }
+        }
+        
+        .name-badges {
+            text-align: center;
+        }
+        
+        .name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1A365D;
+            margin-bottom: 12px;
+        }
+        
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .badge {
+            background: #1A365D;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .intro-text {
+            font-size: 16px;
+            color: #555;
+            line-height: 1.8;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .highlight-text {
+            color: #FF8C42;
+            font-weight: 600;
+        }
+        
+        /* ============ 第3页：事件核心 ============ */
+        .page-3 {
+            background: linear-gradient(180deg, #FFF5F0 0%, #FDF5E6 100%);
+        }
+        
+        .warning-box {
+            border: 3px solid #FF4444;
+            border-radius: 16px;
+            background: white;
+            padding: 20px;
+            width: 100%;
+            max-width: 340px;
+            margin-bottom: 20px;
+        }
+        
+        .warning-title {
+            color: #FF4444;
+            font-size: 22px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .news-screenshots {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .news-screenshot {
+            width: 100%;
+            height: 60px;
+            position: relative;
+        }
+        
+        .news-screenshot .highlight {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #FF4444;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #FF4444;
+            font-weight: 600;
+        }
+        
+        .event-text {
+            font-size: 16px;
+            color: #333;
+            line-height: 1.8;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .testimonial {
+            background: #F5F5F5;
+            padding: 15px;
+            border-radius: 12px;
+            font-style: italic;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .conclusion-box {
+            background: #FFF0E0;
+            border: 2px solid #FF8C42;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .conclusion-box .fire {
+            font-size: 24px;
+        }
+        
+        .conclusion-box .text {
+            color: #FF8C42;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        /* ============ 第4页：解决方案 ============ */
+        .page-4 {
+            background: #FDF5E6;
+        }
+        
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 340px;
+            margin-bottom: 25px;
+        }
+        
+        .option-item {
+            padding: 16px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .option-gray {
+            background: #F0F0F0;
+            color: #999;
+            border: 1px solid #E0E0E0;
+        }
+        
+        .option-orange {
+            background: #FFF0E0;
+            color: #FF8C42;
+            border: 2px solid #FF8C42;
+            animation: optionGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes optionGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 140, 66, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 140, 66, 0.4); }
+        }
+        
+        .solution-text {
+            font-size: 18px;
+            color: #1A365D;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .app-mockup {
+            width: 280px;
+            height: 160px;
+            margin-bottom: 20px;
+        }
+        
+        /* ============ 第5页：产品功能 ============ */
+        .page-5 {
+            background: linear-gradient(180deg, #FDF5E6 0%, #E8F0F8 100%);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            max-width: 340px;
+            margin-bottom: 25px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .feature-card .icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .feature-card .name {
+            color: #1A365D;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        
+        .video-card {
+            width: 100%;
+            max-width: 340px;
+            height: 80px;
+            background: linear-gradient(135deg, #1A365D, #2A4A7D);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 6px 20px rgba(26, 54, 93, 0.3);
+            cursor: pointer;
+        }
+        
+        .video-card .play-btn {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1A365D;
+            font-size: 16px;
+        }
+        
+        /* ============ 第6页：独家功能 ============ */
+        .page-6 {
+            background: #FDF5E6;
+        }
+        
+        .exclusive-title {
+            color: #FF8C42;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .exclusive-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 340px;
+        }
+        
+        .exclusive-card {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        
+        .exclusive-card .icon {
+            font-size: 24px;
+            width: 36px;
+            text-align: center;
+        }
+        
+        .exclusive-card .content {
+            flex: 1;
+        }
+        
+        .exclusive-card .title {
+            color: #1A365D;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        
+        .exclusive-card .desc {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .why-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #FFF8F0;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+            text-align: center;
+        }
+        
+        /* ============ 第7页：对比表格 ============ */
+        .page-7 {
+            background: linear-gradient(180deg, #FDF5E6 0%, #FFF5F0 100%);
+        }
+        
+        .compare-table {
+            width: 100%;
+            max-width: 350px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 12px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .compare-table th,
+        .compare-table td {
+            padding: 10px 6px;
+            text-align: center;
+            border-bottom: 1px solid #F0F0F0;
+        }
+        
+        .compare-table th {
+            background: #1A365D;
+            color: white;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        
+        .compare-table .row-label {
+            background: #F8F8F8;
+            font-weight: 600;
+            color: #555;
+            text-align: left;
+            padding-left: 12px;
+        }
+        
+        .compare-table .product {
+            background: #FFF0E0;
+            color: #FF8C42;
+            font-weight: 700;
+        }
+        
+        .compare-table .good {
+            color: #2E7D32;
+            font-weight: 700;
+        }
+        
+        .compare-table .bad {
+            color: #D32F2F;
+            font-weight: 600;
+        }
+        
+        .compare-table .mid {
+            color: #F57C00;
+            font-weight: 600;
+        }
+        
+        .tco-conclusion {
+            background: linear-gradient(135deg, #FF8C42, #FFA75A);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+        }
+        
+        .tco-conclusion .text {
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+        
+        /* ============ 第8页：社会认同 ============ */
+        .page-8 {
+            background: #FDF5E6;
+        }
+        
+        .testimonials {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 340px;
+            margin-bottom: 25px;
+        }
+        
+        .chat-screenshot {
+            width: 100%;
+            height: 70px;
+            background: white;
+            border: 1px solid #E8E8E8;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .chat-avatar {
+            width: 36px;
+            height: 36px;
+            background: #DDD;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .chat-content {
+            flex: 1;
+        }
+        
+        .chat-name {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        
+        .chat-bubble {
+            background: #F5F5F5;
+            padding: 8px 12px;
+            border-radius: 0 12px 12px 12px;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .stats-box {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 800;
+            color: #FF8C42;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .trust-section {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .trust-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* ============ 第9页：转化页 ============ */
+        .page-9 {
+            background: linear-gradient(135deg, #FF8C42 0%, #FF6B35 50%, #FFA75A 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 8s ease infinite;
+        }
+        
+        @keyframes gradientMove {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .page-9 h1 {
+            color: white;
+            font-size: 32px;
+        }
+        
+        .benefit-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            width: 100%;
+            max-width: 340px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .benefit-list {
+            list-style: none;
+        }
+        
+        .benefit-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #F5F5F5;
+            font-size: 15px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .benefit-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .benefit-list li::before {
+            content: '✅';
+        }
+        
+        .countdown {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .form-note {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+        
+        .trust-footer {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            text-align: center;
+            margin-top: 25px;
+            line-height: 1.8;
+        }
+        
+        /* ============ 大屏左右分栏响应式 ============ */
+        @media (min-width: 768px) {
+            .two-column {
+                flex-direction: row;
+                align-items: center;
+                max-width: 700px;
+                gap: 40px;
+            }
+            
+            .two-column .left-col {
+                flex: 1;
+            }
+            
+            .two-column .right-col {
+                flex: 1.2;
+            }
+            
+            .phone-mockup {
+                width: 180px;
+                height: 360px;
+            }
+            
+            .feature-title {
+                font-size: 26px;
+            }
+            
+            .feature-desc {
+                font-size: 16px;
+            }
+            
+            .feature-list li {
+                font-size: 15px;
+            }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 24px;
+            }
+            
+            h2 {
+                font-size: 20px;
+            }
+            
+            .page {
+                padding: 40px 18px;
+            }
+            
+            .compare-table {
+                font-size: 10px;
+            }
+            
+            .compare-table th,
+            .compare-table td {
+                padding: 8px 4px;
+            }
+            
+            .phone-mockup {
+                width: 120px;
+                height: 240px;
+            }
+            
+            .feature-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slider-container" id="slider">
+        <!-- 第1页：封面 -->
+        <div class="page page-1">
+            <div class="cover-img placeholder">👨‍👧 爸爸抱着宝宝看电脑的温馨侧影</div>
+            <h1>2024年11月，<br>我连夜删掉了<br><span class="orange">孩子2万张照片</span></h1>
+            <p class="subtitle">一个程序员爸爸的<br>"私有成长相册"自救方案</p>
+            <button class="btn" onclick="nextPage()">👇 看看我是怎么做的</button>
+        </div>
+        
+        <!-- 第2页：我是谁 -->
+        <div class="page page-2">
+            <div class="profile-container">
+                <div class="avatar-box placeholder">👨‍💻</div>
+                <div class="name-badges">
+                    <div class="name">你好，我是程序员爸爸</div>
+                    <div class="badges">
+                        <span class="badge">🖥️ 前大厂工程师</span>
+                        <span class="badge">👨‍🍼 1岁半女宝爸爸</span>
+                        <span class="badge">🔧 业余独立开发者</span>
+                    </div>
+                </div>
+                <p class="intro-text">
+                    和所有新手爸妈一样，我用某宝宝、某育儿APP记录孩子每一天。<br><br>
+                    <span class="highlight-text">直到去年11月的那个新闻……</span><br><br>
+                    我决定：花3个月，给自己和孩子做一款"不上云"的成长记录APP。
+                </p>
+            </div>
+        </div>
+        
+        <!-- 第3页：发生了什么 -->
+        <div class="page page-3">
+            <div class="warning-box">
+                <div class="warning-title">⚠️ 2024年11月，母婴圈炸了</div>
+                <div class="news-screenshots">
+                    <div class="news-screenshot placeholder">
+                        <div class="highlight">数据泄露 亲宝宝 宝宝树 数百万用户</div>
+                    </div>
+                    <div class="news-screenshot placeholder">
+                        <div class="highlight">孩子照片视频流出 隐私安全</div>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="event-text">
+                数百万家庭的孩子照片、视频、出生信息……被曝存在泄露风险。<br><br>
+                你家宝宝的脸，可能在你看不到的地方被传播、被滥用。
+            </p>
+            
+            <div class="testimonial">
+                "我当时整个人都懵了。我女儿从出生到6个月，8000多张照片，全在云端。"
+            </div>
+            
+            <div class="conclusion-box">
+                <span class="fire">🔥</span>
+                <span class="text"> 我当晚的反应：连夜登录，把所有照片删了个精光。</span>
+            </div>
+            
+            <button class="btn btn-gray" style="margin-top: 15px;" onclick="nextPage()">然后呢？👇</button>
+        </div>
+        
+        <!-- 第4页：怎么办 -->
+        <div class="page page-4">
+            <h2>删完了，然后呢？</h2>
+            
+            <div class="options-container">
+                <div class="option-item option-gray">
+                    ❌ 继续用云相册 —— 不放心，再泄露怎么办？
+                </div>
+                <div class="option-item option-gray">
+                    ❌ 不记录了 —— 舍不得，孩子成长只有一次
+                </div>
+                <div class="option-item option-orange">
+                    ✅ 自己动手做一个 —— 干！
+                </div>
+            </div>
+            
+            <p class="solution-text">于是，我花了3个月，做了「<span class="orange">时光印记</span>」</p>
+            
+            <div class="app-mockup placeholder">📱 APP界面拼图（时光轴、相册、设置等）</div>
+            
+            <button class="btn" onclick="nextPage()">看看它长什么样👇</button>
+        </div>
+        
+        <!-- 第5页：产品功能 -->
+        <div class="page page-5">
+            <h2>📱「时光印记」能做什么？</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="icon">📸</div>
+                    <div class="name">照片视频记录<br>无限存储</div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🏠</div>
+                    <div class="name">本地部署<br>数据存你家</div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">👨‍👩‍👧</div>
+                    <div class="name">家庭共享<br>权限可控</div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🎨</div>
+                    <div class="name">高定DIY<br>主题动画自定义</div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🤖</div>
+                    <div class="name">AI智能分类<br>自动整理</div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">💾</div>
+                    <div class="name">一键导出<br>备份/打印</div>
+                </div>
+            </div>
+            
+            <div class="video-card">
+                <div class="play-btn">▶</div>
+                <span>🎥 1分钟演示视频</span>
+            </div>
+        </div>
+        
+        <!-- 第6页：独家功能 -->
+        <div class="page page-6">
+            <h2>✨ 6个云相册<br>永远做不出来的功能</h2>
+            
+            <div class="exclusive-cards">
+                <div class="exclusive-card">
+                    <div class="icon">🔮</div>
+                    <div class="content">
+                        <div class="title">月龄神预言</div>
+                        <div class="desc">根据出生月份，每月生成专属性格预测</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="icon">🎁</div>
+                    <div class="content">
+                        <div class="title">时光盲盒</div>
+                        <div class="desc">随机回溯过去的美好瞬间，每次都是惊喜</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="icon">📈</div>
+                    <div class="content">
+                        <div class="title">心情曲线</div>
+                        <div class="desc">可视化追踪宝宝情绪变化</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="icon">🎬</div>
+                    <div class="content">
+                        <div class="title">名场面集锦</div>
+                        <div class="desc">自动提取成长高光时刻</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="icon">✉️</div>
+                    <div class="content">
+                        <div class="title">来自宝宝的信封</div>
+                        <div class="desc">AI以宝宝口吻写信给爸妈（泪点功能）</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="icon">💌</div>
+                    <div class="content">
+                        <div class="title">给宝宝的信</div>
+                        <div class="desc">写给未来的信，时光邮差般的浪漫</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="why-note">
+                💡 为什么他们做不出来？<br>
+                因为没有数据主权，不敢也不能拿用户最私密的情感数据去喂AI。
+            </div>
+        </div>
+        
+        <!-- 第7页：对比表格 -->
+        <div class="page page-7">
+            <h2>和云相册比，到底差在哪？</h2>
+            
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>对比项</th>
+                        <th>时光印记</th>
+                        <th>某育儿APP</th>
+                        <th>某光小屋</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="row-label">5年总花费</td>
+                        <td class="product good">¥599一次性</td>
+                        <td class="bad">~¥1490</td>
+                        <td class="mid">~¥940</td>
+                    </tr>
+                    <tr>
+                        <td class="row-label">数据存储位置</td>
+                        <td class="product good">你家（本地）</td>
+                        <td class="bad">云端</td>
+                        <td class="bad">云端</td>
+                    </tr>
+                    <tr>
+                        <td class="row-label">隐私泄露风险</td>
+                        <td class="product good">无（物理隔离）</td>
+                        <td class="bad">2024年已发生</td>
+                        <td class="bad">2024年已发生</td>
+                    </tr>
+                    <tr>
+                        <td class="row-label">永久使用</td>
+                        <td class="product good">✅</td>
+                        <td class="bad">❌（续费才给）</td>
+                        <td class="bad">❌</td>
+                    </tr>
+                    <tr>
+                        <td class="row-label">数据自己掌控</td>
+                        <td class="product good">✅</td>
+                        <td class="bad">❌</td>
+                        <td class="bad">❌</td>
+                    </tr>
+                    <tr>
+                        <td class="row-label">6大独家功能</td>
+                        <td class="product good">✅</td>
+                        <td class="bad">❌</td>
+                        <td class="bad">❌</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="tco-conclusion">
+                <div class="text">
+                    💰 花599，买的是孩子18年的照片安全和数据主权。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第8页：社会认同 -->
+        <div class="page page-8">
+            <h2>他们已经开始用了</h2>
+            
+            <div class="testimonials">
+                <div class="chat-screenshot">
+                    <div class="chat-avatar"></div>
+                    <div class="chat-content">
+                        <div class="chat-name">用户A ***</div>
+                        <div class="chat-bubble">没想到我也能搞定！谢谢程序员爸爸 🙏</div>
+                    </div>
+                </div>
+                <div class="chat-screenshot">
+                    <div class="chat-avatar"></div>
+                    <div class="chat-content">
+                        <div class="chat-name">用户B ***</div>
+                        <div class="chat-bubble">这个本地部署太安心了，终于不用再担心 😌</div>
+                    </div>
+                </div>
+                <div class="chat-screenshot">
+                    <div class="chat-avatar"></div>
+                    <div class="chat-content">
+                        <div class="chat-name">用户C ***</div>
+                        <div class="chat-bubble">帮忙给我家老人也开通一下 👴</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-box">
+                <div class="stat-item">
+                    <div class="stat-number">32</div>
+                    <div class="stat-label">已服务家庭</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">94%</div>
+                    <div class="stat-label">试用满意率</div>
+                </div>
+            </div>
+            
+            <div class="trust-section">
+                <div class="trust-item">🔓 部分代码已开源</div>
+                <div class="trust-item">📄 隐私承诺</div>
+            </div>
+        </div>
+        
+        <!-- 第9页：转化页 -->
+        <div class="page page-9">
+            <h1>🎁 小范围试点 · 仅限15个家庭</h1>
+            
+            <div class="benefit-card">
+                <ul class="benefit-list">
+                    <li>免费试用15天（无需付款，不满意可随时导出数据）</li>
+                    <li>试用满意再付费，无任何隐形费用</li>
+                    <li>前8名送 ¥299 高阶DIY模板包（主题+动画+音乐）</li>
+                </ul>
+            </div>
+            
+            <div class="countdown">⏰ 首发优惠仅剩 3 天</div>
+            
+            <button class="btn btn-white" onclick="alert('请添加微信：programmer_dad 申请试用')">
+                👉 立即申请试用（名额有限）
+            </button>
+            
+            <div class="form-note">
+                📝 填写姓名 + 微信号 + 宝宝年龄<br>
+                我会在2小时内添加你的微信，为你开通试用
+            </div>
+            
+            <div class="trust-footer">
+                🔒 你的信息仅用于开通试用，不会用于任何其他用途<br>
+                🤝 试用不满意无任何费用，数据全部归你
+            </div>
+        </div>
+        
+        <!-- 第10页：时光轴 -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            📱<br><br>
+                            时光轴界面<br>
+                            按时间排序展示
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">📅</span>时光轴
+                    </div>
+                    <p class="feature-desc">
+                        按时间自动排序，清晰呈现宝宝成长的每一刻
+                    </p>
+                    <ul class="feature-list">
+                        <li>自动计算"X岁X个月X天"</li>
+                        <li>支持9张照片/视频上传</li>
+                        <li>心情、天气、位置标签</li>
+                        <li>AI智能识别场景，自动生成文案</li>
+                    </ul>
+                    <div class="feature-highlight">
+                        👉 就像一本会自动翻页的成长日记
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第11页：宝宝成长档案 -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            📊<br><br>
+                            成长档案界面<br>
+                            数据可视化展示
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">📊</span>宝宝成长档案
+                    </div>
+                    <p class="feature-desc">
+                        用数据记录，用温度呈现
+                    </p>
+                    <ul class="feature-list">
+                        <li>各类型记录统计</li>
+                        <li>里程碑达成时间线</li>
+                        <li>心情分布图表</li>
+                        <li>时光寄语（AI生成）</li>
+                        <li>代表时刻精选</li>
+                    </ul>
+                    <div class="feature-highlight">
+                        一键生成分享卡片，发朋友圈超有面子
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第12页：6大独家功能（上半部分） -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            ✨<br><br>
+                            独家功能入口<br>
+                            功能菜单展示
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">✨</span>6大独家功能 · 上半部分
+                    </div>
+                    <ul class="feature-list">
+                        <li>
+                            <strong>🔮 月龄神预言</strong><br>
+                            <span style="color: #888; font-size: 13px;">根据宝宝出生月份，生成专属性格预测<br>每月一次，像拆盲盒一样期待</span>
+                        </li>
+                        <li>
+                            <strong>🎁 时光盲盒</strong><br>
+                            <span style="color: #888; font-size: 13px;">随机抽取过去某一天的记录<br>重温被遗忘的美好瞬间</span>
+                        </li>
+                        <li>
+                            <strong>📈 心情曲线</strong><br>
+                            <span style="color: #888; font-size: 13px;">可视化追踪宝宝情绪变化<br>发现规律，科学育儿</span>
+                        </li>
+                    </ul>
+                    <div class="feature-highlight">
+                        👉 这些功能，云相册永远做不出来
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第13页：6大独家功能（下半部分） -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            ✉️<br><br>
+                            来自宝宝的信封界面<br>
+                            AI生成信件展示
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">✨</span>6大独家功能 · 下半部分
+                    </div>
+                    <ul class="feature-list">
+                        <li>
+                            <strong>🎬 名场面集锦</strong><br>
+                            <span style="color: #888; font-size: 13px;">AI自动识别宝宝成长中的高光时刻<br>一键生成"宝宝名场面"合集</span>
+                        </li>
+                        <li>
+                            <strong>✉️ 来自宝宝的信封</strong><br>
+                            <span style="color: #888; font-size: 13px;">AI以宝宝口吻写一封信给爸妈<br>很多妈妈看完直接哭了</span>
+                        </li>
+                        <li>
+                            <strong>💌 给宝宝的信</strong><br>
+                            <span style="color: #888; font-size: 13px;">你写给未来宝宝的信<br>可以设定未来某一天打开，像时光邮差一样浪漫</span>
+                        </li>
+                    </ul>
+                    <div class="feature-highlight">
+                        👉 因为他们没有数据主权，不敢碰用户最私密的情感数据
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第14页：本地部署 -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            🏠<br><br>
+                            本地部署界面<br>
+                            NAS连接配置
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">🏠</span>本地部署 · 真正的数据主权
+                    </div>
+                    <p class="feature-desc">
+                        数据100%存在你家：
+                    </p>
+                    <ul class="feature-list">
+                        <li>部署到你家电脑/NAS/树莓派</li>
+                        <li>不上传任何服务器</li>
+                        <li>黑客想偷也偷不到</li>
+                        <li>我们倒闭了也不影响你用</li>
+                    </ul>
+                    <p class="feature-desc" style="margin-top: 10px; margin-bottom: 10px;">
+                        <strong>部署方式：</strong>
+                    </p>
+                    <ul class="feature-list">
+                        <li>一键部署工具，10分钟搞定</li>
+                        <li>高阶版用户1对1远程协助</li>
+                        <li>支持群晖/威联通/极空间等主流NAS</li>
+                    </ul>
+                    <div class="feature-highlight">
+                        👉 这才是真正的"私有"相册
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第15页：家人共享 -->
+        <div class="page">
+            <div class="two-column">
+                <div class="left-col">
+                    <div class="phone-mockup">
+                        <div class="screenshot-label">
+                            👨‍👩‍👧<br><br>
+                            家庭共享界面<br>
+                            成员权限管理
+                        </div>
+                    </div>
+                </div>
+                <div class="right-col">
+                    <div class="feature-title">
+                        <span class="emoji">👨‍👩‍👧</span>全家一起见证成长
+                    </div>
+                    <p class="feature-desc">
+                        家庭共享功能：
+                    </p>
+                    <ul class="feature-list">
+                        <li>9种身份角色（爸爸/妈妈/爷爷/奶奶/外公/外婆等）</li>
+                        <li>权限可控（可看可传/只看不传）</li>
+                        <li>多人同时在线记录</li>
+                        <li>数据实时同步</li>
+                    </ul>
+                    <p class="feature-desc" style="text-align: center; margin-top: 15px; color: #FF8C42; font-weight: 600;">
+                        爷爷奶奶在老家，<br>也能每天看到宝宝的新照片。
+                    </p>
+                    <div class="feature-highlight" style="margin-top: 15px;">
+                        👉 科技让爱没有距离
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="pagination" id="pagination"></div>
+    <div class="swipe-hint">左右滑动</div>
+    
+    <script>
+        let currentPage = 0;
+        const slider = document.getElementById('slider');
+        const pagination = document.getElementById('pagination');
+        const totalPages = document.querySelectorAll('.page').length;
+        let startX = 0;
+        let isDragging = false;
+        
+        // 初始化页码指示器
+        function initPagination() {
+            for (let i = 0; i < totalPages; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot' + (i === 0 ? ' active' : '');
+                dot.onclick = () => goToPage(i);
+                pagination.appendChild(dot);
+            }
+        }
+        
+        function updatePagination() {
+            const dots = pagination.querySelectorAll('.dot');
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentPage);
+            });
+        }
+        
+        function goToPage(index) {
+            if (index >= 0 && index < totalPages) {
+                currentPage = index;
+                slider.style.transform = `translateX(-${currentPage * 100}%)`;
+                updatePagination();
+            }
+        }
+        
+        function nextPage() {
+            goToPage(currentPage + 1);
+        }
+        
+        function prevPage() {
+            goToPage(currentPage - 1);
+        }
+        
+        // 触摸滑动事件
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const endX = e.changedTouches[0].clientX;
+            const diff = startX - endX;
+            
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        }, { passive: true });
+        
+        // 鼠标滑动事件（PC端）
+        let mouseStartX = 0;
+        let isMouseDown = false;
+        
+        document.addEventListener('mousedown', (e) => {
+            mouseStartX = e.clientX;
+            isMouseDown = true;
+        });
+        
+        document.addEventListener('mouseup', (e) => {
+            if (!isMouseDown) return;
+            isMouseDown = false;
+            
+            const diff = mouseStartX - e.clientX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextPage();
+                else prevPage();
+            }
+        });
+        
+        document.addEventListener('mouseleave', () => {
+            isMouseDown = false;
+        });
+        
+        // 键盘导航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextPage();
+            if (e.key === 'ArrowLeft') prevPage();
+        });
+        
+        // 初始化
+        initPagination();
+    </script>
+</body>
+</html>

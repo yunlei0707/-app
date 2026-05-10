@@ -7,10 +7,10 @@ import { useApp } from '../store/AppContext';
 import { BabyHeader } from '../components/BabyHeader';
 import { MomentCard } from '../components/MomentCard';
 import { PhotoViewer } from '../components/PhotoViewer';
-// UserAvatar 已移除
+import { UserAvatar } from '../components/UserAvatar';
 import { groupByYearAndMonth } from '../utils/dateUtils';
 import { getMomentsOnSameDayLastYear, deleteMoment, getMomentsByBaby } from '../utils/db';
-import { Plus, Calendar, Clock, X, ChevronDown } from 'lucide-react';
+import { Plus, Calendar, Clock, X } from 'lucide-react';
 
 // 里程碑选项
 const milestoneFilters = [
@@ -265,33 +265,17 @@ export function TimelinePage({
         <div className="px-4 pt-4 pb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg overflow-hidden">
-                {currentUser?.avatar ? (
-                  currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
-                    <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span>{currentUser.avatar}</span>
-                  )
-                ) : (
-                  <span>👶</span>
-                )}
-              </div>
+              <span className="text-2xl">👶</span>
               <h1 className="text-xl font-bold">宝贝时光</h1>
             </div>
             <div className="flex items-center gap-2">
-
+              <UserAvatar />
               <button
-                onClick={() => {
-                  if (!showSameDay) {
-                    checkSameDayLastYear();
-                  }
-                  setShowSameDay(!showSameDay);
-                }}
+                onClick={checkSameDayLastYear}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-full text-sm hover:bg-white/30 transition-colors"
               >
                 <Clock className="w-4 h-4" />
                 <span className="hidden sm:inline">往年今日</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showSameDay ? 'rotate-180' : ''}`} />
               </button>
             </div>
           </div>
@@ -462,36 +446,44 @@ export function TimelinePage({
         )}
       </main>
       
-      {/* 往年今日折叠面板 */}
+      {/* 往年今日弹窗 */}
       {showSameDay && (
-        <div className="px-4 py-3 bg-cream-50 dark:bg-gray-800/50 animate-slide-up">
-          <div className="max-w-lg mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-card overflow-hidden">
-              <div className="p-4 border-b border-cream-100 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🕰️</span>
-                  <h3 className="font-bold text-gray-800 dark:text-white">
-                    往年今日
-                  </h3>
-                </div>
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+          onClick={() => setShowSameDay(false)}
+        >
+          <div 
+            className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-3xl max-h-[70vh] overflow-y-auto animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-cream-200 dark:border-gray-700 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg text-gray-800 dark:text-white">
+                  🕰️ 往年今日
+                </h3>
+                <button 
+                  onClick={() => setShowSameDay(false)}
+                  className="p-2 -mr-2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
               </div>
-              <div className="p-4">
-                {sameDayMoments.length === 0 ? (
-                  <p className="text-center text-gray-500 py-6">
-                    去年今天没有记录，继续创造回忆吧~
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {sameDayMoments.map(moment => (
-                      <MomentCard
-                        key={moment.id}
-                        moment={moment}
-                        onClick={handlePhotoClick}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+            </div>
+            
+            <div className="p-4">
+              {sameDayMoments.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  去年今天没有记录，继续创造回忆吧~
+                </p>
+              ) : (
+                sameDayMoments.map(moment => (
+                  <MomentCard
+                    key={moment.id}
+                    moment={moment}
+                    onClick={handlePhotoClick}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>

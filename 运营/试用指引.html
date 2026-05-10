@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝宝时光 - 试用指引</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background-color: #FDF5E6;
+            color: #333333;
+            line-height: 1.8;
+            padding: 20px;
+        }
+        
+        .page {
+            max-width: 600px;
+            margin: 0 auto 40px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(255, 140, 66, 0.15);
+            page-break-after: always;
+        }
+        
+        /* 标题页 */
+        .title-page {
+            text-align: center;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, #FF8C42 0%, #FFB347 100%);
+            color: white;
+        }
+        
+        .title-page h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .title-page .subtitle {
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+        
+        .title-page .link-box {
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 30px 0;
+            font-size: 16px;
+        }
+        
+        .title-page .contact {
+            margin-top: 50px;
+            font-size: 15px;
+        }
+        
+        .title-page .signature {
+            margin-top: 20px;
+            font-style: italic;
+        }
+        
+        /* 步骤页面 */
+        .step-page h2 {
+            color: #FF8C42;
+            font-size: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #FF8C42;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .screenshot-placeholder {
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            margin: 20px 0;
+            background: #fafafa;
+        }
+        
+        .instructions {
+            margin: 20px 0;
+        }
+        
+        .instructions ol {
+            padding-left: 25px;
+        }
+        
+        .instructions li {
+            margin: 10px 0;
+        }
+        
+        .important-box {
+            background: #FFF5F5;
+            border: 2px solid #FF6B6B;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .important-box h4 {
+            color: #FF4444;
+            margin-bottom: 10px;
+        }
+        
+        .tip-box {
+            background: #F0FFF4;
+            border-left: 4px solid #48BB78;
+            border-radius: 0 8px 8px 0;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .tip-box h4 {
+            color: #2F855A;
+            margin-bottom: 8px;
+        }
+        
+        /* 功能卡片 */
+        .feature-grid {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%);
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid #FF8C42;
+        }
+        
+        .feature-card h4 {
+            color: #FF8C42;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 价格表格 */
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .price-table th, .price-table td {
+            border: 1px solid #FFE4CC;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .price-table th {
+            background: #FF8C42;
+            color: white;
+        }
+        
+        .price-table tr:nth-child(even) {
+            background: #FFF8F0;
+        }
+        
+        /* FAQ */
+        .faq-item {
+            margin: 20px 0;
+            padding: 15px;
+            background: #FAFAFA;
+            border-radius: 12px;
+        }
+        
+        .faq-question {
+            font-weight: bold;
+            color: #FF8C42;
+            margin-bottom: 10px;
+        }
+        
+        .faq-answer {
+            color: #555;
+        }
+        
+        /* 最后一页 */
+        .final-page {
+            text-align: center;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, #FFF8F0 0%, #FDF5E6 100%);
+        }
+        
+        .final-page .heart {
+            font-size: 60px;
+            margin: 30px 0;
+        }
+        
+        .final-page h2 {
+            color: #FF8C42;
+            margin-bottom: 30px;
+        }
+        
+        /* 打印样式 */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 标题页 -->
+    <div class="page title-page">
+        <div style="font-size: 80px; margin-bottom: 30px;">📖</div>
+        <h1>宝宝时光试用指引</h1>
+        <p class="subtitle">从0到1，10分钟上手，安全记录宝宝每一天</p>
+        <div class="link-box">
+            🔗 访问链接：请打开我发给你的 H5 链接
+        </div>
+        <div class="contact">
+            <p>有问题随时问我，微信：XXX（2小时内必回）</p>
+        </div>
+        <p class="signature">—— 程序员爸爸</p>
+    </div>
+
+    <!-- 第一步：打开并初始化 -->
+    <div class="page step-page">
+        <h2><span class="step-number">1</span> 打开并初始化你的时光相册</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：浏览器打开H5链接，首页界面截图】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>在手机或电脑浏览器，打开我发给你的链接</li>
+                <li>首次打开会自动创建本地数据库（不需要注册账号！）</li>
+                <li>你看到的就是宝宝时光的主界面</li>
+            </ol>
+        </div>
+        
+        <div class="important-box">
+            <h4>⚠️ 重要说明</h4>
+            <ul>
+                <li>你的数据<strong>100%存在当前浏览器中</strong>，不上传任何服务器</li>
+                <li>这意味着：清浏览器缓存 = 数据丢失！所以请定期导出备份</li>
+                <li>建议使用 Chrome/Safari 等主流浏览器体验更好</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第二步：创建宝宝档案 -->
+    <div class="page step-page">
+        <h2><span class="step-number">2</span> 创建你家宝宝档案</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：宝宝档案创建界面】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>点击底部导航「我的」→ 「宝宝档案」</li>
+                <li>点击「+ 添加宝宝」</li>
+                <li>填写宝宝昵称、生日、性别</li>
+                <li>上传宝宝头像（可选）</li>
+                <li>点击「保存」</li>
+            </ol>
+        </div>
+        
+        <div class="tip-box">
+            <h4>💡 提示</h4>
+            <ul>
+                <li>支持添加多个宝宝（二胎/三胎家庭友好）</li>
+                <li>宝宝生日会自动计算年龄，时光轴上会显示"X岁X个月X天"</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第三步：上传第一条成长记录 -->
+    <div class="page step-page">
+        <h2><span class="step-number">3</span> 上传第一条成长记录</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：发布记录界面，红色箭头标注「+」按钮位置】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>点击首页右下角「+」按钮</li>
+                <li>选择要上传的照片或视频（最多9张）</li>
+                <li>写一段记录文字（比如"第一次抬头""会叫妈妈了"）</li>
+                <li>选择心情标签😊、天气☁️、地点📍</li>
+                <li>点击「发布」</li>
+            </ol>
+        </div>
+        
+        <p style="text-align: center; color: #FF8C42; font-weight: bold; margin: 20px 0;">
+            🎉 恭喜！你已经完成了第一条时光记录！
+        </p>
+        
+        <div class="tip-box">
+            <h4>💡 小技巧</h4>
+            <ul>
+                <li>照片会自动按拍摄时间排序</li>
+                <li>可以点击「AI帮我写」，让AI辅助生成记录文案</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第四步：标记里程碑 -->
+    <div class="page step-page">
+        <h2><span class="step-number">4</span> 标记宝宝的里程碑</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：里程碑标签选择界面】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>发布记录时，点击「标签」</li>
+                <li>选择对应的里程碑标签（如「第一次微笑」「第一次翻身」「会走路了」）</li>
+                <li>也可以自定义新的里程碑标签</li>
+                <li>在「统计」页面可以看到所有达成的里程碑时间线</li>
+            </ol>
+        </div>
+        
+        <div class="tip-box">
+            <h4>⭐ 为什么重要</h4>
+            <ul>
+                <li>宝宝的每个第一次都值得纪念</li>
+                <li>多年后回头看，这会是最珍贵的回忆</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第五步：6大独家功能 -->
+    <div class="page step-page">
+        <h2><span class="step-number">5</span> 体验6大独家功能（泪点预警）</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：功能入口网格界面】
+        </div>
+        
+        <p style="margin: 15px 0;">这是我们和某光小屋、某宝宝最大的区别——</p>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h4>🔮 月龄神预言</h4>
+                <p>根据宝宝出生月份，生成专属性格预测和发展建议，每个月更新一次，像拆盲盒一样期待</p>
+            </div>
+            
+            <div class="feature-card">
+                <h4>🎁 时光盲盒</h4>
+                <p>随机抽取过去某一天的记录，每次打开都是惊喜，重温被遗忘的美好瞬间</p>
+            </div>
+            
+            <div class="feature-card">
+                <h4>📈 心情曲线</h4>
+                <p>统计宝宝的情绪变化趋势，发现宝宝开心/哭闹的规律，科学育儿</p>
+            </div>
+            
+            <div class="feature-card">
+                <h4>🎬 名场面集锦</h4>
+                <p>AI自动识别并提取成长中的高光时刻，一键生成宝宝的"名场面"合集</p>
+            </div>
+            
+            <div class="feature-card">
+                <h4>✉️ 来自宝宝的信封</h4>
+                <p>AI以宝宝的口吻，写一封信给爸妈，很多妈妈看完直接哭了</p>
+            </div>
+            
+            <div class="feature-card">
+                <h4>💌 给宝宝的信</h4>
+                <p>你写给未来宝宝的信，可以设定未来某一天打开，像时光邮差一样浪漫</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第六步：生成成长报告 -->
+    <div class="page step-page">
+        <h2><span class="step-number">6</span> 生成宝宝成长报告</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：成长档案报告界面】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>点击底部导航「统计」</li>
+                <li>选择时间范围（近1月/近3月/近1年/全部）</li>
+                <li>系统自动生成「宝宝成长档案」</li>
+                <li>包含：记录数量统计、里程碑达成、心情分布、时光寄语等</li>
+                <li>可以一键生成分享卡片发朋友圈</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 第七步：数据备份 -->
+    <div class="page step-page">
+        <h2><span class="step-number">7</span> 数据备份（非常重要！）</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：导出备份界面】
+        </div>
+        
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>点击「我的」→「数据管理」</li>
+                <li>点击「导出全部数据」</li>
+                <li>浏览器会自动下载一个 JSON 文件（包含所有照片，base64编码）</li>
+                <li>把这个文件存到你家电脑、NAS或移动硬盘上</li>
+            </ol>
+        </div>
+        
+        <div class="important-box">
+            <h4>⚠️ 必看提醒</h4>
+            <ul>
+                <li>你的数据只存在当前浏览器里</li>
+                <li>如果清了浏览器缓存、换了浏览器、换了手机，数据就没了</li>
+                <li><strong>建议每周导出一次备份</strong>，这是你能拿到完整数据的唯一方式</li>
+                <li>付费后我会教你怎么部署到自己家NAS/电脑上，实现真正的"永久本地存储"</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第八步：家人共享 -->
+    <div class="page step-page">
+        <h2><span class="step-number">8</span> 家人怎么一起看？</h2>
+        
+        <div class="screenshot-placeholder">
+            【截图占位：账号设置界面】
+        </div>
+        
+        <div class="instructions">
+            <ol>
+                <li>导出你的完整数据包（见第七步）</li>
+                <li>把JSON文件发给家人</li>
+                <li>家人在自己手机上打开H5链接</li>
+                <li>点击「我的」→「数据管理」→「导入数据」</li>
+                <li>家人就能看到宝宝的所有记录了</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 第九步：三天后怎么办 -->
+    <div class="page step-page">
+        <h2><span class="step-number">9</span> 三天后怎么办？</h2>
+        
+        <p style="margin: 15px 0;">试用期结束后你有两个选择：</p>
+        
+        <div class="feature-card" style="margin: 20px 0;">
+            <h4>选项A：不满意，不付费</h4>
+            <p>告诉我"不续了"<br><br>
+            我会帮你确认「如何完整导出所有数据」的步骤<br><br>
+            你的照片和视频全部归你，我们不留任何副本<br><br>
+            0元，无任何收费</p>
+        </div>
+        
+        <div class="feature-card" style="margin: 20px 0;">
+            <h4>选项B：满意，付费升级</h4>
+            <table class="price-table">
+                <tr>
+                    <th>版本</th>
+                    <th>价格</th>
+                    <th>包含</th>
+                </tr>
+                <tr>
+                    <td>基础版</td>
+                    <td>¥299</td>
+                    <td>全部基础功能 + 永久使用 + 永久升级</td>
+                </tr>
+                <tr>
+                    <td>高阶版</td>
+                    <td>¥599</td>
+                    <td>全部功能 + 本地部署到NAS/电脑 + 1对1远程协助 + DIY高定模板包</td>
+                </tr>
+            </table>
+            <p style="text-align: center; margin-top: 10px;"><strong>💳 付费方式：</strong>微信转账，当天开通部署指导</p>
+        </div>
+        
+        <div class="tip-box">
+            <h4>🎁 首发福利</h4>
+            <ul>
+                <li>高阶版的价格，现在打五折只需要299就可以拿下</li>
+                <li>1对1远程协助部署到你家NAS/电脑</li>
+                <li>未来所有新功能永久免费升级</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- FAQ页面 -->
+    <div class="page step-page">
+        <h2>❓ 常见问题 FAQ</h2>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q1：我的照片存在哪里？安全吗？</div>
+            <div class="faq-answer">
+                A：100%存在你当前使用的浏览器本地数据库（IndexedDB）中。不上传任何服务器，不经过任何第三方。<br><br>
+                物理上，数据就在你手机或电脑的硬盘里。我们和任何第三方都拿不到。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q2：我技术不好，能搞定吗？</div>
+            <div class="faq-answer">
+                A：完全不用技术。打开链接就能用，不需要安装任何软件。<br><br>
+                付费后我会提供「一键部署工具」+ 1对1远程协助，10分钟搞定。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q3：如果我换手机了，数据怎么办？</div>
+            <div class="faq-answer">
+                A：在旧手机上导出完整数据包（JSON），发到新手机上导入即可。<br><br>
+                建议定期导出备份，这是最重要的事。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q4：清浏览器缓存会丢数据吗？</div>
+            <div class="faq-answer">
+                A：会！这是纯前端应用最大的特点。<br><br>
+                所以<strong>一定要定期导出备份</strong>。建议每周导出一次存到电脑/NAS。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q5：能导出照片吗？</div>
+            <div class="faq-answer">
+                A：可以。任何时候都能一键导出全部照片和视频，不额外收费。<br><br>
+                导出的是base64编码的完整数据，包含所有照片和元数据。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q6：如果你们不做了怎么办？</div>
+            <div class="faq-answer">
+                A：这就是本地部署的最大好处——付费后部署到你自己的NAS/电脑上，我们公司倒不倒闭不影响你使用。<br><br>
+                而且部分核心代码已开源，技术型用户甚至可以自己维护。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q7：支持多宝宝吗？</div>
+            <div class="faq-answer">
+                A：支持，不限数量，二胎三胎家庭友好。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q8：AI功能会上传我的照片吗？</div>
+            <div class="faq-answer">
+                A：不会。所有AI运算（智能分类、写文案等）都在你的浏览器本地完成，照片不上传。<br><br>
+                （注：如果用了大模型API写文案，只有文字会请求，照片不上传）
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q9：一次付费真的永久使用吗？</div>
+            <div class="faq-answer">
+                A：真的。一次付费，所有已有的功能永久使用，未来的功能升级也免费。<br><br>
+                我做这个产品是给自己宝宝用的，顺便分享给有缘人，不是为了赚快钱。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q10：支持哪些浏览器？</div>
+            <div class="faq-answer">
+                A：推荐 Chrome、Safari、Edge。不建议用微信内置浏览器（兼容性问题）。<br><br>
+                手机上建议用系统自带浏览器打开。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q11：和某光小屋、某宝宝等产品比有什么优势？</div>
+            <div class="faq-answer">
+                A：最大的区别是「数据主权」—— 你的数据100%在你手里。<br><br>
+                其他平台：你的照片存在他们服务器上，他们可以看、可以删、可以用来训练AI，甚至哪天跑路了你都拿不回数据。<br><br>
+                宝宝时光：数据100%在你自己硬盘里，你是数据的唯一主人。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q12：家人一起看时，能同时编辑吗？</div>
+            <div class="faq-answer">
+                A：可以的。每个人的浏览器都是独立的数据库。<br><br>
+                你们可以各自记录，然后定期导出导入同步。考虑到数据安全，目前只支持手动导入导出。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q13：视频支持多大？能录多久？</div>
+            <div class="faq-answer">
+                A：单个视频建议控制在30MB以内，大概30秒-60秒。<br><br>
+                太长的视频会占用太多存储空间，导出也会变慢。日常记录1分钟足够了。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">Q14：能自定义标签吗？</div>
+            <div class="faq-answer">
+                A：完全可以。<br><br>
+                除了系统预设的8大名场面标签，你可以自己创建任何标签，比如"去公园""吃辅食""游泳课"等等。
+            </div>
+        </div>
+    </div>
+
+    <!-- 最后一页 -->
+    <div class="page final-page">
+        <h2>有任何问题，随时微信我</h2>
+        <p style="font-size: 18px; color: #666;">（2小时内必回）</p>
+        
+        <div class="heart">❤️</div>
+        
+        <p style="font-size: 20px; color: #FF8C42; margin-bottom: 30px;">
+            期待为你的宝宝留下最安心的成长记忆
+        </p>
+        
+        <p style="font-style: italic; color: #888;">
+            —— 程序员爸爸
+        </p>
+    </div>
+
+</body>
+</html>

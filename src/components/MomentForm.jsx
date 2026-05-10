@@ -1,10 +1,9 @@
 /**
  * 动态编辑表单组件
- * 重构版本：顶部大图上传 + 中间文本输入 + 底部快捷标签栏
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play, Pause, Navigation, Search, Calendar, Heart, Landmark } from 'lucide-react';
+import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play, Pause, Navigation, Search } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 
 const moodOptions = [
@@ -28,12 +27,12 @@ const formatTime2 = (seconds) => {
 };
 
 export function MomentForm({ moment, onSave, onCancel, babyId }) {
-  const { getAllMilestones, showToast } = useApp();
+  const { getAllMilestones } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
   const [content, setContent] = useState(moment?.content || '');
   const [photos, setPhotos] = useState(moment?.photos || []);
-  const [videos, setVideos] = useState(moment?.videos || []);
-  const [audios, setAudios] = useState(moment?.audios || []);
+  const [videos, setVideos] = useState(moment?.videos || []); // [{url, cover, name, size}]
+  const [audios, setAudios] = useState(moment?.audios || []); // [{url, duration, waveform}]
   const [mood, setMood] = useState(moment?.mood || '');
   const [weather, setWeather] = useState(moment?.weather || '');
   const [location, setLocation] = useState(moment?.location || '');
@@ -49,7 +48,6 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const [saving, setSaving] = useState(false);
   
   const videoRef = useRef(null);
-  const fileInputRef = useRef(null);
   
   // 录音相关状态
   const [isRecording, setIsRecording] = useState(false);
@@ -70,6 +68,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const [isLocating, setIsLocating] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -96,11 +95,14 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     }
   }, [showLocationModal]);
 
+  // 初始化高德地图
   const initMap = useCallback(() => {
+    // 检查高德地图是否已加载
     if (window.AMap) {
       setMapLoaded(true);
       createMap();
     } else {
+      // 等待高德地图加载
       const checkAMap = setInterval(() => {
         if (window.AMap) {
           clearInterval(checkAMap);
@@ -109,6 +111,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         }
       }, 100);
       
+      // 超时处理
       setTimeout(() => {
         clearInterval(checkAMap);
         if (!window.AMap) {
@@ -118,6 +121,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     }
   }, []);
 
+  // 创建地图实例
   const createMap = useCallback(() => {
     if (!window.AMap || mapRef.current) return;
 
@@ -128,12 +132,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       });
 
       mapRef.current = map;
+
+      // 初始化地理编码器
       geocoderRef.current = new window.AMap.Geocoder();
 
+      // 添加点击事件
       map.on('click', (e) => {
         const lngLat = e.lnglat;
-        setLocationCoords({ lat: lngLat.lat, lng: lngLat.lng });
+        setLocationCoords({
+          lat: lngLat.lat,
+          lng: lngLat.lng
+        });
         
+        // 逆地理编码获取地址
         if (geocoderRef.current) {
           geocoderRef.current.getAddress(lngLat, (status, result) => {
             if (status === 'complete') {
@@ -142,9 +153,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
           });
         }
 
+        // 更新标记
         updateMarker(lngLat);
       });
 
+      // 如果已有坐标，添加标记
       if (locationCoords) {
         updateMarker(new window.AMap.LngLat(locationCoords.lng, locationCoords.lat));
       }
@@ -154,13 +167,16 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     }
   }, [locationCoords]);
 
+  // 更新标记
   const updateMarker = useCallback((lngLat) => {
     if (!mapRef.current || !window.AMap) return;
 
+    // 移除旧标记
     if (markerRef.current) {
       mapRef.current.remove(markerRef.current);
     }
 
+    // 添加新标记
     markerRef.current = new window.AMap.Marker({
       position: lngLat,
       icon: new window.AMap.Icon({
@@ -174,6 +190,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     mapRef.current.add(markerRef.current);
   }, []);
 
+  // 搜索地址
   const searchAddress = useCallback(() => {
     if (!searchKeyword.trim() || !window.AMap || !geocoderRef.current) return;
 
@@ -182,18 +199,22 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         const firstResult = result.geocodes[0];
         const locationObj = firstResult.location;
         
-        setLocationCoords({ lat: locationObj.lat, lng: locationObj.lng });
+        setLocationCoords({
+          lat: locationObj.lat,
+          lng: locationObj.lng
+        });
         setLocation(firstResult.formattedAddress);
 
+        // 移动地图
         if (mapRef.current) {
           mapRef.current.setCenter(locationObj);
           updateMarker(locationObj);
         }
       } else {
-        showToast('未找到相关地址', 'error');
+        alert('未找到相关地址');
       }
     });
-  }, [searchKeyword, updateMarker, showToast]);
+  }, [searchKeyword, updateMarker]);
 
   // 开始录音
   const startRecording = async () => {
@@ -201,6 +222,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
+      // 设置音频分析器
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
@@ -208,6 +230,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       source.connect(analyser);
       analyserRef.current = analyser;
       
+      // 开始录音
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -237,119 +260,195 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       setRecordingTime(0);
       setAudioWaveform([]);
       
+      // 开始计时
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          if (prev >= 599) { // 10分钟限制
+            stopRecording();
+            return prev;
+          }
+          return prev + 1;
+        });
       }, 1000);
       
-      // 波形动画
-      const updateWaveform = () => {
-        if (analyserRef.current && isRecording) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const values = Array.from(dataArray.slice(0, 32));
-          setAudioWaveform(prev => {
-            const newWaveform = [...prev, values];
-            if (newWaveform.length > 50) {
-              return newWaveform.slice(-50);
-            }
-            return newWaveform;
-          });
-          animationRef.current = requestAnimationFrame(updateWaveform);
+      // 开始波形采集
+      const captureWaveform = () => {
+        if (!analyserRef.current) return;
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(dataArray);
+        // 采样32个点
+        const sampled = [];
+        for (let i = 0; i < 32; i++) {
+          sampled.push(dataArray[Math.floor(i * dataArray.length / 32)]);
         }
+        setAudioWaveform(prev => [...prev.slice(-200), sampled]); // 保留最近200帧
+        animationRef.current = requestAnimationFrame(captureWaveform);
       };
-      updateWaveform();
+      captureWaveform();
       
     } catch (error) {
-      showToast('无法访问麦克风', 'error');
+      alert('无法访问麦克风，请检查权限设置');
     }
   };
-
+  
   // 停止录音
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    setIsRecording(false);
   };
-
-  // 播放音频
+  
+  // 删除音频
+  const removeAudio = (index) => {
+    setAudios(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  // 播放/暂停音频
   const togglePlayAudio = (index) => {
     if (playingIndex === index) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      audioRef.current?.pause();
       setPlayingIndex(null);
     } else {
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      const audio = new Audio(audios[index].url);
-      audioRef.current = audio;
-      audio.play();
+      audioRef.current = new Audio(audios[index].url);
+      audioRef.current.onended = () => setPlayingIndex(null);
+      audioRef.current.play();
       setPlayingIndex(index);
-      audio.onended = () => setPlayingIndex(null);
     }
   };
 
-  // 删除音频
-  const removeAudio = (index) => {
-    setAudios(prev => prev.filter((_, i) => i !== index));
+  // 获取当前位置（高德地图 + 备用浏览器定位）
+  const getCurrentLocation = async () => {
+    setIsLocating(true);
+
+    // 优先使用高德地图定位
+    if (window.AMap) {
+      try {
+        const geolocation = new window.AMap.Geolocation({
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+
+        geolocation.getCurrentPosition((status, result) => {
+          if (status === 'complete') {
+            const { lat, lng } = result.position;
+            setLocationCoords({ lat, lng });
+            
+            // 逆地理编码获取地址
+            if (geocoderRef.current) {
+              geocoderRef.current.getAddress(new window.AMap.LngLat(lng, lat), (geoStatus, geoResult) => {
+                if (geoStatus === 'complete') {
+                  setLocation(geoResult.regeocode.formattedAddress);
+                } else {
+                  setLocation(`位置: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+                }
+              });
+            }
+          } else {
+            // 高德定位失败，使用浏览器定位
+            useBrowserGeolocation();
+          }
+          setIsLocating(false);
+        });
+      } catch (error) {
+        console.error('高德定位失败:', error);
+        useBrowserGeolocation();
+      }
+    } else {
+      useBrowserGeolocation();
+    }
   };
 
-  // 获取当前位置
+  // 使用浏览器定位（备用方案）
   const useBrowserGeolocation = () => {
     if (!navigator.geolocation) {
-      showToast('浏览器不支持定位', 'error');
+      alert('您的浏览器不支持定位功能');
+      setIsLocating(false);
       return;
     }
-    
-    setIsLocating(true);
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setLocationCoords({ lat: latitude, lng: longitude });
         
-        // 逆地理编码
-        if (window.AMap && geocoderRef.current) {
-          geocoderRef.current.getAddress(new window.AMap.LngLat(longitude, latitude), (status, result) => {
-            if (status === 'complete') {
-              setLocation(result.regeocode.formattedAddress);
+        try {
+          // 使用 Nominatim 逆地理编码
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&accept-language=zh`,
+            {
+              mode: 'cors',
+              headers: { 'User-Agent': 'BabyTimeApp/1.0' }
             }
-          });
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.address) {
+              const addr = data.address;
+              const parts = [];
+              if (addr.province || addr.state) parts.push(addr.province || addr.state);
+              if (addr.city) parts.push(addr.city);
+              if (addr.district || addr.county) parts.push(addr.district || addr.county);
+              if (addr.road) parts.push(addr.road);
+              
+              if (parts.length > 0) {
+                setLocation(parts.slice(0, 4).join(' '));
+              } else {
+                setLocation(data.display_name?.split(',').slice(0, 3).join(',') || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+              }
+            } else {
+              setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+            }
+          } else {
+            setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          }
+        } catch (error) {
+          setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
         }
         
         setIsLocating(false);
-        showToast('定位成功');
       },
       (error) => {
         setIsLocating(false);
-        showToast('定位失败', 'error');
+        let errorMsg = '定位失败';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMsg = '请允许访问位置信息';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMsg = '位置信息不可用';
+            break;
+          case error.TIMEOUT:
+            errorMsg = '定位超时，请重试';
+            break;
+        }
+        alert(errorMsg);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
     );
   };
 
-  // 使用高德地图定位
-  const getCurrentLocation = () => {
-    useBrowserGeolocation();
-  };
-
-  // 处理图片上传
+  // 照片上传处理
   const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(e.target.files);
     files.forEach(file => {
-      if (!file.type.startsWith('image/')) return;
-      
       const reader = new FileReader();
       reader.onload = (event) => {
         setPhotos(prev => [...prev, event.target.result]);
@@ -358,114 +457,115 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     });
   };
 
-  // 处理视频上传
+  // 视频上传 - 生成封面图并存储视频数据
   const handleVideoUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
-      if (!file.type.startsWith('video/')) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // 先将视频文件转为DataURL存储
+    const videoReader = new FileReader();
+    videoReader.onload = (event) => {
+      const videoDataURL = event.target.result;
       
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        // 生成视频封面
-        const video = document.createElement('video');
-        video.src = event.target.result;
-        video.crossOrigin = 'anonymous';
-        video.currentTime = 1;
+      // 创建视频元素读取封面
+      const video = document.createElement('video');
+      video.src = videoDataURL;
+      video.currentTime = 0.5; // 取第0.5秒作为封面
+      video.muted = true;
+      
+      video.onloadeddata = () => {
+        // 创建canvas绘制封面
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
+        const ctx = canvas.getContext('2d');
         
-        video.onloadeddata = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0);
-          const cover = canvas.toDataURL('image/jpeg');
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const coverImage = canvas.toDataURL('image/jpeg', 0.8);
           
+          const videoData = {
+            url: videoDataURL, // 存储实际视频数据
+            cover: coverImage,
+            name: file.name,
+            size: file.size,
+            duration: video.duration
+          };
+          
+          setVideos(prev => [...prev, videoData]);
+        } catch (err) {
+          // 如果生成失败，使用默认占位
           setVideos(prev => [...prev, {
-            url: event.target.result,
-            cover: cover,
+            url: videoDataURL,
+            cover: null,
             name: file.name,
             size: file.size
           }]);
-        };
+        }
       };
-      reader.readAsDataURL(file);
-    });
+      
+      video.onerror = () => {
+        // 即使封面失败，也保存视频
+        setVideos(prev => [...prev, {
+          url: videoDataURL,
+          cover: null,
+          name: file.name,
+          size: file.size
+        }]);
+      };
+    };
+    
+    videoReader.onerror = () => {
+      alert('读取视频文件失败，请重试');
+    };
+    
+    videoReader.readAsDataURL(file);
   };
 
-  // 移除图片
   const removePhoto = (index) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
-
-  // 移除视频
+  
   const removeVideo = (index) => {
     setVideos(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 格式化文件大小
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  // 选择里程碑
-  const handleSelectMilestone = (m) => {
-    if (milestone === m.id) {
-      setMilestone('');
-      setMilestoneLabel('');
-      setMilestoneEmoji('');
-    } else {
-      setMilestone(m.id);
-      setMilestoneLabel(m.label);
-      setMilestoneEmoji(m.emoji);
-    }
-  };
-
-  // 提交表单
   const handleSubmit = async () => {
+    if (!content.trim() && photos.length === 0 && videos.length === 0 && audios.length === 0) {
+      alert('请添加内容、照片、视频或语音');
+      return;
+    }
+    
     if (!babyId) {
-      showToast('请先选择宝宝', 'error');
+      alert('错误：未找到宝宝档案，请返回首页重试');
       return;
     }
     
-    // 验证
-    if (type === 'photo' && photos.length === 0 && videos.length === 0) {
-      showToast('请添加照片或视频', 'error');
-      return;
-    }
-    
-    if (!content.trim()) {
-      showToast('请输入内容', 'error');
-      return;
-    }
+    const momentData = {
+      babyId: babyId,
+      type,
+      date: new Date(date).toISOString(),
+      content: content.trim(),
+      photos: type === 'photo' ? photos : [],
+      videos: type === 'video' ? videos : [],
+      audios: type === 'audio' ? audios : [],
+      mood,
+      weather,
+      location,
+      locationCoords,
+      milestone,
+      milestoneLabel: milestone ? milestoneLabel : '',
+      milestoneEmoji: milestone ? milestoneEmoji : '',
+    };
     
     setSaving(true);
     
     try {
-      const momentData = {
-        id: moment?.id,
-        babyId,
-        type,
-        content: content.trim(),
-        photos,
-        videos,
-        audios,
-        mood,
-        weather,
-        location,
-        locationCoords,
-        milestone,
-        milestoneLabel,
-        milestoneEmoji,
-        date: new Date(date).toISOString(),
-        createdAt: moment?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
-      await onSave(momentData);
+      if (typeof onSave === 'function') {
+        await onSave(momentData);
+      }
     } catch (error) {
-      showToast('保存失败', 'error');
+      alert('保存失败: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -492,342 +592,372 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         </div>
       </div>
       
-      <div className="max-w-lg mx-auto">
-        {/* 顶部大图上传区域 */}
-        <div className="relative">
-          {type === 'photo' && photos.length > 0 ? (
-            <div className="relative aspect-square bg-gray-100">
-              <img 
-                src={photos[0]} 
-                alt="上传的照片" 
-                className="w-full h-full object-cover"
-              />
+      <div className="p-4 pb-24 space-y-4 max-w-lg mx-auto">
+        {/* 类型选择 */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setType('photo')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-colors text-sm ${
+              type === 'photo' 
+                ? 'bg-primary-500 text-white' 
+                : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            <Image className="w-4 h-4" />
+            <span>照片</span>
+          </button>
+          <button
+            onClick={() => setType('video')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-colors text-sm ${
+              type === 'video' 
+                ? 'bg-primary-500 text-white' 
+                : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            <span>视频</span>
+          </button>
+          <button
+            onClick={() => setType('audio')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-colors text-sm ${
+              type === 'audio' 
+                ? 'bg-primary-500 text-white' 
+                : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            <Mic className="w-4 h-4" />
+            <span>语音日记</span>
+          </button>
+          <button
+            onClick={() => setType('diary')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-colors text-sm ${
+              type === 'diary' 
+                ? 'bg-primary-500 text-white' 
+                : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>日记</span>
+          </button>
+        </div>
+        
+        {/* 日期选择 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            记录日期
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
+          />
+        </div>
+        
+        {/* 里程碑 - 使用自定义里程碑列表 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            <Star className="w-4 h-4 inline mr-1" />
+            里程碑标签
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {milestoneOptions.map(option => (
               <button
-                onClick={() => removePhoto(0)}
-                className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-              {photos.length > 1 && (
-                <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/50 rounded-full text-white text-xs">
-                  +{photos.length - 1}
-                </div>
-              )}
-            </div>
-          ) : type === 'video' && videos.length > 0 ? (
-            <div className="relative aspect-square bg-gray-900">
-              {videos[0].cover ? (
-                <img src={videos[0].cover} alt="视频封面" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Video className="w-20 h-20 text-gray-500" />
-                </div>
-              )}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                  <div className="w-0 h-0 border-l-[20px] border-l-gray-800 border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-2" />
-                </div>
-              </div>
-              <button
-                onClick={() => removeVideo(0)}
-                className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          ) : (
-            <label className="block cursor-pointer">
-              <div className="aspect-square bg-gradient-to-br from-primary-100 to-primary-200 dark:from-gray-700 dark:to-gray-800 flex flex-col items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-white/30 flex items-center justify-center mb-4">
-                  {type === 'photo' ? (
-                    <Image className="w-10 h-10 text-primary-500" />
-                  ) : type === 'video' ? (
-                    <Video className="w-10 h-10 text-primary-500" />
-                  ) : type === 'audio' ? (
-                    <Mic className="w-10 h-10 text-primary-500" />
-                  ) : (
-                    <FileText className="w-10 h-10 text-primary-500" />
-                  )}
-                </div>
-                <span className="text-primary-600 dark:text-primary-300 font-medium">
-                  点击上传{type === 'photo' ? '照片' : type === 'video' ? '视频' : '媒体'}
-                </span>
-                <span className="text-primary-400 text-sm mt-1">
-                  建议尺寸 1:1
-                </span>
-              </div>
-              <input
-                type="file"
-                accept={type === 'photo' ? 'image/*' : type === 'video' ? 'video/*' : 'image/*,video/*'}
-                onChange={type === 'photo' ? handlePhotoUpload : handleVideoUpload}
-                className="hidden"
-              />
-            </label>
-          )}
-          
-          {/* 类型切换 */}
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="flex gap-2 bg-white/90 dark:bg-gray-800/90 rounded-xl p-1.5 backdrop-blur-sm">
-              <button
-                onClick={() => setType('photo')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
-                  type === 'photo' 
-                    ? 'bg-primary-500 text-white' 
-                    : 'text-gray-600 dark:text-gray-300'
+                key={option.id}
+                onClick={() => {
+                  if (milestone === option.id) {
+                    setMilestone('');
+                    setMilestoneLabel('');
+                    setMilestoneEmoji('');
+                  } else {
+                    setMilestone(option.id);
+                    setMilestoneLabel(option.label);
+                    setMilestoneEmoji(option.emoji);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  milestone === option.id
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
-                <Image className="w-4 h-4" />
-                <span>照片</span>
+                {option.emoji} {option.label}
               </button>
-              <button
-                onClick={() => setType('video')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
-                  type === 'video' 
-                    ? 'bg-primary-500 text-white' 
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
-              >
-                <Video className="w-4 h-4" />
-                <span>视频</span>
-              </button>
-              <button
-                onClick={() => setType('audio')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
-                  type === 'audio' 
-                    ? 'bg-primary-500 text-white' 
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
-              >
-                <Mic className="w-4 h-4" />
-                <span>语音</span>
-              </button>
-              <button
-                onClick={() => setType('diary')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
-                  type === 'diary' 
-                    ? 'bg-primary-500 text-white' 
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>日记</span>
-              </button>
-            </div>
+            ))}
           </div>
         </div>
         
-        {/* 中间大文本输入框 */}
-        <div className="p-4">
+        {/* 照片上传 */}
+        {type === 'photo' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              照片
+            </label>
+            
+            {/* 提示 */}
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                  当前为本地模拟上传，媒体文件仅本地存储
+                </p>
+              </div>
+            </div>
+            
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-cream-100 dark:bg-gray-700">
+                    <img src={photo} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <label className="block">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center cursor-pointer hover:border-primary-400 transition-colors">
+                <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">添加照片</p>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+        )}
+        
+        {/* 视频上传 */}
+        {type === 'video' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              视频
+            </label>
+            
+            {/* 提示 */}
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                  当前为本地模拟上传，媒体文件仅本地存储
+                </p>
+              </div>
+            </div>
+            
+            {videos.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {videos.map((video, index) => (
+                  <div key={index} className="relative aspect-video rounded-xl overflow-hidden bg-gray-800">
+                    {video.cover ? (
+                      <img src={video.cover} alt="视频封面" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-700">
+                        <Video className="w-12 h-12 text-gray-500" />
+                      </div>
+                    )}
+                    {/* 播放按钮覆盖 */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="w-0 h-0 border-l-[16px] border-l-gray-800 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent ml-1" />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeVideo(index)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <label className="block">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center cursor-pointer hover:border-primary-400 transition-colors">
+                <Video className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">添加视频</p>
+              </div>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+        )}
+        
+        {/* 语音日记 */}
+        {type === 'audio' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              <Mic className="w-4 h-4 inline mr-1" />
+              语音日记
+            </label>
+            
+            {audios.length > 0 && (
+              <div className="space-y-3 mb-3">
+                {audios.map((audio, index) => (
+                  <div key={index} className="bg-cream-100 dark:bg-gray-700 rounded-xl p-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => togglePlayAudio(index)}
+                        className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white"
+                      >
+                        {playingIndex === index ? (
+                          <Square className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4 ml-0.5" />
+                        )}
+                      </button>
+                      <div className="flex-1">
+                        <div className="h-8 bg-primary-200 dark:bg-primary-700 rounded-full overflow-hidden flex items-end px-1">
+                          {(audio.waveform || []).slice(-1)[0]?.map((val, i) => (
+                            <div
+                              key={i}
+                              className="w-1 bg-primary-500 mx-px rounded-full"
+                              style={{ height: `${Math.max(4, val / 4)}%` }}
+                            />
+                          )) || <div className="flex-1" />}
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-500">{formatTime2(audio.duration)}</span>
+                      <button
+                        onClick={() => removeAudio(index)}
+                        className="p-2 text-gray-400 hover:text-red-500"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors ${
+                isRecording
+                  ? 'bg-red-500 text-white'
+                  : 'bg-primary-500 text-white hover:bg-primary-600'
+              }`}
+            >
+              {isRecording ? (
+                <>
+                  <Square className="w-5 h-5" />
+                  <span>停止录音 ({formatTime2(recordingTime)})</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-5 h-5" />
+                  <span>开始录音</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+        
+        {/* 内容输入 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            {type === 'photo' ? '说说感想' : type === 'video' ? '视频描述' : type === 'audio' ? '语音备注' : '日记内容'}
+          </label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="记录这一刻的感受..."
-            rows={5}
-            className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 resize-none text-gray-700 dark:text-gray-200 text-base"
+            rows={4}
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 resize-none"
           />
         </div>
         
-        {/* 底部快捷标签栏 */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-cream-200 dark:border-gray-700 safe-bottom">
-          <div className="max-w-lg mx-auto p-4">
-            {/* 心情选择 */}
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Heart className="w-4 h-4 text-pink-500" />
-                <span className="text-sm text-gray-500 dark:text-gray-400">心情</span>
-              </div>
-              <div className="flex gap-2">
-                {moodOptions.map(option => (
-                  <button
-                    key={option.value}
-                    onClick={() => setMood(mood === option.value ? '' : option.value)}
-                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                      mood === option.value
-                        ? 'bg-pink-500 text-white'
-                        : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    {option.emoji} {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* 里程碑选择 */}
-            {milestoneOptions.length > 0 && (
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">里程碑</span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {milestoneOptions.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => handleSelectMilestone(m)}
-                      className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                        milestone === m.id
-                          ? 'bg-yellow-500 text-white'
-                          : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                      }`}
-                    >
-                      {m.emoji} {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* 定位和日期 */}
-            <div className="flex gap-3 mb-3">
-              {/* 位置 */}
+        {/* 心情 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            心情
+          </label>
+          <div className="flex gap-2">
+            {moodOptions.map(option => (
               <button
-                onClick={() => setShowLocationModal(true)}
-                className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                  location
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                key={option.value}
+                onClick={() => setMood(mood === option.value ? '' : option.value)}
+                className={`px-3 py-2 rounded-xl text-sm transition-colors ${
+                  mood === option.value
+                    ? 'bg-primary-500 text-white'
                     : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm truncate flex-1 text-left">
-                  {location || '添加位置'}
-                </span>
+                {option.emoji} {option.label}
               </button>
-              
-              {/* 日期 */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-cream-100 dark:bg-gray-700 rounded-xl">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="bg-transparent text-sm text-gray-600 dark:text-gray-300"
-                />
-              </div>
-            </div>
-            
-            {/* 附加媒体区域 */}
-            {type === 'photo' && photos.length > 0 && (
-              <div className="mb-3">
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-gray-100">
-                      <img src={photo} alt="" className="w-full h-full object-cover" />
-                      <button
-                        onClick={() => removePhoto(index)}
-                        className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center"
-                      >
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                    </div>
-                  ))}
-                  <label className="flex-shrink-0 w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer">
-                    <Image className="w-6 h-6 text-gray-400" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-            
-            {type === 'video' && videos.length > 0 && (
-              <div className="mb-3">
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {videos.map((video, index) => (
-                    <div key={index} className="relative flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden bg-gray-800">
-                      {video.cover ? (
-                        <img src={video.cover} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Video className="w-6 h-6 text-gray-400" />
-                        </div>
-                      )}
-                      <button
-                        onClick={() => removeVideo(index)}
-                        className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center"
-                      >
-                        <X className="w-3 h-3 text-white" />
-                      </button>
-                    </div>
-                  ))}
-                  <label className="flex-shrink-0 w-24 h-16 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer">
-                    <Video className="w-6 h-6 text-gray-400" />
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-            
-            {/* 语音日记 */}
-            {type === 'audio' && (
-              <div className="mb-3">
-                {audios.length > 0 && (
-                  <div className="space-y-2 mb-3">
-                    {audios.map((audio, index) => (
-                      <div key={index} className="flex items-center gap-3 bg-cream-100 dark:bg-gray-700 rounded-xl p-3">
-                        <button
-                          onClick={() => togglePlayAudio(index)}
-                          className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white"
-                        >
-                          {playingIndex === index ? (
-                            <Square className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4 ml-0.5" />
-                          )}
-                        </button>
-                        <div className="flex-1">
-                          <div className="h-6 bg-primary-200 dark:bg-primary-700 rounded-full overflow-hidden flex items-end px-0.5">
-                            {(audio.waveform || []).slice(-1)[0]?.map((val, i) => (
-                              <div
-                                key={i}
-                                className="w-1 bg-primary-500 mx-px rounded-full"
-                                style={{ height: `${Math.max(4, val / 4)}%` }}
-                              />
-                            )) || <div className="flex-1" />}
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-500">{formatTime2(audio.duration)}</span>
-                        <button onClick={() => removeAudio(index)} className="p-1 text-gray-400 hover:text-red-500">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                <button
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors ${
-                    isRecording
-                      ? 'bg-red-500 text-white'
-                      : 'bg-primary-500 text-white hover:bg-primary-600'
-                  }`}
-                >
-                  {isRecording ? (
-                    <>
-                      <Square className="w-5 h-5" />
-                      <span>停止录音 ({formatTime2(recordingTime)})</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-5 h-5" />
-                      <span>开始录音</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+            ))}
           </div>
+        </div>
+        
+        {/* 天气 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            天气
+          </label>
+          <div className="flex gap-2">
+            {weatherOptions.map(option => (
+              <button
+                key={option.value}
+                onClick={() => setWeather(weather === option.value ? '' : option.value)}
+                className={`px-3 py-2 rounded-xl text-sm transition-colors ${
+                  weather === option.value
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                {option.emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 位置 - 新版高德地图定位 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+            <MapPin className="w-4 h-4 inline mr-1" />
+            位置
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center bg-cream-100 dark:bg-gray-700 rounded-xl px-3 py-2">
+              <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+              <span className={`text-sm flex-1 truncate ${location ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400'}`}>
+                {location || '添加位置（可选）'}
+              </span>
+            </div>
+            <button
+              onClick={getCurrentLocation}
+              disabled={isLocating}
+              className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white hover:bg-primary-600 disabled:opacity-50"
+            >
+              {isLocating ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Navigation className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+          
+          {/* 手动选择位置按钮 */}
+          <button
+            onClick={() => setShowLocationModal(true)}
+            className="mt-2 w-full text-sm text-primary-500 hover:text-primary-600 flex items-center justify-center gap-1"
+          >
+            <Search className="w-4 h-4" />
+            地图选点 / 搜索地址
+          </button>
         </div>
       </div>
       

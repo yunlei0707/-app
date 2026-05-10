@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>宝贝时光 - 真正属于你的成长相册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .slider-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .page {
+            width: 100%;
+            height: 100%;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 30px;
+            position: relative;
+            overflow-y: auto;
+        }
+        
+        /* 背景样式 */
+        .page-1 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
+        }
+        
+        .page-2 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #1A1A2E 50%, #2D2D44 100%);
+        }
+        
+        .page-3 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #2D1B1B 50%, #1A1A2E 100%);
+        }
+        
+        .page-4 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #1E3A5F 50%, #1A1A2E 100%);
+        }
+        
+        .page-5 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #2D2D44 50%, #1A1A2E 100%);
+        }
+        
+        .page-6 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #2E2D44 50%, #1A1A2E 100%);
+        }
+        
+        .page-7 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #1A1A2E 50%, #2D2D44 100%);
+        }
+        
+        .page-8 {
+            background: linear-gradient(135deg, #1A1A2E 0%, #FF6B35 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 10s ease infinite;
+        }
+        
+        @keyframes gradientMove {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            color: #FDF5E6;
+            text-align: center;
+            line-height: 1.3;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FDF5E6;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            color: rgba(253, 245, 230, 0.8);
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        
+        .highlight {
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #FF6B35, #FF8C5A);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 30px rgba(255, 107, 53, 0.4);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(255, 107, 53, 0.5);
+        }
+        
+        .btn-white {
+            background: white;
+            color: #FF6B35;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 页码指示器 */
+        .pagination {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(253, 245, 230, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .dot.active {
+            background: #FF6B35;
+            width: 24px;
+            border-radius: 4px;
+        }
+        
+        /* 滑动提示 */
+        .swipe-hint {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(253, 245, 230, 0.6);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .swipe-hint::before {
+            content: '←';
+            animation: swipeLeft 1.5s ease-in-out infinite;
+        }
+        
+        .swipe-hint::after {
+            content: '→';
+            animation: swipeRight 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes swipeLeft {
+            0%, 100% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(-5px); opacity: 1; }
+        }
+        
+        @keyframes swipeRight {
+            0%, 100% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(5px); opacity: 1; }
+        }
+        
+        /* 第2页 - 我是谁 */
+        .avatar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B35, #FF8C5A);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 107, 53, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 107, 53, 0.7); }
+        }
+        
+        .intro-list {
+            list-style: none;
+            color: #FDF5E6;
+            font-size: 16px;
+            line-height: 2.2;
+        }
+        
+        .intro-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .intro-list li::before {
+            content: '✓';
+            color: #FF6B35;
+            font-weight: bold;
+        }
+        
+        /* 第3页 - 新闻事件 */
+        .news-box {
+            background: rgba(255, 60, 60, 0.15);
+            border: 2px solid #FF3C3C;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            max-width: 100%;
+        }
+        
+        .news-title {
+            color: #FF6B6B;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .news-content {
+            color: #FDF5E6;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: center;
+        }
+        
+        .source {
+            color: rgba(253, 245, 230, 0.5);
+            font-size: 12px;
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .reaction-text {
+            color: #FDF5E6;
+            font-size: 18px;
+            text-align: center;
+            line-height: 1.8;
+            margin-top: 20px;
+        }
+        
+        /* 第4页 - 三列选项 */
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 350px;
+        }
+        
+        .option-item {
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .option-red {
+            background: rgba(255, 60, 60, 0.2);
+            color: #FF6B6B;
+            border: 1px solid rgba(255, 60, 60, 0.3);
+        }
+        
+        .option-green {
+            background: rgba(76, 175, 80, 0.2);
+            color: #81C784;
+            border: 2px solid #4CAF50;
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(76, 175, 80, 0.5); }
+        }
+        
+        .solution-text {
+            color: #FF6B35;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        /* 第5页 - 功能网格 */
+        .promise-box {
+            background: rgba(255, 107, 53, 0.15);
+            border: 2px solid #FF6B35;
+            border-radius: 12px;
+            padding: 15px 25px;
+            color: #FF6B35;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            max-width: 350px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-3px);
+        }
+        
+        .feature-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .feature-name {
+            color: #FDF5E6;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* 第6页 - 独家功能卡片流 */
+        .exclusive-title {
+            color: #FF6B35;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 350px;
+        }
+        
+        .exclusive-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .card-icon {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+        }
+        
+        .card-content {
+            flex: 1;
+        }
+        
+        .card-title {
+            color: #FDF5E6;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+        
+        .card-desc {
+            color: rgba(253, 245, 230, 0.6);
+            font-size: 12px;
+        }
+        
+        /* 第7页 - 对比表格 */
+        .tco-title {
+            color: #FDF5E6;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .compare-table {
+            width: 100%;
+            max-width: 360px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 12px;
+        }
+        
+        .compare-table th,
+        .compare-table td {
+            padding: 10px 6px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .compare-table th {
+            background: rgba(0, 0, 0, 0.3);
+            color: #FDF5E6;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        
+        .compare-table .product-col {
+            background: rgba(255, 107, 53, 0.2);
+            color: #FF6B35;
+            font-weight: 700;
+        }
+        
+        .compare-table tr.highlight-row td {
+            background: rgba(255, 107, 53, 0.15);
+        }
+        
+        .compare-table .check {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .compare-table .cross {
+            color: #FF6B6B;
+        }
+        
+        .compare-table .warning {
+            color: #FFB74D;
+        }
+        
+        .bottom-line {
+            color: #FDF5E6;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 25px;
+            line-height: 1.6;
+        }
+        
+        /* 第8页 - 转化页 */
+        .page-8 h1 {
+            color: white;
+        }
+        
+        .benefits-list {
+            list-style: none;
+            color: white;
+            font-size: 16px;
+            line-height: 2.5;
+            margin-bottom: 30px;
+        }
+        
+        .benefits-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .benefits-list li::before {
+            content: '✅';
+        }
+        
+        .disclaimer {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .qr-placeholder {
+            width: 120px;
+            height: 120px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1A1A2E;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .wechat-id {
+            color: white;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        /* 浮动粒子效果 */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 107, 53, 0.3);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 26px;
+            }
+            
+            .page {
+                padding: 30px 20px;
+            }
+            
+            .compare-table {
+                font-size: 10px;
+            }
+            
+            .compare-table th,
+            .compare-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slider-container" id="slider">
+        <!-- 第1页：封面 -->
+        <div class="page page-1">
+            <div class="particles" id="particles1"></div>
+            <h1>2024年11月，<br>我连夜删掉了<br><span class="highlight">孩子2万张照片</span></h1>
+            <p class="subtitle">一个程序员爸爸的<br>"私有成长相册"自救方案</p>
+            <button class="btn" onclick="nextPage()">👇 看看我是怎么做的</button>
+        </div>
+        
+        <!-- 第2页：我是谁 -->
+        <div class="page page-2">
+            <div class="particles" id="particles2"></div>
+            <h2>你好，我是程序员爸爸</h2>
+            <div class="avatar-container">
+                <div class="avatar">👨‍💻</div>
+                <ul class="intro-list">
+                    <li>前大厂 资深工程师</li>
+                    <li>1岁半女宝的爸爸</li>
+                    <li>业余独立开发者</li>
+                    <li>3个月，只为给自己孩子做一个安心的相册</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 第3页：发生了什么 -->
+        <div class="page page-3">
+            <div class="particles" id="particles3"></div>
+            <h2>2024年11月，<br><span class="highlight">母婴圈炸了</span></h2>
+            <div class="news-box">
+                <div class="news-title">⚠️ 数据泄露事件</div>
+                <div class="news-content">
+                    数百万家庭的孩子照片、视频、出生信息……被曝存在泄露风险。<br><br>
+                    你的孩子照片可能在你看不到的地方被传播、被滥用。
+                </div>
+                <div class="source">资料来源：中国新闻网、北京日报2024年11月报道</div>
+            </div>
+            <p class="reaction-text">
+                我当时的反应：<br>
+                <span class="highlight">连夜把自己孩子2万多张照片<br>从云端删了个干净。</span>
+            </p>
+        </div>
+        
+        <!-- 第4页：怎么办 -->
+        <div class="page page-4">
+            <div class="particles" id="particles4"></div>
+            <h2>删完了，然后呢？</h2>
+            <div class="options-container">
+                <div class="option-item option-red">
+                    ❌ 继续用云相册？——不放心
+                </div>
+                <div class="option-item option-red">
+                    ❌ 不记录了？——舍不得
+                </div>
+                <div class="option-item option-green">
+                    ✅ 自己动手做一个？——干！
+                </div>
+            </div>
+            <p class="solution-text">
+                于是，「宝贝时光」诞生了。</p>
+        </div>
+        
+        <!-- 第5页：产品展示 -->
+        <div class="page page-5">
+            <div class="particles" id="particles5"></div>
+            <h2>宝贝时光<br><span class="highlight">真正属于你的成长相册</span></h2>
+            <div class="promise-box">
+                🔒 数据100%存在你家，不上传任何云端
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📸</div>
+                    <div class="feature-name">照片视频</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏠</div>
+                    <div class="feature-name">本地部署</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👨‍👩‍👧</div>
+                    <div class="feature-name">家庭共享</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-name">高定DIY</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-name">AI智能分类</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <div class="feature-name">一键导出</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔮</div>
+                    <div class="feature-name">月龄神预言</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎁</div>
+                    <div class="feature-name">时光盲盒</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第6页：独家功能 -->
+        <div class="page page-6">
+            <div class="particles" id="particles6"></div>
+            <p class="exclusive-title">✨ 差异化壁垒</p>
+            <h2>6个云相册<br><span class="highlight">永远做不出来的功能</span></h2>
+            <div class="cards-container">
+                <div class="exclusive-card">
+                    <div class="card-icon">🔮</div>
+                    <div class="card-content">
+                        <div class="card-title">月龄神预言</div>
+                        <div class="card-desc">根据出生月份，每月生成专属性格预测</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="card-icon">🎁</div>
+                    <div class="card-content">
+                        <div class="card-title">时光盲盒</div>
+                        <div class="card-desc">随机回溯过去的美好瞬间，每次都是惊喜</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="card-icon">📈</div>
+                    <div class="card-content">
+                        <div class="card-title">心情曲线</div>
+                        <div class="card-desc">可视化追踪宝宝情绪变化，发现规律</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="card-icon">🎬</div>
+                    <div class="card-content">
+                        <div class="card-title">名场面集锦</div>
+                        <div class="card-desc">自动提取成长高光时刻</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="card-icon">✉️</div>
+                    <div class="card-content">
+                        <div class="card-title">来自宝宝的信封</div>
+                        <div class="card-desc">AI以宝宝口吻写信给爸妈（泪点功能）</div>
+                    </div>
+                </div>
+                <div class="exclusive-card">
+                    <div class="card-icon">💌</div>
+                    <div class="card-content">
+                        <div class="card-title">给宝宝的信</div>
+                        <div class="card-desc">写给未来的信，时光邮差般的浪漫</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 第7页：TCO对比 -->
+        <div class="page page-7">
+            <div class="particles" id="particles7"></div>
+            <h2>5年，你要为孩子的照片<br><span class="highlight">花多少钱？</span></h2>
+            <p class="tco-title">总拥有成本（TCO）对比</p>
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>对比项</th>
+                        <th class="product-col">宝贝时光</th>
+                        <th>某育儿APP</th>
+                        <th>某光小屋</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="highlight-row">
+                        <td><strong>5年总花费</strong></td>
+                        <td class="product-col"><strong>¥599</strong></td>
+                        <td>~¥1490</td>
+                        <td>~¥940</td>
+                    </tr>
+                    <tr>
+                        <td>数据存储</td>
+                        <td class="product-col">你家（本地）</td>
+                        <td>云端</td>
+                        <td>云端</td>
+                    </tr>
+                    <tr>
+                        <td>隐私泄露风险</td>
+                        <td class="product-col"><span class="check">无</span></td>
+                        <td><span class="warning">2024已发生</span></td>
+                        <td><span class="warning">2024已发生</span></td>
+                    </tr>
+                    <tr>
+                        <td>功能永久使用</td>
+                        <td class="product-col"><span class="check">✅</span></td>
+                        <td><span class="cross">❌</span></td>
+                        <td><span class="cross">❌</span></td>
+                    </tr>
+                    <tr>
+                        <td>6大独家功能</td>
+                        <td class="product-col"><span class="check">✅</span></td>
+                        <td><span class="cross">❌</span></td>
+                        <td><span class="cross">❌</span></td>
+                    </tr>
+                    <tr>
+                        <td>数据完全掌控</td>
+                        <td class="product-col"><span class="check">✅</span></td>
+                        <td><span class="cross">❌</span></td>
+                        <td><span class="cross">❌</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="bottom-line">
+                花<span class="highlight">599</span>，买的是孩子<span class="highlight">18年</span>的<br>照片安全和数据主权。
+            </p>
+        </div>
+        
+        <!-- 第8页：转化 -->
+        <div class="page page-8">
+            <h1>小范围试点<br>仅限<span class="highlight">15个家庭</span></h1>
+            <ul class="benefits-list">
+                <li>免费试用15天（无需付款）</li>
+                <li>试用满意再付费，不满意数据可导出</li>
+                <li>前8名送¥299高阶DIY模板包</li>
+            </ul>
+            <button class="btn btn-white" onclick="window.location.href='#'">
+                👉 立即申请试用
+            </button>
+            <p class="disclaimer">试用后不满意无任何费用，数据全部归你</p>
+            <div class="qr-placeholder">微信二维码<br>占位</div>
+            <p class="wechat-id">微信号：your-wechat-id</p>
+        </div>
+    </div>
+    
+    <!-- 页码指示器 -->
+    <div class="pagination" id="pagination">
+        <div class="dot active"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+    
+    <!-- 滑动提示 -->
+    <div class="swipe-hint">左右滑动</div>
+
+    <script>
+        let currentPage = 0;
+        const totalPages = 8;
+        const slider = document.getElementById('slider');
+        const dots = document.querySelectorAll('.dot');
+        
+        let startX = 0;
+        let endX = 0;
+        let isDragging = false;
+        
+        // 更新页码指示器
+        function updatePagination() {
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentPage);
+            });
+        }
+        
+        // 滑动到指定页
+        function goToPage(page) {
+            if (page < 0 || page >= totalPages) return;
+            currentPage = page;
+            slider.style.transform = `translateX(-${currentPage * 100}%)`;
+            updatePagination();
+        }
+        
+        function nextPage() {
+            goToPage(currentPage + 1);
+        }
+        
+        function prevPage() {
+            goToPage(currentPage - 1);
+        }
+        
+        // 触摸事件
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            endX = e.touches[0].clientX;
+        });
+        
+        document.addEventListener('touchend', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const diff = startX - endX;
+            const threshold = 50;
+            
+            if (Math.abs(diff) > threshold) {
+                if (diff > 0) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        });
+        
+        // 鼠标事件（桌面端）
+        document.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            isDragging = true;
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            endX = e.clientX;
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const diff = startX - endX;
+            const threshold = 50;
+            
+            if (Math.abs(diff) > threshold) {
+                if (diff > 0) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        });
+        
+        // 防止图片懒加载
+        document.addEventListener('dragstart', (e) => e.preventDefault());
+        
+        // 生成粒子效果
+        function createParticles(containerId) {
+            const container = document.getElementById(containerId);
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+        
+        // 初始化所有页面的粒子
+        for (let i = 1; i <= 8; i++) {
+            createParticles('particles' + i);
+        }
+        
+        // 键盘导航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextPage();
+            if (e.key === 'ArrowLeft') prevPage();
+        });
+    </script>
+</body>
+</html>

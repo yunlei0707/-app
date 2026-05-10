@@ -4,7 +4,7 @@
 
 import { useMemo, useState, useRef, useCallback } from 'react';
 import { useApp } from '../store/AppContext';
-// UserAvatar 已移除
+import { UserAvatar } from '../components/UserAvatar';
 import { calculateAge } from '../utils/dateUtils';
 import { getMomentsByBaby, getCapsulesByBaby } from '../utils/db';
 import { Gift, TrendingUp, Camera, Calendar, Star } from 'lucide-react';
@@ -182,19 +182,9 @@ export function StatsPage({ onOpenCapsules, onStatClick }) {
       {/* 头部 */}
       <header className="bg-gradient-to-b from-primary-400 to-primary-500 text-white safe-top">
         <div className="px-4 pt-4 pb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg overflow-hidden">
-              {currentUser?.avatar ? (
-                currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
-                  <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{currentUser.avatar}</span>
-                )
-              ) : (
-                <span>👶</span>
-              )}
-            </div>
-            <h1 className="text-xl font-bold">宝贝时光</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold">📊 成长数据</h1>
+            <UserAvatar />
           </div>
           
           {/* 年龄卡片 */}

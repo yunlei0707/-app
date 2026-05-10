@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝贝时光 - 安装指引</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background-color: #FDF5E6;
+            color: #333333;
+            line-height: 1.8;
+            padding: 20px;
+        }
+        
+        .page {
+            max-width: 600px;
+            margin: 0 auto 40px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(255, 140, 66, 0.15);
+            page-break-after: always;
+        }
+        
+        /* 标题页 */
+        .title-page {
+            text-align: center;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, #FF8C42 0%, #FFB347 100%);
+            color: white;
+        }
+        
+        .title-page h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .title-page .subtitle {
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+        
+        .title-page .link-box {
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 30px 0;
+            font-size: 16px;
+        }
+        
+        .title-page .contact {
+            margin-top: 50px;
+            font-size: 15px;
+        }
+        
+        .title-page .signature {
+            margin-top: 20px;
+            font-style: italic;
+        }
+        
+        /* 章节页面 */
+        .section-page h2 {
+            color: #FF8C42;
+            font-size: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .section-page h3 {
+            color: #FF8C42;
+            font-size: 18px;
+            margin: 20px 0 15px;
+        }
+        
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: #FF8C42;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .instructions {
+            margin: 20px 0;
+        }
+        
+        .instructions ol, .instructions ul {
+            padding-left: 25px;
+        }
+        
+        .instructions li {
+            margin: 10px 0;
+        }
+        
+        .important-box {
+            background: #FFF5F5;
+            border: 2px solid #FF6B6B;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .important-box h4 {
+            color: #FF4444;
+            margin-bottom: 10px;
+        }
+        
+        .tip-box {
+            background: #F0FFF4;
+            border-left: 4px solid #48BB78;
+            border-radius: 0 8px 8px 0;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .tip-box h4 {
+            color: #2F855A;
+            margin-bottom: 8px;
+        }
+        
+        /* 表格样式 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .info-table th, .info-table td {
+            border: 1px solid #FFE4CC;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .info-table th {
+            background: #FF8C42;
+            color: white;
+            text-align: center;
+        }
+        
+        .info-table tr:nth-child(even) {
+            background: #FFF8F0;
+        }
+        
+        .info-table td:first-child {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        /* 功能卡片 */
+        .feature-grid {
+            display: grid;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%);
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid #FF8C42;
+        }
+        
+        .feature-card h4 {
+            color: #FF8C42;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 检查清单 */
+        .checklist {
+            margin: 20px 0;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        
+        .checklist-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #FF8C42;
+        }
+        
+        /* 最后一页 */
+        .final-page {
+            text-align: center;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, #FFF8F0 0%, #FDF5E6 100%);
+        }
+        
+        .final-page .heart {
+            font-size: 60px;
+            margin: 30px 0;
+        }
+        
+        .final-page h2 {
+            color: #FF8C42;
+            margin-bottom: 30px;
+        }
+        
+        /* 打印样式 */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 标题页 -->
+    <div class="page title-page">
+        <div style="font-size: 80px; margin-bottom: 30px;">🚀</div>
+        <h1>宝贝时光安装指引</h1>
+        <p class="subtitle">懒人版 & DIY版 双路径安装指南</p>
+        <div class="link-box">
+            🔗 无论选择哪个版本，最终你都会获得可用的网站 + APP，并拥有全部管理权限
+        </div>
+        <div class="contact">
+            <p>有问题随时问我，微信：XXX（2小时内必回）</p>
+        </div>
+        <p class="signature">—— 程序员爸爸</p>
+    </div>
+
+    <!-- 第一章：版本对比速查 -->
+    <div class="page section-page">
+        <h2><span class="section-icon">1</span> 版本对比速查</h2>
+        
+        <table class="info-table">
+            <tr>
+                <th>版本</th>
+                <th>适用情况</th>
+                <th>你需要做什么</th>
+                <th>我做什么</th>
+            </tr>
+            <tr>
+                <td>懒人版</td>
+                <td>你愿意授权我登录你的 GitHub / Vercel 账户，由我完成部署</td>
+                <td>注册账户、提供授权、修改密码</td>
+                <td>完成部署、转APP、交付</td>
+            </tr>
+            <tr>
+                <td>DIY版</td>
+                <td>你不愿意共享账户信息，自行完成安装</td>
+                <td>全程自行操作</td>
+                <td>提供人工客服支持</td>
+            </tr>
+        </table>
+        
+        <div class="tip-box">
+            <h4>💡 说明</h4>
+            <p>无论选择哪个版本，最终你都会获得可用的网站 + APP，并拥有全部管理权限。</p>
+        </div>
+    </div>
+
+    <!-- 第二章：懒人版安装指引 - 准备工作 -->
+    <div class="page section-page">
+        <h2><span class="section-icon">2</span> 懒人版安装指引</h2>
+        
+        <h3>📋 准备工作</h3>
+        <p>你需要提前注册以下账户（免费）：</p>
+        
+        <table class="info-table">
+            <tr>
+                <th>平台</th>
+                <th>用途</th>
+                <th>注册链接</th>
+            </tr>
+            <tr>
+                <td>GitHub</td>
+                <td>存放网站源文件</td>
+                <td>https://github.com</td>
+            </tr>
+            <tr>
+                <td>Vercel</td>
+                <td>网站托管和部署</td>
+                <td>https://vercel.com</td>
+            </tr>
+            <tr>
+                <td>一门APP（可选）</td>
+                <td>将网页打包成APP</td>
+                <td>由我后续引导</td>
+            </tr>
+        </table>
+        
+        <p style="margin-top: 15px;"><strong>如果你已有以上账户，无需重复注册。</strong></p>
+    </div>
+
+    <!-- 懒人版 - 工作流1 -->
+    <div class="page section-page">
+        <h3>🛠️ 工作流1：由我提供域名（推荐新手）</h3>
+        
+        <table class="info-table">
+            <tr>
+                <th>步骤</th>
+                <th>操作人</th>
+                <th>操作内容</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>我</td>
+                <td>提供网站源文件 + 子域名（如 你的项目名.我的域名.com）</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>你</td>
+                <td>注册 GitHub 并告知我用户名</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>你</td>
+                <td>注册 Vercel 并告知我用户名</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>你</td>
+                <td>授权我登录（详见下方授权说明）</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>我</td>
+                <td>登录你的 GitHub 上传源文件、配置 Vercel 自动部署</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>我</td>
+                <td>部署成功后，登录一门APP将网页打包成APK/IPA</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>我</td>
+                <td>将以下内容交付给你：网站访问地址、APP安装包文件、后台管理账号密码（如需）</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>你</td>
+                <td>立即修改所有密码（详见下方密码修改清单）</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td>你</td>
+                <td>安装APP → 正常使用 ✅</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 懒人版 - 工作流2 -->
+    <div class="page section-page">
+        <h3>🛠️ 工作流2：由你提供域名（推荐有品牌需求的用户）</h3>
+        
+        <table class="info-table">
+            <tr>
+                <th>步骤</th>
+                <th>操作人</th>
+                <th>操作内容</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>我</td>
+                <td>提供网站源文件</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>你</td>
+                <td>在 Namesilo 购买自己的域名（推荐）或其他域名注册商</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>你</td>
+                <td>注册 GitHub 并告知我用户名</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>你</td>
+                <td>注册 Vercel 并告知我用户名</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>你</td>
+                <td>授权我登录（详见下方授权说明）</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>我</td>
+                <td>登录你的 GitHub 上传源文件、配置 Vercel 关联你的域名</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>我</td>
+                <td>部署成功后，登录一门APP将网页打包成APK/IPA</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>我</td>
+                <td>交付：网站地址 + APP文件 + 管理密码</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td>你</td>
+                <td>立即修改所有密码</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>你</td>
+                <td>正常使用 ✅</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 懒人版 - 授权说明 -->
+    <div class="page section-page">
+        <h3>🔑 授权说明（懒人版）</h3>
+        
+        <div class="tip-box">
+            <p><strong>部署完成后你随时可以收回授权。</strong></p>
+        </div>
+        
+        <div class="feature-card">
+            <h4>方式一（推荐）：使用 GitHub 的邀请协作功能</h4>
+            <ul>
+                <li>你登录 GitHub → 进入你的仓库 → Settings → Collaborators</li>
+                <li>添加我的 GitHub 用户名（我会单独发给你）</li>
+                <li>我收到邀请后点击接受即可</li>
+            </ul>
+        </div>
+        
+        <div class="feature-card" style="margin-top: 15px;">
+            <h4>方式二：临时提供密码（部署后立即修改）</h4>
+            <ul>
+                <li>你将自己的 GitHub / Vercel 登录密码临时告诉我</li>
+                <li>我完成部署后，你立即登录修改密码</li>
+                <li>建议同时开启两步验证（2FA）增强安全性</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 懒人版 - 密码修改清单 -->
+    <div class="page section-page">
+        <h3>🔐 密码修改清单</h3>
+        
+        <table class="info-table">
+            <tr>
+                <th>平台/账户</th>
+                <th>修改方式</th>
+                <th>建议动作</th>
+            </tr>
+            <tr>
+                <td>GitHub 密码</td>
+                <td>设置 → Account security → Change password</td>
+                <td>✅ 立即修改</td>
+            </tr>
+            <tr>
+                <td>Vercel 密码</td>
+                <td>Account Settings → Password</td>
+                <td>✅ 立即修改</td>
+            </tr>
+            <tr>
+                <td>GitHub 协作权限</td>
+                <td>Settings → Collaborators → 移除我</td>
+                <td>✅ 可选（推荐收回）</td>
+            </tr>
+            <tr>
+                <td>网站后台密码</td>
+                <td>登录网站后台自行修改</td>
+                <td>✅ 立即修改</td>
+            </tr>
+            <tr>
+                <td>域名管理密码</td>
+                <td>Namesilo / 域名商账户</td>
+                <td>✅ 建议修改</td>
+            </tr>
+            <tr>
+                <td>一门APP账户密码</td>
+                <td>个人中心 → 修改密码</td>
+                <td>✅ 可选</td>
+            </tr>
+        </table>
+        
+        <div class="important-box">
+            <h4>🤝 我的承诺</h4>
+            <p>部署完成后我不会以任何形式保留或访问你的账户信息。如果你发现任何异常，可随时联系我。</p>
+        </div>
+    </div>
+
+    <!-- 懒人版 - 逐步骤详细指南 - 通用准备 -->
+    <div class="page section-page">
+        <h3>📝 懒人版逐步骤详细指南</h3>
+        
+        <h4>通用准备工作（两个工作流共用）</h4>
+        
+        <div class="instructions">
+            <strong>步骤 1：注册 GitHub（免费）</strong>
+            <ul>
+                <li>打开 https://github.com</li>
+                <li>点击 Sign up</li>
+                <li>输入：邮箱、密码、用户名（记录下来）</li>
+                <li>完成邮箱验证</li>
+                <li>把以下信息发给我：GitHub 用户名、GitHub 注册邮箱</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 2：注册 Vercel（免费）</strong>
+            <ul>
+                <li>打开 https://vercel.com</li>
+                <li>点击 Sign up</li>
+                <li>选择 Continue with GitHub</li>
+                <li>授权 Vercel 读取你的 GitHub 信息</li>
+                <li>完成注册</li>
+                <li>把 Vercel 用户名发给我（通常和 GitHub 一致）</li>
+            </ul>
+        </div>
+        
+        <div class="tip-box">
+            <h4>💡 提示</h4>
+            <p>这一步不需要付费，也不需要绑定信用卡。</p>
+        </div>
+    </div>
+
+    <!-- 懒人版 - 逐步骤详细指南 - 工作流1 -->
+    <div class="page section-page">
+        <h4>工作流 1 详细步骤（由我提供域名）</h4>
+        
+        <div class="instructions">
+            <strong>步骤 3：你授权我登录 GitHub</strong>
+            <ul>
+                <li>推荐方式（最安全）：登录 GitHub → 进入你的任意仓库 → Settings → 左侧菜单点击 Collaborators → 点击 Add people → 输入我的 GitHub 用户名 → 点击确认</li>
+                <li>备选方式（临时密码）：你把 GitHub 临时密码给我，我部署完成后你立即修改密码</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 4：你授权我登录 Vercel</strong>
+            <ul>
+                <li>把 Vercel 登录密码临时给我，我会在 30 分钟内完成部署，完成后你立即改密码</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 5-9：我完成部署→验证→打包→交付→你修改密码→安装使用</strong>
+        </div>
+        
+        <h4 style="margin-top: 25px;">工作流 2 详细步骤（由你提供域名）</h4>
+        
+        <div class="instructions">
+            <ul>
+                <li>步骤 3：在 Namesilo 购买域名</li>
+                <li>步骤 4-5：授权登录（同上）</li>
+                <li>步骤 6：我完成部署 + 绑定你的域名</li>
+                <li>步骤 7：你去 Namesilo 完成解析</li>
+                <li>步骤 8-12：验证网站→一门打包APP→交付→你修改密码→安装使用</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 第三章：DIY版安装指引 - 版本定位 -->
+    <div class="page section-page">
+        <h2><span class="section-icon">3</span> DIY版安装指引</h2>
+        
+        <h3>🎯 版本定位速查</h3>
+        
+        <table class="info-table">
+            <tr>
+                <th>项目</th>
+                <th>说明</th>
+            </tr>
+            <tr>
+                <td>操作者</td>
+                <td>你</td>
+            </tr>
+            <tr>
+                <td>我的角色</td>
+                <td>客服 + 技术支持（不登录你的任何账户）</td>
+            </tr>
+            <tr>
+                <td>是否需要购买域名</td>
+                <td>工作流1：不需要 / 工作流2：需要</td>
+            </tr>
+            <tr>
+                <td>客服方式</td>
+                <td>微信 / QQ / 邮件（一对一）</td>
+            </tr>
+            <tr>
+                <td>预计完成时间</td>
+                <td>1–3 小时（含熟悉过程）</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- DIY版 - 通用准备工作 -->
+    <div class="page section-page">
+        <h3>📋 通用准备工作（两个工作流都需要）</h3>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-01：注册 GitHub（免费）</strong>
+            <ul>
+                <li>打开 https://github.com</li>
+                <li>点击右上角 Sign up</li>
+                <li>输入：邮箱、密码、用户名（建议英文 / 数字组合）</li>
+                <li>完成拼图验证和邮箱验证</li>
+                <li>登录 GitHub</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-02：注册 Vercel（免费）</strong>
+            <ul>
+                <li>打开 https://vercel.com</li>
+                <li>点击 Sign up</li>
+                <li>选择 Continue with GitHub</li>
+                <li>授权 Vercel 读取你的 GitHub 账号</li>
+                <li>选择 Skip（跳过团队创建）</li>
+                <li>完成注册</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-03：准备源文件</strong>
+            <ul>
+                <li>我会把完整的网站源文件发给你（ZIP 压缩包）</li>
+                <li>包含所有 HTML / CSS / JS / 图片等</li>
+                <li>下载到电脑并解压，确认你能看到类似 index.html 的文件</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- DIY版 - 工作流1 -->
+    <div class="page section-page">
+        <h3>🛠️ 工作流 1：由我提供域名（你不需要买域名）</h3>
+        
+        <div class="tip-box">
+            <p>特点：使用我提供的子域名（例如 你的项目名.我的域名.com），最省事</p>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-01：创建 GitHub 仓库</strong>
+            <ul>
+                <li>登录 GitHub</li>
+                <li>点击左上角 + → New repository</li>
+                <li>填写：Repository name（如 myweb）、Public / Private 选 Public</li>
+                <li>不要勾选 "Add a README"</li>
+                <li>点击 Create repository</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-02：上传源文件到 GitHub</strong>
+            <ul>
+                <li>在刚创建的仓库页面，点击 Add file → Upload files</li>
+                <li>把解压后的所有源文件拖进去</li>
+                <li>下方写 first commit</li>
+                <li>点击 Commit changes</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-03：在 Vercel 部署网站</strong>
+            <ul>
+                <li>打开 https://vercel.com</li>
+                <li>点击 Add New… → Project</li>
+                <li>在 Import Git Repository 中：找到你刚创建的仓库，点击 Import</li>
+                <li>保持所有默认设置（不用改）</li>
+                <li>点击 Deploy</li>
+                <li>等待 30–60 秒</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- DIY版 - 工作流1 续 -->
+    <div class="page section-page">
+        <div class="instructions">
+            <strong>步骤 DIY-W1-04：确认部署成功</strong>
+            <ul>
+                <li>部署完成后，Vercel 会显示 Congratulations</li>
+                <li>点击 Visit 按钮</li>
+                <li>网页应该正常打开</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-05：等待我绑定子域名</strong>
+            <ul>
+                <li>我会把我提供的子域名手动绑定到你的 Vercel 项目</li>
+                <li>等待 5–10 分钟，然后访问我给的新域名确认可用</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-06：一门APP打包成APP</strong>
+            <ul>
+                <li>打开一门APP官网（我会给你网址）</li>
+                <li>注册 / 登录</li>
+                <li>点击 生成APP</li>
+                <li>输入你的网站地址</li>
+                <li>配置应用名称、图标</li>
+                <li>点击生成</li>
+                <li>下载 Android APK / iOS IPA</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W1-07：安装并使用 ✅</strong>
+        </div>
+    </div>
+
+    <!-- DIY版 - 工作流2 -->
+    <div class="page section-page">
+        <h3>🛠️ 工作流 2：你提供域名（自己买域名）</h3>
+        
+        <div class="tip-box">
+            <p>特点：用你自己的品牌域名，完全自主可控</p>
+        </div>
+        
+        <div class="important-box">
+            <h4>核心差异提醒</h4>
+            <p>相对于工作流 1，只有两个地方不同：需要买域名、需要做 DNS 解析，其他步骤完全相同</p>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-01：购买域名（Namesilo）</strong>
+            <ul>
+                <li>打开 https://www.namesilo.com</li>
+                <li>搜索你想要的域名</li>
+                <li>加入购物车 → 付款（支持支付宝）</li>
+                <li>登录域名管理后台</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-02：GitHub 创建仓库 + 上传文件（同 W1-01/W1-02）</strong>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-03：Vercel 部署网站（同 W1-03/W1-04）</strong>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-04：绑定你自己的域名</strong>
+            <ul>
+                <li>在 Vercel 项目页面，点击 Settings</li>
+                <li>左侧菜单选择 Domains</li>
+                <li>输入你的域名</li>
+                <li>点击 Add</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- DIY版 - 工作流2 续 -->
+    <div class="page section-page">
+        <div class="instructions">
+            <strong>步骤 DIY-W2-05：去 Namesilo 做 DNS 解析</strong>
+            <ul>
+                <li>登录 Namesilo</li>
+                <li>进入 Domain Manager</li>
+                <li>点击你的域名 → DNS Records</li>
+                <li>添加 CNAME / A 记录</li>
+            </ul>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-06：等待解析生效（5-30分钟）</strong>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-07：一门APP打包</strong>
+        </div>
+        
+        <div class="instructions">
+            <strong>步骤 DIY-W2-08：安装使用 ✅</strong>
+        </div>
+    </div>
+
+    <!-- DIY版 - 检查清单 -->
+    <div class="page section-page">
+        <h3>✅ DIY版完整检查清单</h3>
+        
+        <h4>工作流 1（我用子域名）</h4>
+        <div class="checklist">
+            <div class="checklist-item">
+                <input type="checkbox" id="c1">
+                <label for="c1">GitHub 账号已注册</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c2">
+                <label for="c2">Vercel 账号已注册</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c3">
+                <label for="c3">GitHub 仓库已创建</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c4">
+                <label for="c4">源文件已上传</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c5">
+                <label for="c5">Vercel 部署成功</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c6">
+                <label for="c6">我提供的子域名可访问</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c7">
+                <label for="c7">一门 APP 已生成</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c8">
+                <label for="c8">APK / IPA 已下载</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="c9">
+                <label for="c9">手机安装成功 ✅</label>
+            </div>
+        </div>
+        
+        <h4 style="margin-top: 25px;">工作流 2（你自己域名）</h4>
+        <div class="checklist">
+            <div class="checklist-item">
+                <input type="checkbox" id="d1">
+                <label for="d1">已购买域名（Namesilo）</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d2">
+                <label for="d2">GitHub + Vercel 部署完成</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d3">
+                <label for="d3">Vercel 中添加域名</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d4">
+                <label for="d4">Namesilo 中配置 DNS</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d5">
+                <label for="d5">域名访问正常</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d6">
+                <label for="d6">一门 APP 打包</label>
+            </div>
+            <div class="checklist-item">
+                <input type="checkbox" id="d7">
+                <label for="d7">安装使用 ✅</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIY版 - 客服支持说明 -->
+    <div class="page section-page">
+        <h3>📞 客服支持说明（DIY 版）</h3>
+        
+        <table class="info-table">
+            <tr>
+                <th>项目</th>
+                <th>说明</th>
+            </tr>
+            <tr>
+                <td>服务时间</td>
+                <td>每天 9:00–22:00 北京时间</td>
+            </tr>
+            <tr>
+                <td>响应时间</td>
+                <td>30 分钟内（一般更快）</td>
+            </tr>
+            <tr>
+                <td>沟通方式</td>
+                <td>付款后我会提供：微信 / QQ / 邮件</td>
+            </tr>
+            <tr>
+                <td>你可以问</td>
+                <td>任何步骤卡住、报错、截图看不懂、打包失败</td>
+            </tr>
+            <tr>
+                <td>我不会做</td>
+                <td>登录你的账号、代替你操作</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 第四章：下一步操作 -->
+    <div class="page section-page">
+        <h2><span class="section-icon">4</span> 下一步操作</h2>
+        
+        <div class="feature-card" style="margin: 20px 0;">
+            <h4>💼 懒人版用户请提供：</h4>
+            <div style="margin-top: 15px;">
+                <p><strong>GitHub用户名：</strong>________________________</p>
+                <p style="margin-top: 10px;"><strong>是否授权：</strong></p>
+                <div style="margin-left: 20px; margin-top: 5px;">
+                    <label><input type="radio" name="auth"> □ 协作邀请</label><br>
+                    <label><input type="radio" name="auth"> □ 临时密码</label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="feature-card" style="margin: 20px 0;">
+            <h4>🔧 DIY版用户请提供：</h4>
+            <div style="margin-top: 15px;">
+                <p><strong>已确认：</strong></p>
+                <div style="margin-left: 20px; margin-top: 5px;">
+                    <label><input type="checkbox"> □ GitHub 已注册</label><br>
+                    <label><input type="checkbox"> □ Vercel 已注册</label><br>
+                    <label><input type="checkbox"> □ 源文件已拿到</label>
+                </div>
+                <p style="margin-top: 15px;"><strong>我的联系方式（用于客服）：</strong>微信 / QQ / 邮件 ________________________</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最后一页 -->
+    <div class="page final-page">
+        <h2>有任何问题，随时微信我</h2>
+        <p style="font-size: 18px; color: #666;">（2小时内必回）</p>
+        
+        <div class="heart">❤️</div>
+        
+        <p style="font-size: 20px; color: #FF8C42; margin-bottom: 30px;">
+            期待为你的宝宝留下最安心的成长记忆
+        </p>
+        
+        <p style="font-style: italic; color: #888;">
+            —— 程序员爸爸
+        </p>
+    </div>
+
+</body>
+</html>
