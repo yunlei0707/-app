@@ -2,7 +2,7 @@
  * 宝贝时光 - 应用入口
  * 记录宝宝成长点滴的移动端单页应用
  */
-
+import './utils/backButton.js';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -82,7 +82,7 @@ if ('serviceWorker' in navigator) {
         console.log('ServiceWorker 注册失败:', error);
       });
   });
-import './utils/backButton.js';
+
 
 // 标记APP环境
 if (window.Capacitor?.isNativePlatform?.()) {
