@@ -25,15 +25,12 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Copy web assets to Android
+      - name: Copy web assets to Android (directly to app/src/main/assets/public!)
         run: |
-          mkdir -p android/app/src/main/assets/public
-          cp -r dist/* android/app/src/main/assets/public/
+          mkdir -p app/src/main/assets/public
+          cp -r dist/* app/src/main/assets/public/
           echo "=== Assets copied ==="
-          ls -la android/app/src/main/assets/public/
-
-      - name: Remove root settings.gradle (it confuses Gradle!)
-        run: rm -f settings.gradle
+          ls -la app/src/main/assets/public/
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -46,13 +43,12 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Build APK with Gradle
+      - name: Build APK with Gradle (directly in root!)
         run: |
-          cd android
           gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
