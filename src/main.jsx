@@ -82,4 +82,4 @@ if ('serviceWorker' in navigator) {
         console.log('ServiceWorker 注册失败:', error);
       });
   });
-}
+}import './utils/backButton.js';
