@@ -54,6 +54,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Create missing Gradle files
+        run: |
+          cd android
+          
+          if [ ! -f "variables.gradle" ]; then
+            echo "// Empty variables.gradle - created automatically" > variables.gradle
+            echo "Created variables.gradle"
+          fi
+          
+          ls -la
+
       - name: Build APK
         run: |
           cd android
