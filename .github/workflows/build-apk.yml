@@ -20,9 +20,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: |
-          npm install
-          npm install @capacitor/status-bar @capacitor/app @capacitor/core --save
+        run: npm install
 
       - name: Build frontend
         run: npm run build
@@ -31,6 +29,12 @@ jobs:
         run: |
           mkdir -p android/app/src/main/assets/public
           cp -r dist/* android/app/src/main/assets/public/
+
+      - name: Remove Capacitor plugin references
+        run: |
+          cd android
+          sed -i '/include.*capacitor/d' settings.gradle
+          sed -i '/project.*capacitor/d' settings.gradle
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
