@@ -40,7 +40,10 @@ jobs:
           echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"www"}' > capacitor.config.json
           mkdir www
           echo "test" > www/index.html
-          npx cap add android
+          
+          # 用 npm exec 代替 npx，解决找不到命令的问题
+          npm exec -- cap add android
+          npm exec -- cap sync android
           
           # 把构建文件复制回来（保留我们原来的 src/main 配置！）
           cp /tmp/fresh-app/android/gradlew $GITHUB_WORKSPACE/android/
