@@ -1,28 +1,74 @@
-- name: Generate missing build files from fresh Capacitor
-  run: |
-    # 创建临时目录，生成一个全新的完整 Android 项目
-    mkdir -p /tmp/fresh-app
-    cd /tmp/fresh-app
-    echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"www"}' > capacitor.config.json
-    mkdir www
-    echo "test" > www/index.html
-    
-    # 直接用绝对路径调用！不用 npx 了！
-    $GITHUB_WORKSPACE/node_modules/.bin/cap add android
-    $GITHUB_WORKSPACE/node_modules/.bin/cap sync android
-    
-    # 把构建文件复制回来（保留我们原来的 src/main 配置！）
-    cp /tmp/fresh-app/android/gradlew $GITHUB_WORKSPACE/android/
-    cp /tmp/fresh-app/android/gradle.bat $GITHUB_WORKSPACE/android/ 2>/dev/null || true
-    cp /tmp/fresh-app/android/settings.gradle $GITHUB_WORKSPACE/android/
-    cp /tmp/fresh-app/android/build.gradle $GITHUB_WORKSPACE/android/
-    cp /tmp/fresh-app/android/app/build.gradle $GITHUB_WORKSPACE/android/app/
-    cp -r /tmp/fresh-app/android/gradle $GITHUB_WORKSPACE/android/
-    cp /tmp/fresh-app/android/gradle.properties $GITHUB_WORKSPACE/android/
-    
-    # 给执行权限
-    chmod +x $GITHUB_WORKSPACE/android/gradlew
-    
-    # 列出文件确认一下
-    echo "=== Android files now ==="
-    ls -la $GITHUB_WORKSPACE/android/
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install @capacitor/cli @capacitor/core @capacitor/android typescript --save-dev
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Copy web assets to Android
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          cp -r dist/* android/app/src/main/assets/public/
+
+      - name: Generate missing build files from fresh Capacitor
+        run: |
+          mkdir -p /tmp/fresh-app
+          cd /tmp/fresh-app
+          echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"www"}' > capacitor.config.json
+          mkdir www
+          echo "test" > www/index.html
+          
+          $GITHUB_WORKSPACE/node_modules/.bin/cap add android
+          $GITHUB_WORKSPACE/node_modules/.bin/cap sync android
+          
+          cp /tmp/fresh-app/android/gradlew $GITHUB_WORKSPACE/android/
+          cp /tmp/fresh-app/android/gradle.bat $GITHUB_WORKSPACE/android/ 2>/dev/null || true
+          cp /tmp/fresh-app/android/settings.gradle $GITHUB_WORKSPACE/android/
+          cp /tmp/fresh-app/android/build.gradle $GITHUB_WORKSPACE/android/
+          cp /tmp/fresh-app/android/app/build.gradle $GITHUB_WORKSPACE/android/app/
+          cp -r /tmp/fresh-app/android/gradle $GITHUB_WORKSPACE/android/
+          cp /tmp/fresh-app/android/gradle.properties $GITHUB_WORKSPACE/android/
+          
+          chmod +x $GITHUB_WORKSPACE/android/gradlew
+          
+          echo "=== Android files now ==="
+          ls -la $GITHUB_WORKSPACE/android/
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build APK with Gradle
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
