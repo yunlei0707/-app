@@ -1,117 +1,32 @@
-name: Build Android APK (Standard Structure)
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Restore standard Android directory structure
+      - name: ⚡ Capacitor sync (FIXED)
         run: |
-          # 创建 android 目录
-          mkdir -p android
+          # 先删除所有可能的旧配置，避免冲突！
+          rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
           
-          # 移动所有 Android 相关文件到 android/
-          # 注意：避免移动 node_modules、dist、src 等前端文件
-          
-          # 移动 app 目录（Android app module）
-          if [ -d "app" ]; then
-            echo "Moving app/ to android/"
-            mv app android/
-          fi
-          
-          # 移动 gradle wrapper 目录
-          if [ -d "gradle" ]; then
-            echo "Moving gradle/ to android/"
-            mv gradle android/
-          fi
-          
-          # 移动 .gradle 目录（如果存在）
-          if [ -d ".gradle" ]; then
-            mv .gradle android/
-          fi
-          
-          # 移动 Gradle 配置文件
-          for file in build.gradle settings.gradle gradle.properties gradlew gradlew.bat; do
-            if [ -f "$file" ]; then
-              echo "Moving $file to android/"
-              mv $file android/
-            fi
-          done
-          
-          # 移动 Capacitor 插件目录（如果存在）
-          if [ -d "capacitor-cordova-android-plugins" ]; then
-            mv capacitor-cordova-android-plugins android/
-          fi
-          
-          echo "=== Structure restored ==="
-          ls -la
-          echo "--- android/ contents ---"
-          ls -la android/
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Capacitor sync
-        run: |
-          # 确保 Capacitor 配置存在
-          if [ ! -f "capacitor.config.json" ]; then
-            cat > capacitor.config.json << 'EOF'
+          # 重新创建干净的 JSON 配置
+          cat > capacitor.config.json << 'EOF'
           {
             "appId": "com.babytime.app",
             "appName": "宝贝时光",
             "webDir": "dist",
             "server": {
               "androidScheme": "http"
-            },
-            "android": {
-              "buildOptions": {
-                "keystorePath": ""
-              }
             }
           }
           EOF
-          fi
           
-          # 安装 Capacitor CLI 和平台
+          echo "=== Current directory contents ==="
+          ls -la
+          
+          echo "=== dist directory contents ==="
+          ls -la dist/
+          
+          # 安装 Capacitor
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
-          
-          # 安装插件
           npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
           
-          # 同步到 Android（会自动更新 settings.gradle 的子项目引用）
-          npx cap sync android
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build APK with Gradle
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug.apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          # 关键：用 --web-dir 参数强制指定！
+          npx cap sync android --web-dir=dist
+          
+          echo "=== After sync, android/settings.gradle ==="
+          cat android/settings.gradle
