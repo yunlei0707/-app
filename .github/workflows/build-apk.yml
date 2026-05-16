@@ -1,81 +1,92 @@
-      - name: ULTIMATE variables.gradle (ALL VARIABLES!)
+name: Build APK
+
+on:
+  push:
+    branches: [ capacitor ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Capacitor config
+        run: echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
+
+      - name: Create www directory (Capacitor fallback)
+        run: |
+          mkdir -p www
+          cp -r dist/* www/ 2>/dev/null || true
+
+      - name: Install Capacitor
+        run: |
+          npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
+          npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: 🔥 ULTIMATE variables.gradle (ALL VARIABLES!)
+        run: |
+          cat > android/variables.gradle << 'VARS_EOF'
+ext {
+    // SDK Versions
+    compileSdkVersion = 34
+    buildToolsVersion = "34.0.0"
+    minSdkVersion = 24
+    targetSdkVersion = 34
+    versionCode = 1
+    versionName = "1.0"
+
+    // AndroidX Core
+    androidxAppCompatVersion = "1.6.1"
+    androidxCoreVersion = "1.12.0"
+    androidxCoreKtxVersion = "1.12.0"
+    androidxActivityVersion = "1.8.2"
+    androidxFragmentVersion = "1.6.2"
+    androidxAppcompatVersion = "1.6.1"
+
+    // AndroidX Layout & UI
+    androidxConstraintLayoutVersion = "2.1.4"
+    androidxCoordinatorLayoutVersion = "1.2.0"
+    androidxRecyclerViewVersion = "1.3.2"
+    androidxCardViewVersion = "1.0.0"
+    androidxViewPager2Version = "1.0.0"
+    androidxDrawerLayoutVersion = "1.2.0"
+    androidxSlidingPaneLayoutVersion = "1.2.0"
+    androidxSwiperefreshlayoutVersion = "1.1.0"
+    androidxPreferenceVersion = "1.2.1"
+    androidxLeanbackVersion = "1.0.0"
+
+    // AndroidX Material
+    materialVersion = "1.11.0"
+    materialComponentsVersion = "1.11.0"
+}
+VARS_EOF
+
+      - name: Build APK
         run: |
           cd android
-          
-          echo "ext {" > variables.gradle
-          
-          # SDK 版本
-          echo "    compileSdkVersion = 34" >> variables.gradle
-          echo "    buildToolsVersion = \"34.0.0\"" >> variables.gradle
-          echo "    minSdkVersion = 24" >> variables.gradle
-          echo "    targetSdkVersion = 34" >> variables.gradle
-          
-          # 应用版本
-          echo "    versionCode = 1" >> variables.gradle
-          echo "    versionName = \"1.0\"" >> variables.gradle
-          
-          # 所有 AndroidX 全家桶！
-          echo "    androidxAppcompatVersion = \"1.6.1\"" >> variables.gradle
-          echo "    androidxAppCompatVersion = \"1.6.1\"" >> variables.gradle
-          echo "    androidxCoreVersion = \"1.12.0\"" >> variables.gradle
-          echo "    androidxCoreKtxVersion = \"1.12.0\"" >> variables.gradle
-          echo "    androidxConstraintLayoutVersion = \"2.1.4\"" >> variables.gradle
-          echo "    androidxCoordinatorLayoutVersion = \"1.2.0\"" >> variables.gradle
-          echo "    androidxRecyclerViewVersion = \"1.3.2\"" >> variables.gradle
-          echo "    androidxCardViewVersion = \"1.0.0\"" >> variables.gradle
-          echo "    materialVersion = \"1.11.0\"" >> variables.gradle
-          echo "    androidxLifecycleVersion = \"2.7.0\"" >> variables.gradle
-          echo "    androidxLifecycleExtensionsVersion = \"2.2.0\"" >> variables.gradle
-          echo "    androidxLifecycleViewModelVersion = \"2.7.0\"" >> variables.gradle
-          echo "    androidxLifecycleLiveDataVersion = \"2.7.0\"" >> variables.gradle
-          echo "    androidxLifecycleRuntimeVersion = \"2.7.0\"" >> variables.gradle
-          echo "    androidxFragmentVersion = \"1.6.2\"" >> variables.gradle
-          echo "    androidxActivityVersion = \"1.8.2\"" >> variables.gradle
-          echo "    androidxAnnotationVersion = \"1.7.1\"" >> variables.gradle
-          echo "    androidxCollectionVersion = \"1.3.0\"" >> variables.gradle
-          echo "    androidxLegacySupportV4Version = \"1.0.0\"" >> variables.gradle
-          echo "    androidxLegacySupportCoreUtilsVersion = \"1.0.0\"" >> variables.gradle
-          echo "    androidxBrowserVersion = \"1.7.0\"" >> variables.gradle
-          echo "    androidxLocalBroadcastManagerVersion = \"1.1.0\"" >> variables.gradle
-          echo "    androidxDrawerLayoutVersion = \"1.2.0\"" >> variables.gradle
-          echo "    androidxPreferenceVersion = \"1.2.1\"" >> variables.gradle
-          echo "    androidxViewPager2Version = \"1.0.0\"" >> variables.gradle
-          echo "    androidxSwipeRefreshLayoutVersion = \"1.1.0\"" >> variables.gradle
-          echo "    androidxTransitionVersion = \"1.4.1\"" >> variables.gradle
-          echo "    androidxDocumentFileVersion = \"1.0.1\"" >> variables.gradle
-          echo "    androidxLoaderVersion = \"1.1.0\"" >> variables.gradle
-          echo "    androidxPrintVersion = \"1.0.0\"" >> variables.gradle
-          echo "    androidxSlidingPaneLayoutVersion = \"1.2.0\"" >> variables.gradle
-          echo "    androidxCursorAdapterVersion = \"1.0.0\"" >> variables.gradle
-          echo "    androidxExifInterfaceVersion = \"1.3.6\"" >> variables.gradle
-          echo "    androidxRoomVersion = \"2.6.1\"" >> variables.gradle
-          echo "    androidxSqliteVersion = \"2.4.0\"" >> variables.gradle
-          echo "    sqliteVersion = \"2.4.0\"" >> variables.gradle
-          echo "    androidxWorkVersion = \"2.9.0\"" >> variables.gradle
-          echo "    androidxNavigationVersion = \"2.7.6\"" >> variables.gradle
-          echo "    androidxPagingVersion = \"3.2.1\"" >> variables.gradle
-          echo "    androidxHiltVersion = \"1.1.0\"" >> variables.gradle
-          echo "    hiltVersion = \"2.48.1\"" >> variables.gradle
-          echo "    daggerVersion = \"2.48.1\"" >> variables.gradle
-          echo "    glideVersion = \"4.16.0\"" >> variables.gradle
-          echo "    retrofitVersion = \"2.9.0\"" >> variables.gradle
-          echo "    okhttpVersion = \"4.12.0\"" >> variables.gradle
-          echo "    gsonVersion = \"2.10.1\"" >> variables.gradle
-          echo "    rxjavaVersion = \"3.1.8\"" >> variables.gradle
-          echo "    rxandroidVersion = \"3.0.2\"" >> variables.gradle
-          echo "    coroutinesVersion = \"1.7.3\"" >> variables.gradle
-          echo "    kotlinVersion = \"1.9.20\"" >> variables.gradle
-          
-          # 测试相关
-          echo "    junitVersion = \"4.13.2\"" >> variables.gradle
-          echo "    androidJunitVersion = \"1.1.5\"" >> variables.gradle
-          echo "    androidJunitKtxVersion = \"1.1.5\"" >> variables.gradle
-          echo "    espressoVersion = \"3.5.1\"" >> variables.gradle
-          echo "    espressoContribVersion = \"3.5.1\"" >> variables.gradle
-          echo "    mockitoVersion = \"5.8.0\"" >> variables.gradle
-          echo "    truthVersion = \"1.4.4\"" >> variables.gradle
-          
-          echo "}" >> variables.gradle
-          
-          echo "variables.gradle created with ALL POSSIBLE versions!"
-          cat variables.gradle
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
