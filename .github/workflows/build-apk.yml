@@ -35,9 +35,18 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      - name: Capacitor sync
+      - name: Build frontend
+        run: npm run build
+
+      - name: Capacitor sync (force mode)
         run: |
           echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
+          
+          # 必杀技：创建 www 目录！
+          cp -r dist www
+          echo "www directory created:"
+          ls -la www/
+          
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npx cap sync android
 
