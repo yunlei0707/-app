@@ -30,6 +30,11 @@ jobs:
           mkdir -p app/src/main/assets/public
           cp -r dist/* app/src/main/assets/public/
 
+      - name: Create missing cordova variables file
+        run: |
+          mkdir -p capacitor-cordova-android-plugins
+          echo "// Empty file - no cordova plugins needed" > capacitor-cordova-android-plugins/cordova.variables.gradle
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -39,7 +44,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.13'   # 就改这里！
+          gradle-version: '8.13'
 
       - name: Build APK with Gradle
         run: |
