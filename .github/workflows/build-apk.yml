@@ -1,31 +1,84 @@
-      - name: Create complete variables.gradle
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Move Android files
+        run: |
+          mkdir -p android
+          [ -d "app" ] && mv app android/
+          [ -d "gradle" ] && mv gradle android/
+          [ -f "build.gradle" ] && mv build.gradle android/
+          [ -f "settings.gradle" ] && mv settings.gradle android/
+          [ -f "gradle.properties" ] && mv gradle.properties android/
+          [ -f "gradlew" ] && mv gradlew android/
+          [ -f "gradlew.bat" ] && mv gradlew.bat android/
+          ls -la android/
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Capacitor
+        run: |
+          echo '{"appId":"com.babytime.app","appName":"baby-time","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
+          cp -r dist www
+          npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
+          npx cap sync android
+
+      - name: JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Variables
         run: |
           cd android
-          
-          cat > variables.gradle << 'EOF'
+          cat > variables.gradle << 'GRADLE'
 ext {
-    // SDK 版本
     compileSdkVersion = 34
     buildToolsVersion = "34.0.0"
     minSdkVersion = 24
     targetSdkVersion = 34
-    
-    // 应用版本
     versionCode = 1
     versionName = "1.0"
-    
-    // AndroidX 版本
     androidxAppCompatVersion = "1.6.1"
     androidxCoreVersion = "1.12.0"
     androidxConstraintLayoutVersion = "2.1.4"
     materialVersion = "1.11.0"
-    
-    // 测试相关
     junitVersion = "4.13.2"
     androidJunitVersion = "1.1.5"
     espressoVersion = "3.5.1"
 }
-EOF
-          
-          echo "variables.gradle created with all versions:"
+GRADLE
           cat variables.gradle
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
