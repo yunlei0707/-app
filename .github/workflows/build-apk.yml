@@ -49,26 +49,21 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Variables
+      - name: Create variables.gradle (SIMPLE VERSION)
         run: |
           cd android
-          cat > variables.gradle << 'GRADLE'
-ext {
-    compileSdkVersion = 34
-    buildToolsVersion = "34.0.0"
-    minSdkVersion = 24
-    targetSdkVersion = 34
-    versionCode = 1
-    versionName = "1.0"
-    androidxAppCompatVersion = "1.6.1"
-    androidxCoreVersion = "1.12.0"
-    androidxConstraintLayoutVersion = "2.1.4"
-    materialVersion = "1.11.0"
-    junitVersion = "4.13.2"
-    androidJunitVersion = "1.1.5"
-    espressoVersion = "3.5.1"
-}
-GRADLE
+          echo "ext {" > variables.gradle
+          echo "    compileSdkVersion = 34" >> variables.gradle
+          echo "    buildToolsVersion = \"34.0.0\"" >> variables.gradle
+          echo "    minSdkVersion = 24" >> variables.gradle
+          echo "    targetSdkVersion = 34" >> variables.gradle
+          echo "    versionCode = 1" >> variables.gradle
+          echo "    versionName = \"1.0\"" >> variables.gradle
+          echo "    androidxAppCompatVersion = \"1.6.1\"" >> variables.gradle
+          echo "    androidxCoreVersion = \"1.12.0\"" >> variables.gradle
+          echo "    androidxConstraintLayoutVersion = \"2.1.4\"" >> variables.gradle
+          echo "    materialVersion = \"1.11.0\"" >> variables.gradle
+          echo "}" >> variables.gradle
           cat variables.gradle
 
       - name: Build APK
