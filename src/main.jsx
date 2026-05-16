@@ -1,13 +1,10 @@
-/**
- * 宝贝时光 - 应用入口
- * 记录宝宝成长点滴的移动端单页应用
- */
-import './utils/backButton.js';
+/** * 宝贝时光 - 应用入口 * 记录宝宝成长点滴的移动端单页应用 */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
+import './utils/backButton.js';
 
 // ===== 版本自动检测机制 =====
 // 每次 Vercel 部署后，version.json 会更新
@@ -22,21 +19,20 @@ async function checkForUpdate() {
     if (!response.ok) return;
     const data = await response.json();
     const serverVersion = data.version;
-    
     if (!serverVersion) return;
-    
+
     const localVersion = localStorage.getItem(VERSION_KEY);
-    
     if (!localVersion) {
       // 首次访问，记录版本号
       localStorage.setItem(VERSION_KEY, serverVersion);
       return;
     }
-    
+
     if (localVersion !== serverVersion) {
       // 发现新版本，自动刷新
       console.log(`[版本更新] ${localVersion} → ${serverVersion}，正在刷新...`);
       localStorage.setItem(VERSION_KEY, serverVersion);
+      
       // 清除旧缓存后刷新
       if ('caches' in window) {
         const names = await caches.keys();
@@ -58,14 +54,11 @@ setTimeout(checkForUpdate, 30 * 1000);
 
 // ===== 应用渲染 =====
 const rootElement = document.getElementById('root');
-
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </React.StrictMode>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   );
 } else {
   console.error('找不到根元素 #root');
@@ -82,7 +75,7 @@ if ('serviceWorker' in navigator) {
         console.log('ServiceWorker 注册失败:', error);
       });
   });
-
+}
 
 // 标记APP环境
 if (window.Capacitor?.isNativePlatform?.()) {
