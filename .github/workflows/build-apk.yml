@@ -32,6 +32,9 @@ jobs:
           echo "=== Assets copied ==="
           ls -la android/app/src/main/assets/public/
 
+      - name: Remove root settings.gradle (it confuses Gradle!)
+        run: rm -f settings.gradle
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
