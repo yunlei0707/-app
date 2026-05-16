@@ -1,21 +1,13 @@
-      - name: Create variables.gradle
-        run: |
-          echo ext { > android/variables.gradle
-          echo     compileSdkVersion = 34 >> android/variables.gradle
-          echo     buildToolsVersion = \"34.0.0\" >> android/variables.gradle
-          echo     minSdkVersion = 24 >> android/variables.gradle
-          echo     targetSdkVersion = 34 >> android/variables.gradle
-          echo     versionCode = 1 >> android/variables.gradle
-          echo     versionName = \"1.0\" >> android/variables.gradle
-          echo     androidxAppCompatVersion = \"1.6.1\" >> android/variables.gradle
-          echo     androidxCoreVersion = \"1.12.0\" >> android/variables.gradle
-          echo     androidxActivityVersion = \"1.8.2\" >> android/variables.gradle
-          echo     androidxConstraintLayoutVersion = \"2.1.4\" >> android/variables.gradle
-          echo     androidxCoordinatorLayoutVersion = \"1.2.0\" >> android/variables.gradle
-          echo     materialVersion = \"1.11.0\" >> android/variables.gradle
-          echo     coreSplashScreenVersion = \"1.0.1\" >> android/variables.gradle
-          echo     // 测试相关版本 >> android/variables.gradle
-          echo     junitVersion = \"4.13.2\" >> android/variables.gradle
-          echo     junitExtVersion = \"1.1.5\" >> android/variables.gradle
-          echo     espressoVersion = \"3.5.1\" >> android/variables.gradle
-          echo } >> android/variables.gradle
+name: Build APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test step
+        run: echo "Hello World"
