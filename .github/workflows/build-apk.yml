@@ -25,9 +25,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create Capacitor config
-        run: echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
-
       - name: Create www directory (Capacitor fallback)
         run: |
           mkdir -p www
@@ -37,6 +34,9 @@ jobs:
         run: |
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
+
+      - name: Init Capacitor
+        run: npx cap init "宝贝时光" com.babytime.app --web-dir dist
 
       - name: Add Android platform
         run: npx cap add android
@@ -50,35 +50,35 @@ jobs:
           echo "ext {" >> android/variables.gradle
           echo "    // SDK Versions" >> android/variables.gradle
           echo "    compileSdkVersion = 34" >> android/variables.gradle
-          echo '    buildToolsVersion = "34.0.0"" >> android/variables.gradle
+          echo '    buildToolsVersion = "34.0.0"' >> android/variables.gradle
           echo "    minSdkVersion = 24" >> android/variables.gradle
           echo "    targetSdkVersion = 34" >> android/variables.gradle
           echo "    versionCode = 1" >> android/variables.gradle
-          echo '    versionName = "1.0"" >> android/variables.gradle
+          echo '    versionName = "1.0"' >> android/variables.gradle
           echo "" >> android/variables.gradle
           echo "    // AndroidX Core" >> android/variables.gradle
-          echo '    androidxAppCompatVersion = "1.6.1"" >> android/variables.gradle
-          echo '    androidxCoreVersion = "1.12.0"" >> android/variables.gradle
-          echo '    androidxCoreKtxVersion = "1.12.0"" >> android/variables.gradle
-          echo '    androidxActivityVersion = "1.8.2"" >> android/variables.gradle
-          echo '    androidxFragmentVersion = "1.6.2"" >> android/variables.gradle
-          echo '    androidxAppcompatVersion = "1.6.1"" >> android/variables.gradle
+          echo '    androidxAppCompatVersion = "1.6.1"' >> android/variables.gradle
+          echo '    androidxCoreVersion = "1.12.0"' >> android/variables.gradle
+          echo '    androidxCoreKtxVersion = "1.12.0"' >> android/variables.gradle
+          echo '    androidxActivityVersion = "1.8.2"' >> android/variables.gradle
+          echo '    androidxFragmentVersion = "1.6.2"' >> android/variables.gradle
+          echo '    androidxAppcompatVersion = "1.6.1"' >> android/variables.gradle
           echo "" >> android/variables.gradle
           echo "    // AndroidX Layout & UI" >> android/variables.gradle
-          echo '    androidxConstraintLayoutVersion = "2.1.4"" >> android/variables.gradle
-          echo '    androidxCoordinatorLayoutVersion = "1.2.0"" >> android/variables.gradle
-          echo '    androidxRecyclerViewVersion = "1.3.2"" >> android/variables.gradle
-          echo '    androidxCardViewVersion = "1.0.0"" >> android/variables.gradle
-          echo '    androidxViewPager2Version = "1.0.0"" >> android/variables.gradle
-          echo '    androidxDrawerLayoutVersion = "1.2.0"" >> android/variables.gradle
-          echo '    androidxSlidingPaneLayoutVersion = "1.2.0"" >> android/variables.gradle
-          echo '    androidxSwiperefreshlayoutVersion = "1.1.0"" >> android/variables.gradle
-          echo '    androidxPreferenceVersion = "1.2.1"" >> android/variables.gradle
-          echo '    androidxLeanbackVersion = "1.0.0"" >> android/variables.gradle
+          echo '    androidxConstraintLayoutVersion = "2.1.4"' >> android/variables.gradle
+          echo '    androidxCoordinatorLayoutVersion = "1.2.0"' >> android/variables.gradle
+          echo '    androidxRecyclerViewVersion = "1.3.2"' >> android/variables.gradle
+          echo '    androidxCardViewVersion = "1.0.0"' >> android/variables.gradle
+          echo '    androidxViewPager2Version = "1.0.0"' >> android/variables.gradle
+          echo '    androidxDrawerLayoutVersion = "1.2.0"' >> android/variables.gradle
+          echo '    androidxSlidingPaneLayoutVersion = "1.2.0"' >> android/variables.gradle
+          echo '    androidxSwiperefreshlayoutVersion = "1.1.0"' >> android/variables.gradle
+          echo '    androidxPreferenceVersion = "1.2.1"' >> android/variables.gradle
+          echo '    androidxLeanbackVersion = "1.0.0"' >> android/variables.gradle
           echo "" >> android/variables.gradle
           echo "    // AndroidX Material" >> android/variables.gradle
-          echo '    materialVersion = "1.11.0"" >> android/variables.gradle
-          echo '    materialComponentsVersion = "1.11.0"" >> android/variables.gradle
+          echo '    materialVersion = "1.11.0"' >> android/variables.gradle
+          echo '    materialComponentsVersion = "1.11.0"' >> android/variables.gradle
           echo "}" >> android/variables.gradle
 
       - name: Build APK
