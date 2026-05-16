@@ -20,30 +20,29 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install @capacitor/cli @capacitor/core @capacitor/android typescript --save-dev
 
       - name: Build frontend
         run: npm run build
 
-      - name: Copy web assets to Android
+      - name: Generate fresh Android project with Capacitor
         run: |
-          mkdir -p android/app/src/main/assets/public
-          cp -r dist/* android/app/src/main/assets/public/
-
-      - name: List Android directory structure
-        run: |
-          echo "=== Root directory ==="
-          ls -la
-          echo "=== Android directory ==="
-          ls -la android/
-          echo "=== Android app directory ==="
-          ls -la android/app/
-
-      - name: Remove Capacitor plugin references
-        run: |
-          cd android
-          sed -i '/include.*capacitor/d' settings.gradle
-          sed -i '/project.*capacitor/d' settings.gradle
+          # 创建临时的 JSON 配置文件（Capacitor 认这个）
+          echo '{
+            "appId": "com.babytime.app",
+            "appName": "宝贝时光",
+            "webDir": "dist",
+            "server": {
+              "androidScheme": "http"
+            }
+          }' > capacitor.config.json
+          
+          # 删除旧的 android 文件夹，重新生成一个全新的
+          rm -rf android
+          npx cap add android
+          npx cap sync android
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -51,20 +50,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Build APK with Gradle
         run: |
           cd android
-          gradle assembleDebug
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
