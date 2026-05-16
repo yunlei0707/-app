@@ -7,40 +7,75 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
   }
-  
+
   html {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    box-sizing: border-box;
   }
-  
+
+  *, *:before, *:after {
+    box-sizing: inherit;
+  }
+
   body {
     @apply bg-cream-50 text-gray-800 dark:text-gray-100;
     overscroll-behavior: none;
     min-height: 100vh;
     min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
   }
-  
+
   /* 隐藏滚动条但保持滚动功能 */
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
-  
+
   /* 安全区域适配 */
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  
+
   .safe-top {
     padding-top: env(safe-area-inset-top, 0);
   }
 }
 
+/* ========== APP专属体验优化 ========== */
+
+/* 禁止长按弹出菜单 */
+html.capacitor-app * {
+  -webkit-touch-callout: none !important;
+}
+
+/* 禁止下拉露出背景 */
+html.capacitor-app body {
+  overscroll-behavior: none !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 移除点击延迟 */
+html.capacitor-app {
+  touch-action: manipulation;
+}
+
 /* ==================== 主题色彩系统 ==================== */
+
 :root {
   /* 默认粉橙主题 */
   --color-primary: #FF7B70;
@@ -50,12 +85,12 @@
   --color-warm-light: #FFEBD6;
   --color-bg: #FFFCF8;
   --color-bg-secondary: #FFF8F0;
-  
+
   /* 文字颜色 */
   --color-text: #374151;
   --color-text-secondary: #6B7280;
   --color-text-light: #9CA3AF;
-  
+
   /* 边框和阴影 */
   --color-border: #E5E7EB;
   --color-border-light: #F3F4F6;
@@ -123,72 +158,67 @@
     animation: shimmer 1.5s infinite;
     @apply rounded-lg;
   }
-  
+
   .dark .skeleton {
     background: linear-gradient(to right, #374151, #4B5563, #374151);
     background-size: 200% 100%;
   }
-  
+
   @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
-  
+
   /* 卡片样式 */
   .card {
     @apply bg-white dark:bg-gray-800 rounded-2xl shadow-card p-4 transition-shadow duration-200;
     box-shadow: var(--shadow-card);
   }
-  
+
   /* 按钮样式 */
   .btn-primary {
-    @apply text-white font-medium py-3 px-6 rounded-xl 
-           transition-all duration-200 ease-out
-           shadow-sm hover:shadow-md active:scale-95;
+    @apply text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 ease-out shadow-sm hover:shadow-md active:scale-95;
     background-color: var(--color-primary);
   }
-  
+
   .btn-primary:hover {
     background-color: var(--color-primary-dark);
   }
-  
+
   .btn-primary:active {
     transform: scale(0.95);
   }
-  
+
   .btn-secondary {
-    @apply text-gray-700 dark:text-gray-200 font-medium py-3 px-6 rounded-xl 
-           transition-all duration-200 ease-out;
+    @apply text-gray-700 dark:text-gray-200 font-medium py-3 px-6 rounded-xl transition-all duration-200 ease-out;
     background-color: var(--color-warm-light);
   }
-  
+
   .btn-secondary:hover {
     background-color: var(--color-warm);
   }
-  
+
   /* 输入框样式 */
   .input-field {
-    @apply w-full rounded-xl px-4 py-3 border-2 border-transparent
-           outline-none transition-all duration-200 text-gray-800 dark:text-gray-100;
+    @apply w-full rounded-xl px-4 py-3 border-2 border-transparent outline-none transition-all duration-200 text-gray-800 dark:text-gray-100;
     background-color: var(--color-bg-secondary);
   }
-  
+
   .input-field:focus {
     border-color: var(--color-primary-light);
     background-color: white;
   }
-  
-  /* 骨架屏动画 - 已在上面定义 */
-  .skeleton {
-    /* 使用上面 @layer components 中定义的样式 */
-  }
-  
+
   /* 时间轴节点 */
   .timeline-node {
     @apply absolute left-0 top-0 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 shadow-sm;
     background-color: var(--color-primary);
   }
-  
+
   .timeline-line {
     @apply absolute left-[5px] top-3 bottom-0 w-0.5;
     background-color: var(--color-primary-light);
@@ -199,21 +229,27 @@
 .bg-theme-primary {
   background-color: var(--color-primary);
 }
+
 .bg-theme-primary-light {
   background-color: var(--color-primary-light);
 }
+
 .bg-theme-primary-dark {
   background-color: var(--color-primary-dark);
 }
+
 .bg-theme-warm {
   background-color: var(--color-warm);
 }
+
 .bg-theme-warm-light {
   background-color: var(--color-warm-light);
 }
+
 .bg-theme-bg {
   background-color: var(--color-bg);
 }
+
 .bg-theme-bg-secondary {
   background-color: var(--color-bg-secondary);
 }
@@ -221,12 +257,15 @@
 .text-theme-primary {
   color: var(--color-primary);
 }
+
 .text-theme-primary-light {
   color: var(--color-primary-light);
 }
+
 .text-theme-primary-dark {
   color: var(--color-primary-dark);
 }
+
 .text-theme-warm {
   color: var(--color-warm);
 }
@@ -234,6 +273,7 @@
 .border-theme-primary {
   border-color: var(--color-primary);
 }
+
 .border-theme-primary-light {
   border-color: var(--color-primary-light);
 }
@@ -271,22 +311,22 @@
   .animate-bounce-in {
     animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
-  
+
   /* 淡入动画 */
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
-  
+
   /* 滑入动画 */
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
   }
-  
+
   /* 摇晃动画 */
   .animate-shake {
     animation: shake 0.5s ease-in-out;
   }
-  
+
   /* 摇摆动画 */
   .animate-wiggle {
     animation: wiggle 1s ease-in-out infinite;
@@ -325,14 +365,24 @@
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
 }
 
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
 }
 
 /* 里程碑标签样式 */
@@ -350,6 +400,7 @@
 /* 自定义滚动条（暗色模式下） */
 .dark ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .dark ::-webkit-scrollbar-track {
@@ -363,6 +414,17 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #6B7280;
+}
+
+/* 统一滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
 }
 
 /* 地图容器样式 */
@@ -431,14 +493,12 @@
 /* ==================== 深夜模式全屏覆盖优化 ==================== */
 
 /* 确保html元素在深色模式下全屏覆盖 */
-html.dark,
-html:is(.dark *) {
+html.dark, html:is(.dark *) {
   background-color: #111827 !important;
 }
 
 /* 全屏覆盖 - 确保所有fixed/absolute元素有正确背景 */
-.dark body,
-.dark body * {
+.dark body, .dark body * {
   --tw-bg-opacity: 1;
 }
 
@@ -453,34 +513,27 @@ html:is(.dark *) {
 }
 
 /* 表单元素深色模式背景 */
-.dark input,
-.dark textarea,
-.dark select {
+.dark input, .dark textarea, .dark select {
   background-color: #1f2937 !important;
   color: #f3f4f6 !important;
   border-color: #374151 !important;
 }
 
-.dark input::placeholder,
-.dark textarea::placeholder {
+.dark input::placeholder, .dark textarea::placeholder {
   color: #6b7280 !important;
 }
 
-.dark input:focus,
-.dark textarea:focus,
-.dark select:focus {
+.dark input:focus, .dark textarea:focus, .dark select:focus {
   background-color: #374151 !important;
 }
 
 /* 确保fixed定位的全屏覆盖元素 */
-.dark .fixed,
-.dark .absolute {
+.dark .fixed, .dark .absolute {
   --tw-bg-opacity: 1;
 }
 
 /* 全屏模态框背景 */
-.dark .modal-backdrop,
-.dark .location-modal {
+.dark .modal-backdrop, .dark .location-modal {
   background-color: rgba(0, 0, 0, 0.75) !important;
 }
 
@@ -533,22 +586,10 @@ html.dark body {
   display: none;
 }
 
-
-/* 隐藏 SDK 自带的浮动按钮（图标显示占位符） */
-iframe[class*="coze"],
-iframe[class*="Coze"],
-div[class*="coze"],
-div[class*="Coze"],
-button[class*="coze"],
-button[class*="Coze"] {
-  /* 不隐藏，让 SDK 正常工作，我们自己的按钮点击触发 */
-}
-
 /* 调整页面底部间距，避免被 TabBar 遮挡 */
 .pb-safe-bottom {
   padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
-
 
 /* 盲盒卡片入场动画 */
 @keyframes blindbox-in {
@@ -582,9 +623,4 @@ button[class*="Coze"] {
 
 .animate-bounce-subtle {
   animation: bounce-subtle 2s ease-in-out infinite;
-}
-
-/* 标记APP环境 */
-if (window.Capacitor?.isNativePlatform?.()) {
-  document.documentElement.classList.add('capacitor-app');
 }
