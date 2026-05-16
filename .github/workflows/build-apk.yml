@@ -1,32 +1,67 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Android structure
+        run: |
+          mkdir -p android
+          if [ -d "app" ]; then mv app android/; fi
+          if [ -d "gradle" ]; then mv gradle android/; fi
+          if [ -f "build.gradle" ]; then mv build.gradle android/; fi
+          if [ -f "settings.gradle" ]; then mv settings.gradle android/; fi
+          if [ -f "gradle.properties" ]; then mv gradle.properties android/; fi
+          if [ -f "gradlew" ]; then mv gradlew android/; fi
+          if [ -f "gradlew.bat" ]; then mv gradlew.bat android/; fi
+          ls -la
+          ls -la android/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
       - name: Capacitor sync
         run: |
-          # 先删除所有旧配置，避免冲突
           rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
-          
-          # 重新创建，webDir 写在配置里就够了
-          cat > capacitor.config.json << 'EOF'
-          {
-            "appId": "com.babytime.app",
-            "appName": "宝贝时光",
-            "webDir": "dist",
-            "server": {
-              "androidScheme": "http"
-            }
-          }
-          EOF
-          
-          echo "=== Current directory ==="
-          ls -la
-          
-          echo "=== dist directory has index.html: ==="
-          ls -la dist/index.html
-          
-          # 安装 Capacitor
+          echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
-          
-          # 直接 sync，配置文件里的 webDir 会生效
           npx cap sync android
-          
-          echo "=== settings.gradle after sync ==="
           cat android/settings.gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
