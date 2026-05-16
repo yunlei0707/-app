@@ -27,7 +27,7 @@ jobs:
 
       - name: Sync Capacitor
         run: |
-              npm install @capacitor/cli @capacitor/core typescript --save-dev
+              npm install @capacitor/cli @capacitor/core @capacitor/android typescript --save-dev
               npx cap add android || true
               npx cap sync android
           
