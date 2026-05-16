@@ -1,9 +1,74 @@
-      - name: ⚡ Capacitor sync (FIXED)
+name: Build Android APK (Fixed)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore standard Android directory structure
         run: |
-          # 先删除所有可能的旧配置，避免冲突！
+          mkdir -p android
+          
+          dirs=("app" "gradle" ".gradle" "capacitor-cordova-android-plugins")
+          files=("build.gradle" "settings.gradle" "gradle.properties" "gradlew" "gradlew.bat" "local.properties")
+          
+          for dir in "${dirs[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "Moving directory: $dir -> android/"
+              mv "$dir" android/
+            fi
+          done
+          
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "Moving file: $file -> android/"
+              mv "$file" android/
+            fi
+          done
+          
+          echo "=== Final structure ==="
+          ls -la
+          echo "--- android/ ---"
+          ls -la android/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Use npm mirror
+        run: npm config set registry https://registry.npmmirror.com
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Capacitor sync
+        run: |
+          # 先删除所有旧配置，避免冲突！
           rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
           
-          # 重新创建干净的 JSON 配置
+          # 重新创建
           cat > capacitor.config.json << 'EOF'
           {
             "appId": "com.babytime.app",
@@ -15,18 +80,43 @@
           }
           EOF
           
-          echo "=== Current directory contents ==="
-          ls -la
-          
-          echo "=== dist directory contents ==="
+          echo "=== Check dist directory ==="
           ls -la dist/
           
           # 安装 Capacitor
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
           
-          # 关键：用 --web-dir 参数强制指定！
+          # 强制指定 web-dir！
           npx cap sync android --web-dir=dist
           
-          echo "=== After sync, android/settings.gradle ==="
+          echo "=== settings.gradle after sync ==="
           cat android/settings.gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
