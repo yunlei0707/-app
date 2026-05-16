@@ -15,16 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore Android directory structure
+      - name: Move Android files to android/
         run: |
           mkdir -p android
-          if [ -d "app" ]; then mv app android/; fi
-          if [ -d "gradle" ]; then mv gradle android/; fi
-          if [ -f "build.gradle" ]; then mv build.gradle android/; fi
-          if [ -f "settings.gradle" ]; then mv settings.gradle android/; fi
-          if [ -f "gradle.properties" ]; then mv gradle.properties android/; fi
-          if [ -f "gradlew" ]; then mv gradlew android/; fi
-          if [ -f "gradlew.bat" ]; then mv gradlew.bat android/; fi
+          [ -d "app" ] && mv app android/
+          [ -d "gradle" ] && mv gradle android/
+          [ -f "build.gradle" ] && mv build.gradle android/
+          [ -f "settings.gradle" ] && mv settings.gradle android/
+          [ -f "gradle.properties" ] && mv gradle.properties android/
+          [ -f "gradlew" ] && mv gradlew android/
+          [ -f "gradlew.bat" ] && mv gradlew.bat android/
           ls -la android/
 
       - name: Set up Node.js
@@ -37,7 +37,6 @@ jobs:
 
       - name: Capacitor sync
         run: |
-          rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
           echo '{"appId":"com.babytime.app","appName":"宝贝时光","webDir":"dist","server":{"androidScheme":"http"}}' > capacitor.config.json
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npx cap sync android
@@ -48,24 +47,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create variables.gradle with SDK versions
-        run: |
-          cd android
-          
-          cat > variables.gradle << 'EOF'
-ext {
-    compileSdkVersion = 34
-    buildToolsVersion = "34.0.0"
-    minSdkVersion = 24
-    targetSdkVersion = 34
-    
-    versionCode = 1
-    versionName = "1.0"
-}
-EOF
-          
-          echo "variables.gradle created:"
-          cat variables.gradle
+      - name: Create variables.gradle
+        run: cd android && echo -e "ext {\n    compileSdkVersion = 34\n    buildToolsVersion = \"34.0.0\"\n    minSdkVersion = 24\n    targetSdkVersion = 34\n    versionCode = 1\n    versionName = \"1.0\"\n}" > variables.gradle && cat variables.gradle
 
       - name: Build APK
         run: |
