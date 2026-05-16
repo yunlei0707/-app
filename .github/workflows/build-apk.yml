@@ -21,5 +21,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Test step
-        run: echo "Hello World"
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify dist directory
+        run: ls -la dist/
