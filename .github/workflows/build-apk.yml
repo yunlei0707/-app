@@ -27,5 +27,24 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Verify dist directory
-        run: ls -la dist/
+      - name: Create www directory (Capacitor fallback)
+        run: |
+          mkdir -p www
+          cp -r dist/* www/ 2>/dev/null || true
+
+      - name: Install Capacitor
+        run: |
+          npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
+          npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
+
+      - name: Clean old Capacitor config
+        run: rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
+
+      - name: Init Capacitor
+        run: npx cap init "宝贝时光" com.babytime.app --web-dir dist
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Android
+        run: npx cap sync android
