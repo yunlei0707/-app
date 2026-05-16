@@ -27,9 +27,10 @@ jobs:
 
       - name: Sync Capacitor
         run: |
-              npm install @capacitor/cli @capacitor/core @capacitor/android typescript --save-dev
-              npx cap add android || true
-              npx cap sync android
+             npm install @capacitor/cli @capacitor/core @capacitor/android typescript --save-dev
+             npx cap init "宝贝时光" com.babytime.app --web-dir dist || true
+             npx cap add android || true
+             npx cap sync android
           
 
       - name: Set up JDK 17
