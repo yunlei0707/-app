@@ -30,6 +30,15 @@ jobs:
           mkdir -p android/app/src/main/assets/public
           cp -r dist/* android/app/src/main/assets/public/
 
+      - name: List Android directory structure
+        run: |
+          echo "=== Root directory ==="
+          ls -la
+          echo "=== Android directory ==="
+          ls -la android/
+          echo "=== Android app directory ==="
+          ls -la android/app/
+
       - name: Remove Capacitor plugin references
         run: |
           cd android
