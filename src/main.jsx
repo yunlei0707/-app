@@ -83,3 +83,29 @@ if ('serviceWorker' in navigator) {
       });
   });
 }import './utils/backButton.js';
+/* ========== APP专属体验优化 ========== */
+
+/* 禁止长按弹出菜单 */
+html.capacitor-app * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* 输入框允许选择 */
+html.capacitor-app input,
+html.capacitor-app textarea {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 禁止下拉露出背景 */
+html.capacitor-app body {
+  overscroll-behavior: none !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 标记APP环境 */
+if (window.Capacitor?.isNativePlatform?.()) {
+  document.documentElement.classList.add('capacitor-app');
+}
