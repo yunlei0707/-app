@@ -35,6 +35,9 @@ jobs:
           npm install @capacitor/cli @capacitor/core @capacitor/android --save-dev
           npm install @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar --save
 
+      - name: Delete old Capacitor config
+        run: rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
+
       - name: Init Capacitor
         run: npx cap init "宝贝时光" com.babytime.app --web-dir dist
 
