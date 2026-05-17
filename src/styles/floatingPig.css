@@ -1,0 +1,219 @@
+/**
+ * 悬浮小猪按钮样式
+ * 包含：呼吸浮动动画、进场渐入弹跳动画、拖拽反馈动画、点击摇摆动画
+ */
+
+/* 容器 */
+.floating-pig-container {
+  position: fixed;
+  z-index: 1000;
+  width: 56px;
+  height: 56px;
+  user-select: none;
+  touch-action: none;
+  opacity: 0;
+  transform: scale(0);
+  transition: none;
+}
+
+/* 进场渐入弹跳动画 */
+.floating-pig-container.mounted {
+  animation: floatIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: scale(0) translateY(50px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1) translateY(-10px);
+  }
+  70% {
+    transform: scale(0.95) translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 小猪主按钮 */
+.floating-pig-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffb7c5 0%, #ff6b8a 100%);
+  box-shadow: 0 4px 15px rgba(255, 107, 138, 0.4);
+  border: 3px solid #fff;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.floating-pig-button:active {
+  cursor: grabbing;
+}
+
+/* 小猪表情 */
+.pig-emoji {
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* 持续呼吸浮动动画 */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(255, 107, 138, 0.4);
+  }
+  25% {
+    transform: scale(1.02);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(255, 107, 138, 0.5);
+  }
+  75% {
+    transform: scale(1.03);
+  }
+}
+
+/* 拖拽反馈动画（缩小+阴影变化 */
+.floating-pig-container.dragging .floating-pig-button {
+  transform: scale(0.9);
+  box-shadow: 0 2px 8px rgba(255, 107, 138, 0.3);
+  animation: none;
+  cursor: grabbing;
+}
+
+/* 吸附动画 */
+.floating-pig-container.animating {
+  transition: left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 点击摇摆动画 */
+.floating-pig-button.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-12deg);
+  }
+  40% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+  80% {
+    transform: rotate(6deg);
+  }
+}
+
+/* 扇形菜单容器 */
+.floating-pig-menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 菜单项 */
+.floating-pig-menu-item {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  border: 2px solid #ffb7c5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0) translate(0, 0);
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+    opacity 0.2s ease;
+  pointer-events: none;
+  top: -22px;
+  left: -22px;
+}
+
+.floating-pig-menu-item span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.floating-pig-menu-item:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(255, 107, 138, 0.3);
+}
+
+.floating-pig-menu-item:active {
+  transform: scale(0.95);
+}
+
+/* 菜单展开状态 */
+.floating-pig-menu.show .floating-pig-menu-item {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* 悬停效果 - 暂停呼吸动画 */
+.floating-pig-container:hover .floating-pig-button {
+  animation-play-state: paused;
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(255, 107, 138, 0.5);
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .floating-pig-container {
+    width: 48px;
+    height: 48px;
+  }
+
+  .floating-pig-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  .pig-emoji {
+    font-size: 24px;
+  }
+
+  .floating-pig-menu-item {
+    width: 40px;
+    height: 40px;
+    top: -20px;
+    left: -20px;
+  }
+
+  .floating-pig-menu-item span {
+    font-size: 18px;
+  }
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .floating-pig-menu-item {
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+    border-color: #ff6b8a;
+  }
+}
