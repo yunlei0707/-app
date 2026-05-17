@@ -319,13 +319,23 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       return;
     }
     
-    // 检查是否在安全上下文（HTTPS）
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    // 检查是否在安全上下文（HTTPS或localhost或file://协议）
+    // APP环境下Capacitor使用http://localhost或file://协议，都是允许的
+    const isSecure = location.protocol === 'https:' || 
+                     location.hostname === 'localhost' ||
+                     location.hostname === '127.0.0.1' ||
+                     location.protocol === 'file:';
+    
+    if (!isSecure) {
+      console.warn('[录音] 非安全上下文:', { protocol: location.protocol, hostname: location.hostname });
       alert('录音功能需要HTTPS安全连接，请使用HTTPS访问');
       return;
     }
     
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log('[录音] 开始浏览器录音，安全上下文检查通过');
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
     
     // 设置音频分析器
@@ -391,6 +401,17 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       animationRef.current = requestAnimationFrame(captureWaveform);
     };
     captureWaveform();
+    
+    } catch (error) {
+      console.error('[录音] 浏览器录音失败:', error);
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        alert('麦克风权限被拒绝，请在设置中允许访问麦克风');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        alert('未找到麦克风设备，请检查麦克风是否连接正常');
+      } else {
+        alert('录音启动失败：' + (error.message || '未知错误'));
+      }
+    }
   };
   
   // 开始录音（APP方式）
@@ -436,9 +457,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 开始录音（统一入口）
   const startRecording = async () => {
+    console.log('[录音] 检测运行环境:', {
+      isInApp: isInApp(),
+      jsBridgeAvailable: jsBridgeAudioRecorder.isAvailable(),
+      protocol: location.protocol,
+      hostname: location.hostname,
+      userAgent: navigator.userAgent
+    });
+    
     if (isInApp() && jsBridgeAudioRecorder.isAvailable()) {
+      console.log('[录音] 使用APP原生录音');
       await startAppRecording();
     } else {
+      console.log('[录音] 使用浏览器录音');
       await startBrowserRecording();
     }
   };
