@@ -7,7 +7,7 @@ import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play
 import { useApp } from '../store/AppContext';
 import { getCurrentBabyInfo, isSystemAccount } from '../utils/dbV2';
 import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
-import { saveVideoToOPFS, deleteVideoFromOPFS, savePhotoToOPFS, saveAudioToOPFS, readFileFromOPFS } from '../utils/opfs';
+import { saveVideo, deleteVideo, ImportProgressCalculator } from '../utils/storageAdapter';
 import { shouldUseOPFS } from '../utils/storageCheck';
 import { saveFileMetadata, deleteFileMetadata } from '../utils/db';
 import { STORAGE_CONFIG } from '../config/storage';
@@ -996,7 +996,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     
     if (useOPFS) {
       // OPFS模式：存文件，不存base64
-      const { filename } = await saveVideoToOPFS(file);
+      const { filename, storageType } = await saveVideo(file);
       return {
         filename,
         cover: cover,
@@ -1090,7 +1090,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     // 如果是OPFS存储的视频，删除文件
     if (video && video.filename) {
       try {
-        await deleteVideoFromOPFS(video.filename);
+        await deleteVideo(video.filename, video.storageType);
         await deleteFileMetadata(video.filename);
       } catch (e) {
         console.error('[MomentForm] 删除视频文件失败:', e);

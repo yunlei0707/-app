@@ -28,6 +28,7 @@ import
 import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
 import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';
+import { ImportProgressCalculator } from '../utils/storageAdapter';
 
 // 主题预设配置
 const THEME_PRESETS = [
@@ -820,6 +821,7 @@ export function ProfilePage(
               setImportMessage(`检测到 ${videoFiles.length} 个视频文件，正在导入...`);
               
               let importedVideos = 0;
+              const progressCalc = new ImportProgressCalculator(videoFiles.length);
               for (let i = 0; i < videoFiles.length; i++) {
                 const { relativePath, file } = videoFiles[i];
                 try {
@@ -851,8 +853,9 @@ export function ProfilePage(
                   importedVideos++;
                   const progress = 40 + Math.round((importedVideos / videoFiles.length) * 40);
                   setImportProgress(progress);
-                  setImportMessage(`视频导入中: ${importedVideos}/${videoFiles.length}`);
+                  setImportMessage(progressCalc.formatMessage(filename));
                   
+                  progressCalc.markFileComplete(videoBlob.size);
                   console.log(`[Import] 视频导入成功: ${filename}`);
                 } catch (e) {
                   console.error('[Import] 视频导入失败:', relativePath, e);
