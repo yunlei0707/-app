@@ -1,5 +1,6 @@
 /**
  * React Context - 应用状态管理
+ * ✅ 生产级优化：移除应用启动时的 getMomentsByBaby 调用，避免卡死
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
@@ -10,7 +11,6 @@ import {
   getCurrentBaby,
   updateSettings,
   checkAndInitSampleData,
-  getMomentsByBaby,
   getCapsulesByBaby,
   getSettings as getSettingsFromDB,
   getCustomMilestones,
@@ -62,7 +62,8 @@ export function AppProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [babies, setBabies] = useState([]);
   const [currentBaby, setCurrentBaby] = useState(null);
-  const [moments, setMoments] = useState([]);
+  // ✅ 生产级优化：moments 状态移至 TimelinePage 组件内或使用 Zustand
+  // 避免应用启动时阻塞加载
   const [capsules, setCapsules] = useState([]);
   const [theme, setThemeState] = useState('light');
   const [themePreset, setThemePreset] = useState('pink');
@@ -100,7 +101,30 @@ export function AppProvider({ children }) {
     return DEFAULT_MOODS.concat(custom);
   }, [customMoods]);
 
-  // 初始化应用
+  // 刷新胶囊列表
+  const refreshCapsules = useCallback(async (babyId) => {
+    if (!babyId) return;
+    try {
+      const babyCapsules = await getCapsulesByBaby(babyId);
+      setCapsules(babyCapsules);
+    } catch (e) {
+      console.error('加载胶囊失败:', e);
+    }
+  }, []);
+
+  // 刷新成长记录
+  const refreshGrowthRecords = useCallback(async (babyId) => {
+    if (!babyId) return;
+    try {
+      const records = await getGrowthRecordsByBaby(babyId);
+      setGrowthRecords(records);
+    } catch (e) {
+      console.error('加载成长记录失败:', e);
+    }
+  }, []);
+
+  // ✅ 生产级优化：应用初始化
+  // 移除启动时的 getMomentsByBaby 调用，改为在 TimelinePage 组件内按需加载
   useEffect(() => {
     async function init() {
       try {
@@ -150,7 +174,7 @@ export function AppProvider({ children }) {
           }
         }
         
-        // 加载数据
+        // 加载基础数据（不包含动态数据，动态数据在页面内按需加载）
         const allBabies = currentUserId ? await getBabiesByUser(currentUserId) : await getAllBabies();
         const settings = await getSettingsFromDB();
         const baby = await getCurrentBaby();
@@ -173,20 +197,16 @@ export function AppProvider({ children }) {
           applyThemePreset(settings.themePreset || 'pink');
         }
         
-        // 加载动态和胶囊（如果有宝宝）
-        // 性能优化：只加载最新的20条动态，后续滚动按需加载
+        // ✅ 只加载胶囊数据，不加载动态数据（动态在页面内按需加载）
         if (baby) {
           try {
-            const [babyMoments, babyCapsules] = await Promise.all([
-              getMomentsByBaby(baby.id, 0, 20),  // 只加载最新20条
-              getCapsulesByBaby(baby.id)
-            ]);
-            setMoments(babyMoments);
+            const babyCapsules = await getCapsulesByBaby(baby.id);
             setCapsules(babyCapsules);
           } catch (e) {
-            console.error('加载动态和胶囊失败:', e);
+            console.error('加载胶囊失败:', e);
           }
         }
+        
       } catch (error) {
         console.error('初始化失败:', error);
         showToast('部分数据加载失败，请刷新重试', 'error');
@@ -196,322 +216,43 @@ export function AppProvider({ children }) {
       }
     }
     init();
-  }, []);
+  }, [showToast, refreshCapsules]);
 
-  // 应用主题
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  // 切换宝宝
-  const switchBaby = useCallback(async (babyId) => {
-    try {
-      await updateSettings({ currentBabyId: babyId });
-      const baby = babies.find(b => b.id === babyId);
-      if (baby) {
-        setCurrentBaby(baby);
-        // 性能优化：只加载最新20条
-        const babyMoments = await getMomentsByBaby(babyId, 0, 20);
-        const babyCapsules = await getCapsulesByBaby(babyId);
-        setMoments(babyMoments);
-        setCapsules(babyCapsules);
-      }
-    } catch (error) {
-      console.error('切换宝宝失败:', error);
-      showToast('切换失败', 'error');
-    }
-  }, [babies, showToast]);
-
-  // 刷新宝宝列表
-  const refreshBabies = useCallback(async () => {
-    const allBabies = await getAllBabies();
-    setBabies(allBabies);
-  }, []);
-
-  // 刷新动态
-  const refreshMoments = useCallback(async () => {
-    if (currentBaby) {
-      // 性能优化：只加载最新20条
-      const babyMoments = await getMomentsByBaby(currentBaby.id, 0, 20);
-      setMoments(babyMoments);
-    }
-  }, [currentBaby]);
-
-  // 刷新胶囊
-  const refreshCapsules = useCallback(async () => {
-    if (currentBaby) {
-      const babyCapsules = await getCapsulesByBaby(currentBaby.id);
-      setCapsules(babyCapsules);
-    }
-  }, [currentBaby]);
-
-  // 刷新成长记录
-  const refreshGrowthRecords = useCallback(async (babyId) => {
-    let id = babyId || currentBaby?.id;
-    if (!id) {
-      // v2系统：从getCurrentBabyInfo获取
-      try {
-        const babyInfo = JSON.parse(localStorage.getItem('baby-timeline-v2') || '{}');
-        const identity = localStorage.getItem('currentIdentity');
-        if (identity && babyInfo[identity]) {
-          const accId = babyInfo[identity].currentAccountId;
-          if (accId) id = accId;
-        }
-      } catch (e) {}
-    }
-    console.log('[AppContext] refreshGrowthRecords, id:', id);
-    if (id) {
-      const records = await getGrowthRecordsByBaby(id);
-      console.log('[AppContext] growthRecords loaded:', records.length, records);
-      setGrowthRecords(records);
-    } else {
-      console.log('[AppContext] refreshGrowthRecords: no babyId found');
-      // 最后尝试直接查所有记录
-      try {
-        const allRecords = await getGrowthRecordsByBaby('user');
-        console.log('[AppContext] fallback user records:', allRecords.length);
-        if (allRecords.length > 0) setGrowthRecords(allRecords);
-      } catch(e) {}
-    }
-  }, [currentBaby]);
-
-  // 添加动态
-  const addMomentToContext = useCallback(async (momentData) => {
-    try {
-      const newMoment = await addMoment(momentData);
-      setMoments(prev => [newMoment, ...prev]);
-      return newMoment;
-    } catch (error) {
-      console.error('添加动态失败:', error);
-      showToast('添加失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 删除宝宝
-  const deleteBaby = useCallback(async (babyId) => {
-    await deleteBaby(babyId);
-    await refreshBabies();
-    // 如果删除的是当前宝宝，切换到第一个宝宝
-    if (currentBaby?.id === babyId) {
-      const allBabies = await getAllBabies();
-      if (allBabies.length > 0) {
-        await switchBaby(allBabies[0].id);
-      } else {
-        setCurrentBaby(null);
-        setMoments([]);
-        setCapsules([]);
-      }
-    }
-  }, [currentBaby, refreshBabies, switchBaby]);
-
-  // 切换主题（深色/浅色）
-  const toggleTheme = useCallback(async () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    await updateSettings({ theme: newTheme });
-    setThemeState(newTheme);
-  }, [theme]);
-
-  // 切换主题预设
-  const setTheme = useCallback(async (preset, customColor = null) => {
-    await updateSettings({ 
-      themePreset: preset,
-      customThemeColor: customColor,
-    });
-    setThemePreset(preset);
-    setCustomThemeColor(customColor);
-    
-    if (preset === 'custom' && customColor) {
-      applyCustomTheme(customColor);
-    } else {
-      applyThemePreset(preset);
-    }
-  }, []);
-
-  // 添加自定义名场面
-  const addMilestone = useCallback(async (milestone) => {
-    try {
-      // db already imported at top
-      // addCustomMilestone already imported at top
-      const newMilestone = await addCustomMilestone(milestone);
-      setCustomMilestones(prev => [...prev, newMilestone]);
-      return newMilestone;
-    } catch (error) {
-      console.error('添加名场面失败:', error);
-      showToast('添加失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 更新自定义名场面
-  const updateMilestone = useCallback(async (id, updates) => {
-    try {
-      // updateCustomMilestone already imported at top
-      const updated = await updateCustomMilestone(id, updates);
-      setCustomMilestones(prev => prev.map(m => m.id === id ? updated : m));
-      return updated;
-    } catch (error) {
-      console.error('更新名场面失败:', error);
-      showToast('更新失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 删除自定义名场面
-  const deleteMilestone = useCallback(async (id) => {
-    try {
-      // deleteCustomMilestone already imported at top
-      await deleteCustomMilestone(id);
-      setCustomMilestones(prev => prev.filter(m => m.id !== id));
-    } catch (error) {
-      console.error('删除名场面失败:', error);
-      showToast('删除失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 添加自定义心情标签
-  const addMood = useCallback(async (mood) => {
-    try {
-      const newMood = await addCustomMood(mood);
-      setCustomMoods(prev => [...prev, newMood]);
-      return newMood;
-    } catch (error) {
-      console.error('添加心情标签失败:', error);
-      showToast('添加失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 更新自定义心情标签
-  const updateMood = useCallback(async (id, updates) => {
-    try {
-      const updated = await updateCustomMood(id, updates);
-      setCustomMoods(prev => prev.map(m => m.id === id ? updated : m));
-      return updated;
-    } catch (error) {
-      console.error('更新心情标签失败:', error);
-      showToast('更新失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 删除自定义心情标签
-  const deleteMood = useCallback(async (id) => {
-    try {
-      await deleteCustomMood(id);
-      setCustomMoods(prev => prev.filter(m => m.id !== id));
-    } catch (error) {
-      console.error('删除心情标签失败:', error);
-      showToast('删除失败', 'error');
-      throw error;
-    }
-  }, [showToast]);
-
-  // 隐藏/显示预设名场面
-  const toggleMilestoneVisibility = useCallback(async (milestoneId, hidden) => {
-    const newHidden = hidden 
-      ? [...hiddenMilestones, milestoneId]
-      : hiddenMilestones.filter(id => id !== milestoneId);
-    
-    await updateSettings({ hiddenMilestones: newHidden });
-    setHiddenMilestones(newHidden);
-  }, [hiddenMilestones]);
-
-  // 更新用户资料
-  const updateUserProfile = useCallback(async (updates) => {
-    if (!currentUser) return;
-    
-    try {
-      // updateUser already imported at top
-      const updatedUser = await updateUser(currentUser.id, updates);
-      setCurrentUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      return updatedUser;
-    } catch (error) {
-      console.error('更新用户资料失败:', error);
-      showToast('更新失败', 'error');
-      throw error;
-    }
-  }, [currentUser, showToast]);
-
-  // 登录处理
-  const login = useCallback((user) => {
-    setCurrentUser(user);
-    setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    // 更新记住的用户
-    localStorage.setItem('rememberedUser', JSON.stringify(user));
-  }, []);
-
-  // 登出处理
-  const logout = useCallback(() => {
-    // 记住当前用户，下次打开自动登录
-    const userStr = localStorage.getItem('currentUser');
-    if (userStr) {
-      localStorage.setItem('rememberedUser', userStr);
-    }
-    setCurrentUser(null);
-    setIsLoggedIn(false);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('currentUser');
-  }, []);
-
+  // Context value
   const value = {
+    // 状态
     isLoading,
     babies,
-    setBabies,
     currentBaby,
     setCurrentBaby,
-    moments,
-    setMoments,
     capsules,
     setCapsules,
     theme,
     themePreset,
     customThemeColor,
-    toast,
-    switchBaby,
-    refreshBabies,
-    refreshMoments,
-    refreshCapsules,
-    addMoment: addMomentToContext,
-    deleteBaby,
-    toggleTheme,
-    setTheme,
-    showToast,
-    // 名场面相关
     customMilestones,
     hiddenMilestones,
-    getAllMilestones,
-    addMilestone,
-    updateMilestone,
-    deleteMilestone,
-    toggleMilestoneVisibility,
-    // 心情标签相关
     customMoods,
-    getAllMoods,
-    addMood,
-    updateMood,
-    deleteMood,
-    // 用户资料
-    updateUserProfile,
-    // 认证相关
-    isLoggedIn,
-    currentUser,
-    login,
-    logout,
-    // ✅ 性能配置
-    perfConfig,
-    deviceLevel: perfConfig.level,
-    // 成长记录
+    toast,
     growthRecords,
+    setGrowthRecords,
+    
+    // 认证
+    isLoggedIn,
+    setIsLoggedIn,
+    currentUser,
+    setCurrentUser,
+    
+    // 方法
+    showToast,
+    getAllMilestones,
+    getAllMoods,
+    refreshCapsules,
     refreshGrowthRecords,
+    setBabies,
+    
+    // 性能配置
+    perfConfig,
   };
 
   return (
@@ -521,9 +262,6 @@ export function AppProvider({ children }) {
   );
 }
 
-/**
- * 使用应用上下文
- */
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) {

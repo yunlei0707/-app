@@ -10,9 +10,11 @@ import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
 import { saveVideo, deleteVideo } from '../utils/storageAdapter';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseOPFS } from '../utils/storageCheck';
-import { saveFileMetadata, deleteFileMetadata } from '../utils/db';
+import { saveFileMetadata } from '../utils/db';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
+import { getImageSrc } from '../utils/image';
+import { takePhoto } from '../utils/native';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -638,6 +640,32 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     }
   };
   
+  // ✅ 原生相机/相册上传播客封面
+  const handleNativePodcastCoverUpload = async () => {
+    try {
+      // 调用原生API拍照或从相册选择
+      const photoUri = await takePhoto({
+        quality: 85,
+        width: 1920,
+        height: 1920
+      });
+      
+      if (photoUri) {
+        // 存储文件URI而不是Base64
+        setPodcastCover(photoUri);
+        
+        if (STORAGE_CONFIG.DEBUG_MODE) {
+          console.log('[MomentForm] 播客封面上传成功:', photoUri.substring(0, 50) + '...');
+        }
+      }
+    } catch (error) {
+      console.error('[MomentForm] 播客封面上传失败:', error);
+      if (error.message !== '未选择图片') {
+        alert('播客封面上传失败，请重试');
+      }
+    }
+  };
+
   // 播客封面上传 - 上传时立即转Base64避免File对象失效
   const handlePodcastCoverUpload = async (e) => {
     const file = e.target.files[0];
@@ -953,6 +981,33 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         };
         reader.readAsDataURL(file);
       });
+    }
+  };
+
+  // ✅ 使用原生相机/相册选择照片
+  const handleNativePhotoUpload = async () => {
+    try {
+      // 调用原生API拍照或从相册选择
+      const photoUri = await takePhoto({
+        quality: 85,
+        width: 1920,
+        height: 1920
+      });
+      
+      if (photoUri) {
+        // 存储文件URI而不是Base64
+        setPhotos(prev => [...prev, photoUri]);
+        
+        if (STORAGE_CONFIG.DEBUG_MODE) {
+          console.log('[MomentForm] 原生照片上传成功:', photoUri.substring(0, 50) + '...');
+        }
+      }
+    } catch (error) {
+      console.error('[MomentForm] 原生照片上传失败:', error);
+      // 降级：如果原生API失败，提示用户或使用其他方式
+      if (error.message !== '未选择图片') {
+        alert('照片上传失败，请重试');
+      }
     }
   };
 
@@ -1380,7 +1435,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {photos.map((photo, index) => (
                   <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-cream-100 dark:bg-gray-700">
-                    <img src={photo.displayURL || photo.url || photo} alt="" className="w-full h-full object-cover" />
+                    {/* ✅ 使用 getImageSrc 统一处理图片路径 */}
+                    <img src={getImageSrc(photo.displayURL || photo.url || photo)} alt="" className="w-full h-full object-cover" />
                     <button
                       onClick={() => removePhoto(index)}
                       className="absolute top-1 right-1 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center"
@@ -1392,19 +1448,14 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
               </div>
             )}
             
-            <label className="block">
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center cursor-pointer hover:border-primary-400 transition-colors">
-                <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-500 dark:text-gray-400">添加照片</p>
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-            </label>
+            {/* ✅ 使用原生相机/相册按钮 */}
+            <button
+              onClick={handleNativePhotoUpload}
+              className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-primary-400 transition-colors"
+            >
+              <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">拍照或选择照片</p>
+            </button>
           </div>
         )}
         
@@ -1542,8 +1593,9 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                 </label>
                 {podcastCover ? (
                   <div className="relative">
+                    {/* ✅ 使用 getImageSrc 统一处理图片路径 */}
                     <img
-                      src={typeof podcastCover === 'string' ? podcastCover : podcastCover.url}
+                      src={getImageSrc(typeof podcastCover === 'string' ? podcastCover : podcastCover.url)}
                       alt="播客封面"
                       className="w-full h-40 object-cover rounded-xl"
                     />
@@ -1555,21 +1607,15 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                     </button>
                   </div>
                 ) : (
+                  // ✅ 使用原生相机/相册
                   <button
-                    onClick={() => document.getElementById('podcast-cover-input').click()}
+                    onClick={handleNativePodcastCoverUpload}
                     className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center hover:border-primary-500 transition-colors"
                   >
                     <Image className="w-8 h-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">上传封面图片</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">选择封面图片</span>
                   </button>
                 )}
-                <input
-                  id="podcast-cover-input"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePodcastCoverUpload}
-                />
               </div>
             </div>
           )}

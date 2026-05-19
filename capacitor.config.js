@@ -4,7 +4,7 @@ const config = {
   appName: '宝贝时光',
   webDir: 'dist',
   server: {
-    androidScheme: 'http'
+    androidScheme: 'https'
   },
   android: {
     buildOptions: {

@@ -13,6 +13,8 @@ import { PhotoViewer } from '../components/PhotoViewer';
 import { ShareCard } from '../components/ShareCard';
 import { groupByYearAndMonth } from '../utils/dateUtils';
 import { deleteMoment, getMomentsByBaby, addMoment, initDB } from '../utils/db';
+// ✅ 引入 Zustand 状态管理用于分页加载
+import { useMomentStore } from '../store/momentStore';
 import { PredictionPage } from '../components/PredictionPage';
 import { Plus, Sparkles, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { 
@@ -84,6 +86,66 @@ export function TimelinePage({
   
   // 删除确认弹窗状态
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, momentId: null, momentContent: '' });
+  
+  // ✅ 分页加载相关状态
+  const { moments: storeMoments, loading, hasMore, setMoments: setStoreMoments, appendMoments, setLoading, setHasMore } = useMomentStore();
+  
+  // ✅ 分页获取动态数据
+  const fetchMomentsData = useCallback(async (loadMore = false) => {
+    if (loading || (!loadMore && !hasMore)) return;
+    if (!currentBaby?.id) return;
+    
+    setLoading(true);
+    
+    try {
+      // 获取最后一条动态的创建时间（用于分页）
+      const lastCreatedAt = loadMore && storeMoments.length > 0 
+        ? storeMoments[storeMoments.length - 1]?.createdAt 
+        : null;
+      
+      // 调用分页API，每页20条
+      const data = await getMomentsByBaby(
+        currentBaby.id,
+        lastCreatedAt,
+        20  // 每页20条
+      );
+      
+      if (loadMore) {
+        appendMoments(data);
+      } else {
+        setStoreMoments(data);
+      }
+      
+      // 如果返回数据少于20条，说明没有更多了
+      if (data.length < 20) {
+        setHasMore(false);
+      }
+      
+    } catch (error) {
+      console.error('[TimelinePage] 加载动态失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentBaby?.id, loading, hasMore, storeMoments, setLoading, setStoreMoments, appendMoments, setHasMore]);
+  
+  // ✅ 滚动到底部自动加载更多
+  const handleScroll = useCallback((e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    
+    // 距离底部小于100px时加载更多
+    if (scrollHeight - scrollTop - clientHeight < 100 && !loading && hasMore) {
+      fetchMomentsData(true); // 加载更多
+    }
+  }, [loading, hasMore, fetchMomentsData]);
+  
+  // ✅ 组件初始化时加载第一页数据（仅非系统账号）
+  useEffect(() => {
+    const isSystem = checkIsSystemAccount();
+    // 系统账号使用 localStorage 数据，用户账号使用分页加载
+    if (!isSystem && currentBaby?.id) {
+      fetchMomentsData(false); // 加载第一页
+    }
+  }, [currentBaby?.id, currentAccountId]);
   
   // 监听账号切换和动态更新，刷新 v2 数据
   useEffect(() => {
@@ -369,12 +431,12 @@ export function TimelinePage({
         // 系统账号：只显示系统预设内容（加空值保护）
         sourceMoments = Array.isArray(v2Moments) ? v2Moments : [];
       } else if (shouldMergeDisplay(isSystem, isV1)) {
-        // ✅ 用户账号：自动合并 v1 + v2 数据显示（零感知迁移）
-        // v1 数据只读不写，永不修改
-        sourceMoments = mergeMoments(moments, v2Moments);
+        // ✅ 用户账号：自动合并 分页v1数据 + v2 数据显示（零感知迁移）
+        // 使用分页 store 中的数据而不是 AppContext 中的全量数据
+        sourceMoments = mergeMoments(storeMoments, v2Moments);
       } else {
-        // v1单独模式或其他情况：只显示v1数据（加空值保护）
-        sourceMoments = Array.isArray(moments) ? moments : [];
+        // v1单独模式或其他情况：使用分页加载的数据
+        sourceMoments = Array.isArray(storeMoments) ? storeMoments : [];
       }
       
       // 确保是数组
@@ -402,8 +464,8 @@ export function TimelinePage({
       console.error('[TimelinePage] 筛选动态出错:', error);
       return [];
     }
-    // ✅ 添加 currentAccountId 到依赖，确保账号切换时重新计算
-  }, [v2Moments, moments, selectedType, selectedMood, selectedMilestone, currentAccountId]);
+    // ✅ 添加 currentAccountId 和 storeMoments 到依赖，确保账号切换和数据更新时重新计算
+  }, [v2Moments, storeMoments, selectedType, selectedMood, selectedMilestone, currentAccountId]);
   
   // 按年月分组 - 传入宝宝生日以显示相对时间
   const groupedMoments = useMemo(() => {
@@ -472,11 +534,11 @@ export function TimelinePage({
     }
     
     // 获取动态内容用于显示
-    const moment = v2Moments.find(m => m.id === momentId) || moments.find(m => m.id === momentId);
+    const moment = v2Moments.find(m => m.id === momentId) || storeMoments.find(m => m.id === momentId);
     const content = moment?.content?.substring(0, 30) || '这条记录';
     
     setDeleteConfirm({ show: true, momentId, momentContent: content });
-  }, [isSystemAccount, v2Moments, moments]);
+  }, [isSystemAccount, v2Moments, storeMoments]);
   
   // 执行删除（放入回收站）
   const executeDeleteToBin = useCallback(async () => {
@@ -577,10 +639,11 @@ export function TimelinePage({
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen pb-20 bg-cream-50 dark:bg-gray-900"
+      className="min-h-screen pb-20 bg-cream-50 dark:bg-gray-900 overflow-auto"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onScroll={handleScroll}
     >
       {/* 下拉刷新指示器 */}
       {pullDistance > 0 && (
@@ -842,6 +905,23 @@ export function TimelinePage({
             ))}
           </div>
         ))}
+        
+        {/* ✅ 分页加载状态和没有更多提示 */}
+        {!isSystemAccount && filteredMoments.length > 0 && (
+          <div className="py-6 text-center">
+            {loading && (
+              <div className="flex items-center justify-center gap-2 text-gray-500">
+                <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">加载中...</span>
+              </div>
+            )}
+            {!hasMore && !loading && (
+              <div className="text-sm text-gray-400">
+                — 没有更多了 —
+              </div>
+            )}
+          </div>
+        )}
         
         {/* 空状态 */}
         {filteredMoments.length === 0 && (

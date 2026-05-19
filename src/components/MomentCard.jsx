@@ -9,6 +9,7 @@ import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X 
 import { readFileFromOPFS, getFileDisplayURL } from '../utils/opfs';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { isInApp } from '../utils/jsBridge';
+import { getImageSrc } from '../utils/image';
 
 // 图片组件 - 支持OPFS、Base64和直接URL三种格式
 function LazyImage({ src, alt, className, onClick }) {
@@ -34,12 +35,17 @@ function LazyImage({ src, alt, className, onClick }) {
       setLoading(true);
       setError(false);
       
-      // 使用getFileDisplayURL获取可显示的URL
-      const url = await getFileDisplayURL(src);
+      // ✅ 优先使用 getImageSrc 处理 Capacitor 文件路径
+      // 如果已经是可直接显示的格式（http、base64、转换后的路径），直接使用
+      let url = getImageSrc(src);
       
-      // 如果是Blob URL，记录下来以便清理
-      if (url && url.startsWith('blob:')) {
-        objectUrlRef.current = url;
+      // 如果 getImageSrc 返回空字符串或需要OPFS处理的路径，使用 getFileDisplayURL
+      if (!url || (typeof src === 'string' && src.startsWith('opfs:')) || (typeof src === 'object' && src.handle)) {
+        url = await getFileDisplayURL(src);
+        // 如果是Blob URL，记录下来以便清理
+        if (url && url.startsWith('blob:')) {
+          objectUrlRef.current = url;
+        }
       }
       
       setImageUrl(url);
@@ -561,7 +567,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
           <div 
             className="absolute inset-0 bg-cover bg-center blur-3xl opacity-40 scale-110"
             style={{
-              backgroundImage: `url(${typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url})`
+              backgroundImage: `url(${getImageSrc(typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url)})`
             }}
           />
           
@@ -585,7 +591,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
             <div className="w-full max-w-sm aspect-square mb-8 rounded-2xl overflow-hidden shadow-2xl">
               {moment.podcast.cover ? (
                 <img
-                  src={typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url}
+                  src={getImageSrc(typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url)}
                   alt={moment.podcast.title || '播客封面'}
                   className="w-full h-full object-cover"
                 />

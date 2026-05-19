@@ -99,3 +99,61 @@ app/src/main/assets/public
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
+# Node.js
+node_modules/
+.npm/
+.global-npm/
+
+# Build artifacts
+dist/
+build/
+*.zip
+*.md
+*.html
+MEMORY.md
+SECRET.md
+
+# Temporary directories
+.tmp/
+temp_files/
+项目预览/
+用户上传/
+.skills/
+.agent-browser/
+.pm2/
+.cache/
+.config/
+
+# Project backup directories
+宝贝时光/
+宝贝时光v3/
+宝贝时光-v3完整版/
+宝贝时光最新/
+宝贝时光-最新完整版/
+宝贝时光源文件/
+宝贝时光源文件版本/
+baby-time-app/
+baobaoshiguang-deploy/
+dzl07/
+landing-page/
+netlify-deploy/
+preview/
+risk-driver-dashboard/
+browser/
+android/
+apks/
+imgs/
+app/
+
+# Other artifacts
+*.apk
+*.pid
+artifact*
+# Risk dashboard files (not part of baby time app)
+src/components/Table/
+src/pages/Driver/
+src/pages/Region/
+src/pages/RISK_DASHBOARD_README.md
+src/pages/TimelinePage_patch.js
+src/store/momentStore.js
+网约车*.md

@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { getImageSrc } from '../utils/image';
 
 export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -310,7 +311,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={photos[currentIndex]}
+          src={getImageSrc(photos[currentIndex])}
           alt={`照片 ${currentIndex + 1}`}
           className="max-w-full max-h-full object-contain"
           style={{
