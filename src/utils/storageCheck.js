@@ -1,5 +1,13 @@
-import { STORAGE_CONFIG } from './config/storage';
+/**
+ * 存储能力检测与最佳模式选择
+ */
+
 import { isOPFSSupported } from './opfs';
+
+// ==================== 默认配置（如果不存在配置文件） ====================
+const STORAGE_CONFIG = {
+  USE_OPFS: true  // 默认开启OPFS
+};
 
 /**
  * 检测是否在原生APP环境
