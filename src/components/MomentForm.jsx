@@ -10,7 +10,6 @@ import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
 import { saveVideo, deleteVideo } from '../utils/storageAdapter';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseOPFS } from '../utils/storageCheck';
-import { saveFileMetadata } from '../utils/db';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
