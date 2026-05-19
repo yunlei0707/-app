@@ -5,10 +5,14 @@
  * - 浏览器环境直接使用JSZip
  */
 
-import { STORAGE_CONFIG } from './config/storage';
 import { readVideoFromOPFS } from './opfs';
 import { exportAllData as exportAllDBData } from './db';
 import { exportV2AccountData } from './dbV2';
+
+// ==================== 配置（如果不存在配置文件，使用默认值） ====================
+const STORAGE_CONFIG = {
+  MAX_CONCURRENT_READ: 5
+};
 
 // ==================== 开关控制 ====================
 const NATIVE_FS_EXPORT_ENABLED = true;
