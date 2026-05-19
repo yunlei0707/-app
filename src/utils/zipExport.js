@@ -57,41 +57,108 @@ function triggerGC() {
   }
 }
 
+async function loadFilesystemPlugin() {
+  try {
+    const module = await import('@capacitor/filesystem');
+    return module.Filesystem;
+  } catch (e) {
+    console.warn('[ZIP] Filesystem plugin not available:', e);
+    return null;
+  }
+}
+
 async function ensureDirExists(path) {
   if (!isNativeFSSupported()) return;
   try {
-    const exists = await new Promise((resolve) => {
-      window.jsBridge.fs.exist(path, (result) => resolve(result));
-    });
-    if (!exists) {
-      await new Promise((resolve, reject) => {
-        window.jsBridge.fs.mkdir(path, (result) => {
-          if (result !== false) resolve();
-          else reject(new Error('mkdir failed'));
+    const Filesystem = await loadFilesystemPlugin();
+    if (!Filesystem) {
+      // 降级到 jsBridge
+      if (window.jsBridge?.fs) {
+        const exists = await new Promise((resolve) => {
+          window.jsBridge.fs.exist(path, (result) => resolve(result));
         });
+        if (!exists) {
+          await new Promise((resolve) => {
+            window.jsBridge.fs.mkdir(path, () => resolve(true));
+          });
+        }
+      }
+      return;
+    }
+
+    // 使用标准 Capacitor Filesystem
+    const dirPath = path.replace('fs://file/', '');
+    try {
+      await Filesystem.stat({ path: dirPath, directory: 'Documents' });
+    } catch {
+      // 目录不存在，创建它
+      await Filesystem.mkdir({
+        path: dirPath,
+        directory: 'Documents',
+        recursive: true,
       });
     }
   } catch (e) {
-    // 目录可能已存在，继续执行
+    console.warn('[ZIP] 目录创建失败:', e);
+    // 继续执行，可能目录已存在
   }
 }
 
 async function nativeWriteBinary(path, base64) {
-  return new Promise((resolve, reject) => {
-    window.jsBridge.fs.writeBinary(path, base64, (result) => {
-      if (result !== false) resolve(result);
-      else reject(new Error('writeBinary failed'));
+  try {
+    const Filesystem = await loadFilesystemPlugin();
+    if (!Filesystem) {
+      // 降级到 jsBridge
+      return new Promise((resolve, reject) => {
+        if (!window.jsBridge?.fs) reject(new Error('文件系统不可用'));
+        window.jsBridge.fs.writeBinary(path, base64, (result) => {
+          if (result !== false) resolve(result);
+          else reject(new Error('writeBinary failed'));
+        });
+      });
+    }
+
+    // 使用标准 Capacitor Filesystem
+    const filePath = path.replace('fs://file/', '');
+    await Filesystem.writeFile({
+      path: filePath,
+      data: base64,
+      directory: 'Documents',
+      recursive: true,
     });
-  });
+    return true;
+  } catch (e) {
+    console.error('[ZIP] 写入文件失败:', e);
+    throw e;
+  }
 }
 
 async function nativeAppendBinary(path, base64) {
-  return new Promise((resolve, reject) => {
-    window.jsBridge.fs.appendBinary(path, base64, (result) => {
-      if (result !== false) resolve(result);
-      else reject(new Error('appendBinary failed'));
+  try {
+    const Filesystem = await loadFilesystemPlugin();
+    if (!Filesystem) {
+      // 降级到 jsBridge
+      return new Promise((resolve, reject) => {
+        if (!window.jsBridge?.fs) reject(new Error('文件系统不可用'));
+        window.jsBridge.fs.appendBinary(path, base64, (result) => {
+          if (result !== false) resolve(result);
+          else reject(new Error('appendBinary failed'));
+        });
+      });
+    }
+
+    // 使用标准 Capacitor Filesystem append 模式
+    const filePath = path.replace('fs://file/', '');
+    await Filesystem.appendFile({
+      path: filePath,
+      data: base64,
+      directory: 'Documents',
     });
-  });
+    return true;
+  } catch (e) {
+    console.error('[ZIP] 追加写入文件失败:', e);
+    throw e;
+  }
 }
 
 // ==================== 原生流式ZIP构建器 ====================

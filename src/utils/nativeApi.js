@@ -100,6 +100,15 @@ export async function takePhoto(options = {}) {
     throw new Error('相机插件不可用');
   }
 
+  // ✅ 主动检查和请求相机权限（解决"每次询问"不弹窗问题）
+  const permStatus = await camera.checkPermissions();
+  if (permStatus.camera !== 'granted' || permStatus.photos !== 'granted') {
+    const requestResult = await camera.requestPermissions();
+    if (requestResult.camera !== 'granted' && requestResult.photos !== 'granted') {
+      throw new Error('请授予相机和存储权限后重试');
+    }
+  }
+
   const photo = await camera.getPhoto({
     quality: options.quality || 85,
     resultType: 'uri',
