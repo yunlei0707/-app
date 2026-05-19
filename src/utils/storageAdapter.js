@@ -1,19 +1,26 @@
 /**
- * 存储适配器 - 自动选择最佳存储方式
- * APP环境用原生文件系统（更快、更稳定）
- * 网页环境降级到OPFS
+ * ✅ 生产级：存储适配器
+ * 使用标准 Capacitor Filesystem 插件
  */
 
-// ==================== 默认配置 ====================
-const STORAGE_CONFIG = {
-  MAX_CONCURRENT_READ: 5
-};
+// ==================== 工具函数 ====================
 
-/**
- * 检测是否在Capacitor APP环境
- */
-export function isAppEnvironment() {
-  return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
+function isAppEnvironment() {
+  try {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
+  } catch (e) {
+    return false;
+  }
+}
+
+async function loadFilesystem() {
+  try {
+    const module = await import('@capacitor/filesystem');
+    return module.Filesystem;
+  } catch (e) {
+    console.warn('[Storage] Filesystem plugin not available');
+    return null;
+  }
 }
 
 /**
@@ -25,102 +32,139 @@ export function generateUniqueFilename(originalName) {
   return `${uuid}.${ext}`;
 }
 
+/**
+ * File转Base64，带进度
+ */
+function fileToBase64(file, onProgress = null) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      if (onProgress) onProgress(100);
+      resolve(base64);
+    };
+    
+    reader.onerror = reject;
+    
+    if (onProgress) {
+      reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+    
+    reader.readAsDataURL(file);
+  });
+}
+
 // ==================== 原生文件系统操作 ====================
 
 /**
  * 保存视频到APP原生文件系统
  */
 export async function saveVideoToNative(file, onProgress = null) {
+  if (!isAppEnvironment()) {
+    throw new Error('请在APP中使用此功能');
+  }
+
   try {
-    console.log('[StorageAdapter] 使用原生文件系统保存视频');
+    console.log('[Storage] 保存视频到原生文件系统');
     const filename = generateUniqueFilename(file.name);
     const totalSize = file.size;
-    const startTime = Date.now();
 
     // 转成Base64（Capacitor Filesystem要求）
-    const base64 = await fileToBase64(file, (percent) => {
-      if (onProgress) {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const writtenBytes = (percent / 100) * totalSize;
-        const speedMBs = (writtenBytes / 1024 / 1024 / elapsed).toFixed(1);
-        onProgress(percent, speedMBs);
-      }
-    });
+    const base64 = await fileToBase64(file, onProgress);
 
-    // 写入APP文件系统
-    const capacitorModule = '@capacitor/filesystem';
-    const { Filesystem, Directory } = await import(capacitorModule);
+    // 写入文件系统
+    const Filesystem = await loadFilesystem();
+    if (!Filesystem) throw new Error('文件系统不可用');
+
     await Filesystem.writeFile({
       path: `BabyTime/videos/${filename}`,
       data: base64,
-      directory: Directory.Documents,
+      directory: Filesystem.Directory.Documents,
       recursive: true,
     });
 
-    const totalTime = (Date.now() - startTime) / 1000;
-    const avgSpeed = (totalSize / 1024 / 1024 / totalTime).toFixed(1);
-    console.log(`[StorageAdapter] 视频保存成功: ${filename}, 大小: ${(totalSize / 1024 / 1024).toFixed(2)}MB, 平均速度: ${avgSpeed} MB/s`);
+    console.log('[Storage] 视频保存成功:', filename);
 
     return {
       filename,
       size: file.size,
       type: file.type,
       storageType: 'native',
-      avgSpeed: parseFloat(avgSpeed),
     };
+
   } catch (e) {
-    console.error('[StorageAdapter] 原生文件系统保存失败:', e);
-    throw new Error(`视频保存失败: ${e.message}`);
+    console.error('[Storage] 视频保存失败:', e);
+    throw new Error(`保存失败: ${e.message}`);
   }
 }
 
 /**
- * 从APP原生文件系统读取视频
+ * 从原生文件系统读取视频
  */
 export async function readVideoFromNative(filename) {
+  if (!isAppEnvironment()) {
+    throw new Error('请在APP中使用此功能');
+  }
+
   try {
-    const capacitorModule = '@capacitor/filesystem';
-    const { Filesystem, Directory } = await import(capacitorModule);
+    const Filesystem = await loadFilesystem();
+    if (!Filesystem) throw new Error('文件系统不可用');
+
     const result = await Filesystem.readFile({
       path: `BabyTime/videos/${filename}`,
-      directory: Directory.Documents,
+      directory: Filesystem.Directory.Documents,
     });
+
+    // base64转Blob
     const response = await fetch(`data:video/mp4;base64,${result.data}`);
     return await response.blob();
+
   } catch (e) {
-    console.error('[StorageAdapter] 读取视频失败:', filename, e);
-    throw new Error('视频文件丢失或损坏');
+    console.error('[Storage] 读取视频失败:', filename, e);
+    throw new Error('视频文件不存在或已损坏');
   }
 }
 
 /**
- * 从APP原生文件系统删除视频
+ * 删除视频
  */
 export async function deleteVideoFromNative(filename) {
+  if (!isAppEnvironment()) return false;
+
   try {
-    const capacitorModule = '@capacitor/filesystem';
-    const { Filesystem, Directory } = await import(capacitorModule);
+    const Filesystem = await loadFilesystem();
+    if (!Filesystem) throw new Error('文件系统不可用');
+
     await Filesystem.deleteFile({
       path: `BabyTime/videos/${filename}`,
-      directory: Directory.Documents,
+      directory: Filesystem.Directory.Documents,
     });
-    console.log('[StorageAdapter] 视频已删除:', filename);
+
+    console.log('[Storage] 视频已删除:', filename);
     return true;
+
   } catch (e) {
-    console.error('[StorageAdapter] 删除视频失败:', filename, e);
+    console.error('[Storage] 删除视频失败:', e);
     return false;
   }
 }
 
-// ==================== 统一存储入口 ====================
+// ==================== 统一入口（自动选择最佳方式） ====================
 
 /**
- * 智能选择存储方式保存视频
+ * 智能保存视频
  */
 export async function saveVideo(file, onProgress = null) {
   if (isAppEnvironment()) {
     return saveVideoToNative(file, onProgress);
   } else {
+    // Web环境：降级到OPFS
     const { saveVideoToOPFS } = await import('./opfs');
     return saveVideoToOPFS(file);
   }
@@ -134,9 +178,11 @@ export async function readVideo(filename, storageType = null) {
     try {
       return await readVideoFromNative(filename);
     } catch (e) {
-      console.log('[StorageAdapter] 原生读取失败，降级尝试OPFS');
+      console.log('[Storage] 原生读取失败，降级到OPFS');
     }
   }
+  
+  // 降级到OPFS
   const { readVideoFromOPFS } = await import('./opfs');
   return readVideoFromOPFS(filename);
 }
@@ -149,123 +195,22 @@ export async function deleteVideo(filename, storageType = null) {
     try {
       return await deleteVideoFromNative(filename);
     } catch (e) {
-      console.log('[StorageAdapter] 原生删除失败，降级尝试OPFS');
+      console.log('[Storage] 原生删除失败，降级到OPFS');
     }
   }
+  
+  // 降级到OPFS
   const { deleteVideoFromOPFS } = await import('./opfs');
   return deleteVideoFromOPFS(filename);
 }
 
-// ==================== 工具函数 ====================
-
-/**
- * File转Base64，带进度
- */
-function fileToBase64(file, onProgress = null) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    let interval = null;
-
-    reader.onload = () => {
-      if (interval) clearInterval(interval);
-      const base64 = reader.result.split(',')[1];
-      if (onProgress) onProgress(100);
-      resolve(base64);
-    };
-    reader.onerror = (err) => {
-      if (interval) clearInterval(interval);
-      reject(err);
-    };
-
-    if (onProgress) {
-      let progress = 0;
-      interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 95) {
-          clearInterval(interval);
-          progress = 95;
-        }
-        onProgress(Math.min(progress, 95));
-      }, 100);
-    }
-
-    reader.readAsDataURL(file);
-  });
-}
-
-// ==================== 进度计算器 ====================
-
-export class ImportProgressCalculator {
-  constructor(totalFiles = 0) {
-    this.startTime = Date.now();
-    this.totalFiles = totalFiles;
-    this.completedFiles = 0;
-    this.totalBytes = 0;
-    this.completedBytes = 0;
-    this.lastUpdateTime = this.startTime;
-    this.lastUpdateBytes = 0;
-  }
-
-  updateFileProgress(fileSize, percent) {
-    const now = Date.now();
-    const elapsedSinceLastUpdate = (now - this.lastUpdateTime) / 1000;
-    const processedBytes = fileSize * (percent / 100);
-    this.completedBytes += processedBytes;
-    this.lastUpdateTime = now;
-    this.lastUpdateBytes = processedBytes;
-  }
-
-  completeFile() {
-    this.completedFiles++;
-  }
-
-  getStats(currentFilename = '') {
-    const elapsed = (Date.now() - this.startTime) / 1000;
-    const avgSpeedMBs = this.completedBytes / 1024 / 1024 / elapsed;
-    const remainingFiles = this.totalFiles - this.completedFiles;
-    const remainingSeconds = remainingFiles * (elapsed / Math.max(this.completedFiles, 1));
-
-    return {
-      completedFiles: this.completedFiles,
-      totalFiles: this.totalFiles,
-      currentFilename,
-      elapsedSeconds: Math.round(elapsed),
-      avgSpeedMBs: avgSpeedMBs.toFixed(1),
-      remainingSeconds: Math.round(remainingSeconds),
-      totalMB: (this.totalBytes / 1024 / 1024).toFixed(1),
-      progressPercent: Math.round((this.completedFiles / Math.max(this.totalFiles, 1)) * 100),
-    };
-  }
-
-  formatMessage(currentFilename = '') {
-    const stats = this.getStats(currentFilename);
-    let message = `视频导入中：${stats.completedFiles}/${stats.totalFiles}`;
-    if (currentFilename) {
-      message += `\n当前：${currentFilename}`;
-    }
-    if (parseFloat(stats.avgSpeedMBs) > 0) {
-      message += `\n速度：${stats.avgSpeedMBs} MB/s | 已用时：${stats.elapsedSeconds}秒`;
-      if (stats.remainingSeconds > 0) {
-        if (stats.remainingSeconds < 60) {
-          message += `\n预计剩余：~${stats.remainingSeconds}秒`;
-        } else {
-          const minutes = Math.floor(stats.remainingSeconds / 60);
-          const seconds = stats.remainingSeconds % 60;
-          message += `\n预计剩余：~${minutes}分${seconds}秒`;
-        }
-      }
-    }
-    return message;
-  }
-}
-
 export default {
   isAppEnvironment,
+  generateUniqueFilename,
   saveVideo,
   readVideo,
   deleteVideo,
   saveVideoToNative,
   readVideoFromNative,
   deleteVideoFromNative,
-  ImportProgressCalculator,
 };

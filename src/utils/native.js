@@ -1,166 +1,82 @@
 /**
- * ✅ 生产级：Capacitor 原生能力统一封装层
- * 封装相机、文件系统、分享、录音等原生能力
- * 提供 Web 端降级实现（开发环境）
+ * ✅ 生产级：Capacitor原生能力统一封装层
+ * 所有UI组件直接调用此文件
  */
 
-/**
- * 获取Capacitor对象（每次调用时检查，避免模块加载时还没注入）
- * @returns {object|null} Capacitor对象
- */
-function getCapacitor() {
-  try {
-    return window.Capacitor || null;
-  } catch (e) {
-    return null;
-  }
-}
+// 懒加载插件（避免Web环境打包报错）
+let CameraModule = null;
+let FilesystemModule = null;
+let VoiceRecorderModule = null;
+let ShareModule = null;
 
-/**
- * 检测是否在原生APP环境
- * @returns {boolean}
- */
-export function isNativePlatform() {
-  try {
-    const Capacitor = getCapacitor();
-    return Capacitor && typeof Capacitor.isNativePlatform === 'function' 
-      ? Capacitor.isNativePlatform() 
-      : false;
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
- * 转换文件路径为 Web 可访问路径
- * @param {string} filePath - 原生文件路径
- * @returns {string} Web 可访问路径
- */
-export function convertFileSrc(filePath) {
-  if (!filePath) return '';
-  // 如果已经是 http/https 或 base64，直接返回
-  if (filePath.startsWith('http') || filePath.startsWith('data:')) {
-    return filePath;
-  }
-  const Capacitor = getCapacitor();
-  return Capacitor ? Capacitor.convertFileSrc(filePath) : filePath;
-}
-
-// ==================== 相机/相册能力 ====================
-
-let Camera = null;
-let Filesystem = null;
-
-// 懒加载 Capacitor 插件
-let CameraSource = null;
-
-async function loadCameraPlugin() {
-  if (!isNativePlatform()) return null;
-  if (Camera) return Camera;
+async function loadCamera() {
+  if (CameraModule) return CameraModule;
   try {
     const module = await import('@capacitor/camera');
-    Camera = module.Camera;
-    CameraSource = module.CameraSource;
-    return Camera;
+    CameraModule = module;
+    return CameraModule;
   } catch (e) {
-    console.warn('[Native] 相机插件加载失败:', e);
+    console.warn('[Native] Camera plugin not available');
     return null;
   }
 }
 
-async function loadFilesystemPlugin() {
-  if (!isNativePlatform()) return null;
-  if (Filesystem) return Filesystem;
+async function loadFilesystem() {
+  if (FilesystemModule) return FilesystemModule;
   try {
     const module = await import('@capacitor/filesystem');
-    Filesystem = module.Filesystem;
-    return Filesystem;
+    FilesystemModule = module;
+    return FilesystemModule;
   } catch (e) {
-    console.warn('[Native] 文件系统插件加载失败:', e);
+    console.warn('[Native] Filesystem plugin not available');
     return null;
   }
 }
 
-/**
- * 拍照或从相册选择
- * @param {Object} options - 选项
- * @returns {Promise<string>} 文件 URI
- */
-export async function takePhoto(options = {}) {
-  // Web 端降级实现
-  if (!isNativePlatform()) {
-    return new Promise((resolve, reject) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const url = URL.createObjectURL(file);
-          resolve(url);
-        } else {
-          reject(new Error('未选择图片'));
-        }
-      };
-      input.click();
-    });
-  }
-  
-  // 原生环境
-  const camera = await loadCameraPlugin();
-  const filesystem = await loadFilesystemPlugin();
-  
-  if (!camera || !filesystem) {
-    throw new Error('相机插件不可用');
-  }
-  
-  const photo = await camera.getPhoto({
-    quality: options.quality || 85,
-    resultType: 'uri',  // 返回URI而不是base64，减少内存
-    source: options.source || CameraSource.Prompt,
-    width: options.width || 1920,
-    height: options.height || 1920,
-    correctOrientation: true,
-  });
-  
-  // 返回文件路径（Capacitor会自动处理临时文件）
-  return photo.webPath || photo.path || photo.uri;
-}
-
-// ==================== 录音能力 ====================
-
-let VoiceRecorder = null;
-let isRecording = false;
-
-async function loadVoiceRecorderPlugin() {
-  if (!isNativePlatform()) return null;
-  if (VoiceRecorder) return VoiceRecorder;
+async function loadVoiceRecorder() {
+  if (VoiceRecorderModule) return VoiceRecorderModule;
   try {
     const module = await import('capacitor-voice-recorder');
-    VoiceRecorder = module.VoiceRecorder;
-    return VoiceRecorder;
+    VoiceRecorderModule = module;
+    return VoiceRecorderModule;
   } catch (e) {
-    console.warn('[Native] 录音插件加载失败:', e);
+    console.warn('[Native] VoiceRecorder plugin not available');
     return null;
   }
 }
 
-/**
- * 检查录音权限状态
- */
-export async function checkAudioPermission() {
-  if (!isNativePlatform()) {
-    return true; // Web环境在调用时才检查
+async function loadShare() {
+  if (ShareModule) return ShareModule;
+  try {
+    const module = await import('@capacitor/share');
+    ShareModule = module;
+    return ShareModule;
+  } catch (e) {
+    console.warn('[Native] Share plugin not available');
+    return null;
   }
-  
-  const recorder = await loadVoiceRecorderPlugin();
-  if (!recorder) return false;
+}
+
+// ==================== 权限请求核心函数 ====================
+
+/**
+ * 请求相机权限（主动弹窗，解决"每次询问"不弹窗问题）
+ */
+export async function requestCameraPermission() {
+  if (!isNativePlatform()) return true;
   
   try {
-    const result = await recorder.checkPermissions();
-    return result.value?.audio_recording === 'granted' || result.value?.audio_recording === true;
+    const Camera = await loadCamera();
+    if (!Camera) return false;
+    
+    const status = await Camera.Camera.checkPermissions();
+    if (status.camera !== 'granted' || status.photos !== 'granted') {
+      const result = await Camera.Camera.requestPermissions();
+      return result.camera === 'granted' || result.photos === 'granted';
+    }
+    return true;
   } catch (e) {
-    console.warn('[Native] 检查录音权限失败:', e);
+    console.error('[Native] 请求相机权限失败:', e);
     return false;
   }
 }
@@ -169,196 +85,203 @@ export async function checkAudioPermission() {
  * 请求录音权限
  */
 export async function requestAudioPermission() {
-  if (!isNativePlatform()) {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  
-  const recorder = await loadVoiceRecorderPlugin();
-  if (!recorder) return false;
+  if (!isNativePlatform()) return true;
   
   try {
-    // 先检查当前权限状态
-    const hasPermission = await checkAudioPermission();
-    if (hasPermission) return true;
+    const VoiceRecorder = await loadVoiceRecorder();
+    if (!VoiceRecorder) return false;
     
-    // 请求权限
-    const result = await recorder.requestAudioRecordingPermission();
-    return result.value === 'granted' || result.value === true;
-  } catch (e) {
-    console.warn('[Native] 请求录音权限失败:', e);
-    // 即使权限检查失败也继续尝试（某些设备可能绕过了权限检查）
+    const hasPermission = await VoiceRecorder.VoiceRecorder.hasAudioRecordingPermission();
+    if (!hasPermission.value) {
+      const result = await VoiceRecorder.VoiceRecorder.requestAudioRecordingPermission();
+      return result.value === 'granted' || result.value === true;
+    }
     return true;
+  } catch (e) {
+    console.error('[Native] 请求录音权限失败:', e);
+    return false;
   }
 }
 
-/**
- * 开始录音
- */
+// ==================== 环境检测 ====================
+
+export function isNativePlatform() {
+  try {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
+  } catch (e) {
+    return false;
+  }
+}
+
+export function convertFileSrc(filePath) {
+  if (!filePath) return '';
+  if (filePath.startsWith('http') || filePath.startsWith('data:')) {
+    return filePath;
+  }
+  return window.Capacitor?.convertFileSrc?.(filePath) || filePath;
+}
+
+// ==================== 相机/相册能力 ====================
+
+export async function takePhoto(options = {}) {
+  // Web端降级
+  if (!isNativePlatform()) {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        file ? resolve(URL.createObjectURL(file)) : reject(new Error('未选择图片'));
+      };
+      input.click();
+    });
+  }
+
+  // ✅ 先请求权限（核心修复：确保"每次询问"也能弹窗）
+  const hasPermission = await requestCameraPermission();
+  if (!hasPermission) {
+    throw new Error('请授予相机权限后重试');
+  }
+
+  const Camera = await loadCamera();
+  if (!Camera) throw new Error('相机插件不可用');
+
+  const photo = await Camera.Camera.getPhoto({
+    quality: options.quality || 85,
+    resultType: 'uri',
+    source: options.source || Camera.CameraSource.Prompt,
+    width: options.width || 1920,
+    height: options.height || 1920,
+    correctOrientation: true,
+  });
+
+  return photo.webPath || photo.path || photo.uri;
+}
+
+// ==================== 录音能力 ====================
+
 export async function startRecording() {
   if (!isNativePlatform()) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       window._mediaRecorder = new MediaRecorder(stream);
       window._audioChunks = [];
-      window._mediaRecorder.ondataavailable = (e) => {
-        window._audioChunks.push(e.data);
-      };
+      window._mediaRecorder.ondataavailable = (e) => window._audioChunks.push(e.data);
       window._mediaRecorder.start();
-      isRecording = true;
       return true;
     } catch (e) {
-      console.error('[Native] Web 录音失败:', e);
-      throw new Error('麦克风权限被拒绝或不可用');
+      throw new Error('麦克风权限被拒绝');
     }
   }
-  
-  const recorder = await loadVoiceRecorderPlugin();
-  if (!recorder) {
-    throw new Error('录音插件不可用');
+
+  // ✅ 先请求权限
+  const hasPermission = await requestAudioPermission();
+  if (!hasPermission) {
+    throw new Error('请授予录音权限后重试');
   }
-  
-  const canRecord = await requestAudioPermission();
-  if (!canRecord) {
-    throw new Error('录音权限被拒绝');
-  }
-  
-  try {
-    await recorder.startRecording();
-    isRecording = true;
-    return true;
-  } catch (e) {
-    console.error('[Native] 开始录音失败:', e);
-    // 如果是权限相关错误，给出更友好的提示
-    if (e.message?.includes('permission') || e.message?.includes('Permission')) {
-      throw new Error('请在应用设置中允许录音权限');
-    }
-    throw e;
-  }
+
+  const VoiceRecorder = await loadVoiceRecorder();
+  if (!VoiceRecorder) throw new Error('录音插件不可用');
+
+  await VoiceRecorder.VoiceRecorder.startRecording();
+  return true;
 }
 
-/**
- * 停止录音
- */
 export async function stopRecording() {
-  if (!isRecording) return null;
-  
   if (!isNativePlatform()) {
+    if (!window._mediaRecorder) return null;
     return new Promise((resolve) => {
       window._mediaRecorder.onstop = () => {
         const blob = new Blob(window._audioChunks, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
-        isRecording = false;
-        resolve({
-          uri: url,
-          duration: 0,
-          size: blob.size,
-          mimeType: 'audio/webm'
-        });
+        resolve({ uri: URL.createObjectURL(blob), base64: null });
       };
       window._mediaRecorder.stop();
     });
   }
-  
-  const recorder = await loadVoiceRecorderPlugin();
-  if (!recorder) return null;
-  
-  const result = await recorder.stopRecording();
-  isRecording = false;
-  
-  const filesystem = await loadFilesystemPlugin();
-  if (filesystem && result.value?.recordDataBase64) {
-    const fileName = `audio_${Date.now()}.m4a`;
-    const savedFile = await filesystem.writeFile({
-      path: fileName,
-      data: result.value.recordDataBase64,
-      directory: 'Data',
-    });
-    return {
-      uri: savedFile.uri,
-      duration: result.value.duration || 0,
-      size: result.value.fileSize || 0,
-      mimeType: result.value.mimeType || 'audio/m4a'
-    };
-  }
-  
-  return null;
+
+  const VoiceRecorder = await loadVoiceRecorder();
+  if (!VoiceRecorder) return null;
+
+  const result = await VoiceRecorder.VoiceRecorder.stopRecording();
+  return {
+    base64: result.value?.recordDataBase64,
+    duration: result.value?.duration || 0,
+    mimeType: result.value?.mimeType,
+  };
 }
 
 // ==================== 分享能力 ====================
 
-let Share = null;
-
-async function loadSharePlugin() {
-  if (!isNativePlatform()) return null;
-  if (Share) return Share;
-  try {
-    const module = await import('@capacitor/share');
-    Share = module.Share;
-    return Share;
-  } catch (e) {
-    console.warn('[Native] 分享插件加载失败:', e);
-    return null;
-  }
-}
-
-/**
- * 分享内容
- * @param {Object} options - 分享选项
- */
 export async function shareContent(options = {}) {
   if (!isNativePlatform()) {
     if (navigator.share) {
-      try {
-        await navigator.share({
-          title: options.title || '宝贝时光',
-          text: options.text || '',
-          url: options.url || window.location.href,
-        });
-        return true;
-      } catch (e) {
-        return false;
-      }
-    } else {
-      const text = `${options.title || ''}\n${options.text || ''}\n${options.url || ''}`;
-      try {
-        await navigator.clipboard.writeText(text.trim());
-        alert('已复制到剪贴板');
-        return true;
-      } catch {
-        return false;
-      }
+      await navigator.share({
+        title: options.title || '宝贝时光',
+        text: options.text || '',
+        url: options.url || window.location.href,
+      });
+      return true;
     }
-  }
-  
-  const share = await loadSharePlugin();
-  if (!share) return false;
-  
-  try {
-    await share.share({
-      title: options.title || '宝贝时光',
-      text: options.text || '',
-      url: options.url || '',
-    });
+    await navigator.clipboard.writeText(options.text || '');
+    alert('已复制到剪贴板');
     return true;
-  } catch (e) {
-    console.warn('[Native] 分享失败:', e);
-    return false;
   }
+
+  const Share = await loadShare();
+  if (!Share) return false;
+
+  await Share.Share.share({
+    title: options.title || '宝贝时光',
+    text: options.text || '',
+    url: options.url || '',
+  });
+  return true;
 }
 
-// ==================== 导出全部能力 ====================
+// ==================== 文件系统能力 ====================
+
+export async function writeFile(path, data, directory = 'Documents') {
+  if (!isNativePlatform()) {
+    localStorage.setItem(`file_${path}`, data);
+    return true;
+  }
+
+  const Filesystem = await loadFilesystem();
+  if (!Filesystem) throw new Error('文件系统不可用');
+
+  return await Filesystem.Filesystem.writeFile({
+    path,
+    data,
+    directory: Filesystem.Directory[directory],
+    recursive: true,
+  });
+}
+
+export async function readFile(path, directory = 'Documents') {
+  if (!isNativePlatform()) {
+    return localStorage.getItem(`file_${path}`) || '';
+  }
+
+  const Filesystem = await loadFilesystem();
+  if (!Filesystem) throw new Error('文件系统不可用');
+
+  const result = await Filesystem.Filesystem.readFile({
+    path,
+    directory: Filesystem.Directory[directory],
+  });
+  return result.data;
+}
 
 export default {
   isNativePlatform,
   convertFileSrc,
   takePhoto,
+  requestCameraPermission,
   requestAudioPermission,
   startRecording,
   stopRecording,
   shareContent,
+  writeFile,
+  readFile,
 };
