@@ -9,7 +9,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['@capacitor/core', '@capacitor/filesystem']
+      external: [
+        '@capacitor/core',
+        '@capacitor/camera',
+        '@capacitor/filesystem',
+        '@capacitor/share',
+        'capacitor-voice-recorder'
+      ]
     }
   }
 })

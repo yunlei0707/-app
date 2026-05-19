@@ -9,6 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.2.0",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "capacitor-voice-recorder": "^7.0.6",
     "date-fns": "^3.6.0",
     "echarts": "^6.0.0",
     "html2canvas": "^1.4.1",
