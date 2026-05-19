@@ -4,7 +4,10 @@
  * 网页环境降级到OPFS
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+// ==================== 默认配置 ====================
+const STORAGE_CONFIG = {
+  MAX_CONCURRENT_READ: 5
+};
 
 /**
  * 检测是否在Capacitor APP环境
