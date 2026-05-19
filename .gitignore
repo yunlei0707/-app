@@ -91,6 +91,10 @@ lint/tmp/
 
 # Cordova plugins for Capacitor
 capacitor-cordova-android-plugins
+# 保留Android配置文件（权限、FileProvider等），但忽略构建产物
+!android/app/src/
+android/app/build/
+android/capacitor-cordova-android-plugins/
 
 # Copied web assets
 app/src/main/assets/public
@@ -140,7 +144,6 @@ netlify-deploy/
 preview/
 risk-driver-dashboard/
 browser/
-android/
 apks/
 imgs/
 app/

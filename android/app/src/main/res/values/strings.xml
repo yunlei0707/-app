@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">宝贝时光</string>
+    <string name="custom_url_scheme">babytime</string>
+</resources>
