@@ -242,6 +242,10 @@ export function AppProvider({ children }) {
     setIsLoggedIn,
     currentUser,
     setCurrentUser,
+    login: (user) => {
+      setCurrentUser(user);
+      setIsLoggedIn(true);
+    },
     
     // 方法
     showToast,
