@@ -43,7 +43,7 @@ export async function saveVideoToNative(file, onProgress = null) {
     });
 
     // 写入APP文件系统
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+    const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
     
     const writeStart = Date.now();
     await Filesystem.writeFile({
@@ -77,7 +77,7 @@ export async function saveVideoToNative(file, onProgress = null) {
  */
 export async function readVideoFromNative(filename) {
   try {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+    const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
     
     const result = await Filesystem.readFile({
       path: `BabyTime/videos/${filename}`,
@@ -99,7 +99,7 @@ export async function readVideoFromNative(filename) {
  */
 export async function deleteVideoFromNative(filename) {
   try {
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+    const { Filesystem, Directory } = await import(/* @vite-ignore */ '@capacitor/filesystem');
     
     await Filesystem.deleteFile({
       path: `BabyTime/videos/${filename}`,
