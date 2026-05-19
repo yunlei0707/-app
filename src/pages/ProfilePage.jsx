@@ -28,7 +28,7 @@ import
 import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
 import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';
-import { ImportProgressCalculator } from '../utils/storageAdapter';
+import { ImportProgressCalculator } from '../utils/progressCalculator';
 
 // 主题预设配置
 const THEME_PRESETS = [
