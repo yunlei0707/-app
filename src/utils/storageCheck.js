@@ -1,14 +1,8 @@
-/**
- * 存储能力检测与最佳模式选择
- */
-
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from './config/storage';
 import { isOPFSSupported } from './opfs';
 
 /**
- * 检测是否在Capacitor APP原生环境
- * 从window对象安全检测，避免直接import导致的崩溃
- * @returns {boolean}
+ * 检测是否在原生APP环境
  */
 export function isNativeAppEnvironment() {
   try {
@@ -36,7 +30,6 @@ export async function checkStorageCapability() {
 
   let recommendedMode = 'base64';
   if (nativeApp) {
-    // APP环境优先使用原生文件系统
     recommendedMode = 'native';
   } else if (opfsSupported) {
     recommendedMode = 'opfs';
@@ -53,7 +46,6 @@ export async function checkStorageCapability() {
 
 /**
  * 判断是否应该使用文件系统存储（原生或OPFS）
- * 在APP环境返回true（使用原生文件系统），在Web环境检查OPFS支持
  * @returns {Promise<boolean>}
  */
 export async function shouldUseFileStorage() {
@@ -98,14 +90,22 @@ export async function getStorageStats(allMoments) {
     if (moment.videos && Array.isArray(moment.videos)) {
       for (const video of moment.videos) {
         totalVideos++;
-        if (video.filename) {
+        // 有filename且不是base64格式 -> OPFS文件
+        if (video.filename && !video.filename.startsWith('data:')) {
           opfsVideos++;
-        } else if (video.url) {
+        } 
+        // 有url且是base64格式，或者filename是base64格式
+        else if ((video.url && video.url.startsWith('data:')) || 
+                 (video.filename && video.filename.startsWith('data:'))) {
           base64Videos++;
+          const base64Str = video.url || video.filename;
+          const base64Length = base64Str.length;
           // base64编码大约增加33%的大小
-          // base64字符串大小估算
-          const base64Length = video.url.length;
           estimatedBase64Size += (base64Length * 3) / 4;
+        }
+        // 其他情况（如相对路径）也视为OPFS
+        else if (video.url && !video.url.startsWith('data:')) {
+          opfsVideos++;
         }
       }
     }
