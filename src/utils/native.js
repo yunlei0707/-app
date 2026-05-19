@@ -42,7 +42,8 @@ export function convertFileSrc(filePath) {
   if (filePath.startsWith('http') || filePath.startsWith('data:')) {
     return filePath;
   }
-  return Capacitor.convertFileSrc(filePath);
+  const Capacitor = getCapacitor();
+  return Capacitor ? Capacitor.convertFileSrc(filePath) : filePath;
 }
 
 // ==================== 相机/相册能力 ====================

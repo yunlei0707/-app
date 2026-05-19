@@ -136,8 +136,12 @@ export function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// 向后兼容别名
+export const shouldUseOPFS = shouldUseFileStorage;
+
 export default {
   checkStorageCapability,
+  shouldUseFileStorage,
   shouldUseOPFS,
   getStorageStats,
   formatBytes,
