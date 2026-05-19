@@ -1,74 +1,40 @@
 /**
- * ZIP流式导出工具
- * 支持并发控制，防止内存暴涨
- * 支持OPFS和Base64两种视频格式
- * 
- * 新增功能：
+ * ZIP流式导出工具 - 支持并发控制，防止内存暴涨
  * - APP端原生文件系统流式导出（1MB分块写入，内存峰值降至MB级）
  * - 自动降级：原生导出失败时自动回退到JSZip内存打包
  * - 浏览器环境直接使用JSZip
- * 
- * 功能：
- * 1. exportAllData() - 导出所有数据+视频到ZIP
- * 2. 流式处理，边读边写，不缓存所有文件
- * 3. 并发读取控制（默认5个并发）
- * 4. Base64视频转File后写入ZIP
- * 5. 详细进度回调（数据条数 + 视频数量）
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from './config/storage';
 import { readVideoFromOPFS } from './opfs';
-import { exportAllData as exportAllIDBData } from './db';
+import { exportAllData as exportAllDBData } from './db';
 import { exportV2AccountData } from './dbV2';
 
-// ============== 开关控制 ==============
-/**
- * APP端原生文件系统导出开关
- * - true: 优先使用原生流式导出（1MB分块，低内存）
- * - false: 始终使用JSZip内存打包
- */
+// ==================== 开关控制 ====================
 const NATIVE_FS_EXPORT_ENABLED = true;
-
-/** 分块大小：1MB，确保内存占用可控 */
-const CHUNK_SIZE = 1024 * 1024;
-
-/** 原生导出分享目录 */
+const CHUNK_SIZE = 1024 * 1024; // 1MB
 const NATIVE_EXPORT_DIR = 'fs://file/BabyTimeBackup';
 
-// ============== 原生文件系统工具函数 ==============
+// ==================== 原生文件系统工具函数 ====================
 
-/**
- * 检查是否支持原生文件系统导出
- * @returns {boolean} 是否支持
- */
 function isNativeFSSupported() {
-  // Capacitor环境检测
-  if (typeof window !== 'undefined') {
-    // 标准Capacitor检测
-    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-      return true;
-    }
-    // 旧版jsBridge检测（向后兼容）
-    if (typeof window.jsBridge !== 'undefined' && 
-        window.jsBridge.inApp === true &&
-        window.jsBridge.fs) {
-      return true;
-    }
+  if (typeof window === 'undefined') return false;
+  // 标准Capacitor检测
+  if (window.Capacitor && window.Capacitor.isNativePlatform?.()) {
+    return true;
+  }
+  // 旧版jsBridge检测（向后兼容）
+  if (typeof window.jsBridge !== 'undefined' && window.jsBridge.inApp === true && window.jsBridge.fs) {
+    return true;
   }
   return false;
 }
 
-/**
- * Blob转Base64（只返回数据部分，不含data:前缀）
- * @param {Blob} blob 
- * @returns {Promise<string>} Base64字符串
- */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result;
-      // 去掉data:xxx;base64,前缀
       const base64 = result.split(',')[1] || result;
       resolve(base64);
     };
@@ -77,327 +43,199 @@ function blobToBase64(blob) {
   });
 }
 
-/**
- * 主动触发GC释放内存（如果可用）
- */
 function triggerGC() {
   if (typeof window !== 'undefined' && typeof window.gc === 'function') {
     try {
       window.gc();
     } catch (e) {
-      // GC调用失败，静默忽略
+      // 静默忽略
     }
   }
 }
 
-/**
- * 创建目录（如果不存在）
- * @param {string} path 目录路径
- */
 async function ensureDirExists(path) {
   if (!isNativeFSSupported()) return;
   try {
-    await window.jsBridge.fs.exist(path, (exists) => {
-      if (!exists) {
-        window.jsBridge.fs.mkdir(path, () => {});
-      }
+    const exists = await new Promise((resolve) => {
+      window.jsBridge.fs.exist(path, (result) => resolve(result));
     });
+    if (!exists) {
+      await new Promise((resolve, reject) => {
+        window.jsBridge.fs.mkdir(path, (result) => {
+          if (result !== false) resolve();
+          else reject(new Error('mkdir failed'));
+        });
+      });
+    }
   } catch (e) {
-    // 目录创建失败，可能已存在，继续执行
+    // 目录可能已存在，继续执行
   }
 }
 
-/**
- * 写入文件（原生文件系统）
- * @param {string} path 文件路径
- * @param {string} base64 Base64数据
- */
 async function nativeWriteBinary(path, base64) {
   return new Promise((resolve, reject) => {
     window.jsBridge.fs.writeBinary(path, base64, (result) => {
-      if (result !== false) {
-        resolve(result);
-      } else {
-        reject(new Error('writeBinary failed'));
-      }
+      if (result !== false) resolve(result);
+      else reject(new Error('writeBinary failed'));
     });
   });
 }
 
-/**
- * 追加写入文件（原生文件系统）
- * @param {string} path 文件路径
- * @param {string} base64 Base64数据
- */
 async function nativeAppendBinary(path, base64) {
   return new Promise((resolve, reject) => {
     window.jsBridge.fs.appendBinary(path, base64, (result) => {
-      if (result !== false) {
-        resolve(result);
-      } else {
-        reject(new Error('appendBinary failed'));
-      }
+      if (result !== false) resolve(result);
+      else reject(new Error('appendBinary failed'));
     });
   });
 }
 
-// ============== 原生流式ZIP导出核心实现 ==============
+// ==================== 原生流式ZIP构建器 ====================
 
-/**
- * 手动ZIP格式构建器（流式写入）
- * 参考ZIP文件格式规范：
- * - Local File Header + File Data + Data Descriptor (可选)
- * - Central Directory
- * - End of Central Directory Record
- */
 class NativeZipBuilder {
   constructor(filePath) {
     this.filePath = filePath;
-    this.files = []; // 记录文件信息，用于最后写Central Directory
-    this.currentOffset = 0; // 当前写入偏移量
+    this.files = [];
+    this.currentOffset = 0;
     this.isFirstWrite = true;
   }
 
-  /**
-   * 将字符串转Uint8Array
-   */
   stringToUint8(str) {
     const encoder = new TextEncoder();
     return encoder.encode(str);
   }
 
-  /**
-   * 写入Uint8Array数据到文件（分块写入，每块后GC）
-   */
   async writeData(uint8array) {
-    // 1MB分块写入
     for (let offset = 0; offset < uint8array.length; offset += CHUNK_SIZE) {
       const chunk = uint8array.slice(offset, offset + CHUNK_SIZE);
       const blob = new Blob([chunk], { type: 'application/octet-stream' });
       const base64 = await blobToBase64(blob);
-      
       if (this.isFirstWrite) {
         await nativeWriteBinary(this.filePath, base64);
         this.isFirstWrite = false;
       } else {
         await nativeAppendBinary(this.filePath, base64);
       }
-      
       this.currentOffset += chunk.length;
-      triggerGC(); // 每块后释放内存
+      triggerGC();
     }
   }
 
-  /**
-   * 创建Local File Header
-   */
   createLocalFileHeader(filename, data, crc32) {
     const filenameBytes = this.stringToUint8(filename);
     const header = new Uint8Array(30 + filenameBytes.length);
     const view = new DataView(header.buffer);
 
-    // Local file header signature (0x04034b50)
-    view.setUint32(0, 0x04034b50, true);
-    // Version needed to extract (20 = 2.0)
-    view.setUint16(4, 20, true);
-    // General purpose bit flag (0x0808 = UTF-8 + data descriptor)
-    view.setUint16(6, 0x0808, true);
-    // Compression method (0 = stored, no compression)
-    view.setUint16(8, 0, true);
-    // Last mod file time
+    view.setUint32(0, 0x04034b50, true); // signature
+    view.setUint16(4, 20, true); // version needed
+    view.setUint16(6, 0x0808, true); // flags (UTF-8 + data descriptor)
+    view.setUint16(8, 0, true); // compression method
     const now = new Date();
     const time = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1));
     view.setUint16(10, time, true);
-    // Last mod file date
     const date = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate());
     view.setUint16(12, date, true);
-    // CRC-32 (will be in data descriptor)
-    view.setUint32(14, 0, true);
-    // Compressed size (will be in data descriptor)
-    view.setUint32(18, 0, true);
-    // Uncompressed size (will be in data descriptor)
-    view.setUint32(22, 0, true);
-    // File name length
+    view.setUint32(14, 0, true); // CRC-32 placeholder
+    view.setUint32(18, 0, true); // compressed size placeholder
+    view.setUint32(22, 0, true); // uncompressed size placeholder
     view.setUint16(26, filenameBytes.length, true);
-    // Extra field length
-    view.setUint16(28, 0, true);
-    // File name
+    view.setUint16(28, 0, true); // extra field length
     header.set(filenameBytes, 30);
-
     return header;
   }
 
-  /**
-   * 创建Data Descriptor
-   */
   createDataDescriptor(crc32, compressedSize, uncompressedSize) {
     const descriptor = new Uint8Array(16);
     const view = new DataView(descriptor.buffer);
-
-    // Optional data descriptor signature (0x08074b50)
-    view.setUint32(0, 0x08074b50, true);
-    // CRC-32
+    view.setUint32(0, 0x08074b50, true); // signature
     view.setUint32(4, crc32, true);
-    // Compressed size
     view.setUint32(8, compressedSize, true);
-    // Uncompressed size
     view.setUint32(12, uncompressedSize, true);
-
     return descriptor;
   }
 
-  /**
-   * 创建Central Directory File Header
-   */
   createCentralDirHeader(filename, data, crc32, localHeaderOffset) {
     const filenameBytes = this.stringToUint8(filename);
     const header = new Uint8Array(46 + filenameBytes.length);
     const view = new DataView(header.buffer);
-
-    // Central file header signature (0x02014b50)
     view.setUint32(0, 0x02014b50, true);
-    // Version made by (0x0317 = Unix, version 2.3)
     view.setUint16(4, 0x0317, true);
-    // Version needed to extract (20 = 2.0)
     view.setUint16(6, 20, true);
-    // General purpose bit flag (0x0808 = UTF-8 + data descriptor)
     view.setUint16(8, 0x0808, true);
-    // Compression method (0 = stored)
     view.setUint16(10, 0, true);
-    // Last mod file time
     const now = new Date();
     const time = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1));
     view.setUint16(12, time, true);
-    // Last mod file date
     const date = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate());
     view.setUint16(14, date, true);
-    // CRC-32
     view.setUint32(16, crc32, true);
-    // Compressed size
     view.setUint32(20, data.length, true);
-    // Uncompressed size
     view.setUint32(24, data.length, true);
-    // File name length
     view.setUint16(28, filenameBytes.length, true);
-    // Extra field length
     view.setUint16(30, 0, true);
-    // File comment length
     view.setUint16(32, 0, true);
-    // Disk number start
     view.setUint16(34, 0, true);
-    // Internal file attributes
     view.setUint16(36, 0, true);
-    // External file attributes (regular file)
     view.setUint32(38, 0x8000, true);
-    // Relative offset of local header
     view.setUint32(42, localHeaderOffset, true);
-    // File name
     header.set(filenameBytes, 46);
-
     return header;
   }
 
-  /**
-   * 创建End of Central Directory Record
-   */
   createEndOfCentralDir(numEntries, centralDirSize, centralDirOffset) {
     const eocd = new Uint8Array(22);
     const view = new DataView(eocd.buffer);
-
-    // End of central dir signature (0x06054b50)
     view.setUint32(0, 0x06054b50, true);
-    // Number of this disk
     view.setUint16(4, 0, true);
-    // Number of the disk with the start of the central directory
     view.setUint16(6, 0, true);
-    // Total number of entries in the central dir on this disk
     view.setUint16(8, numEntries, true);
-    // Total number of entries in the central dir
     view.setUint16(10, numEntries, true);
-    // Size of the central directory
     view.setUint32(12, centralDirSize, true);
-    // Offset of start of central directory
     view.setUint32(16, centralDirOffset, true);
-    // Zip file comment length
     view.setUint16(20, 0, true);
-
     return eocd;
   }
 
-  /**
-   * 计算CRC32（简化实现，只用于ZIP格式兼容）
-   */
   crc32(data) {
     let crc = 0xFFFFFFFF;
     const table = [];
-    
-    // 预计算CRC表
     for (let i = 0; i < 256; i++) {
       let c = i;
       for (let j = 0; j < 8; j++) {
-        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        c = (c & 1) ? (0xEDB88320 ^ (c >> 1)) : (c >> 1);
       }
       table[i] = c;
     }
-    
     for (let i = 0; i < data.length; i++) {
-      crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+      crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xFF];
     }
-    
     return (crc ^ 0xFFFFFFFF) >>> 0;
   }
 
-  /**
-   * 添加文件到ZIP
-   * @param {string} filename 文件名（含路径，如videos/test.mp4）
-   * @param {Uint8Array} data 文件数据
-   */
   async addFile(filename, data) {
     const crc32 = this.crc32(data);
     const localHeader = this.createLocalFileHeader(filename, data, crc32);
     const dataDescriptor = this.createDataDescriptor(crc32, data.length, data.length);
-    
-    // 记录文件信息（用于Central Directory）
+
     this.files.push({
       filename,
       data,
       crc32,
-      localHeaderOffset: this.currentOffset
+      localHeaderOffset: this.currentOffset,
     });
 
-    // 写入Local File Header
     await this.writeData(localHeader);
-
-    // 分块写入文件数据（每块1MB）
     for (let offset = 0; offset < data.length; offset += CHUNK_SIZE) {
       const chunk = data.slice(offset, offset + CHUNK_SIZE);
       await this.writeData(chunk);
     }
-
-    // 写入Data Descriptor
     await this.writeData(dataDescriptor);
-    
-    triggerGC(); // 每个文件处理完释放内存
+    triggerGC();
   }
 
-  /**
-   * 添加文件夹（仅在Central Directory中记录）
-   * @param {string} dirname 文件夹名
-   */
-  async addFolder(dirname) {
-    // 文件夹不需要实际数据，只需在Central Directory记录
-    // 为简化实现，我们只在文件路径中包含文件夹名即可
-    // 大多数解压软件能自动创建文件夹
-  }
-
-  /**
-   * 完成ZIP文件构建（写入Central Directory和EOCD）
-   */
   async finalize() {
-    const centralDirOffset = this.currentOffset;
     let centralDirSize = 0;
-
-    // 写入Central Directory
+    const centralDirOffset = this.currentOffset;
     for (const file of this.files) {
       const centralHeader = this.createCentralDirHeader(
         file.filename,
@@ -408,69 +246,42 @@ class NativeZipBuilder {
       centralDirSize += centralHeader.length;
       await this.writeData(centralHeader);
     }
-
-    // 写入End of Central Directory
-    const eocd = this.createEndOfCentralDir(
-      this.files.length,
-      centralDirSize,
-      centralDirOffset
-    );
+    const eocd = this.createEndOfCentralDir(this.files.length, centralDirSize, centralDirOffset);
     await this.writeData(eocd);
-
-    triggerGC(); // 完成后释放所有内存
+    triggerGC();
   }
 }
 
-/**
- * 使用原生文件系统流式导出ZIP
- * @param {Object} options 导出选项
- * @param {boolean} options.includeVideos 是否包含视频
- * @param {Function} options.onProgress 进度回调
- * @returns {Promise<string>} 导出的文件路径
- */
+// ==================== 原生导出实现 ====================
+
 async function exportWithNativeFS(options = {}) {
-  const {
-    includeVideos = true,
-    onProgress = null
-  } = options;
+  const { includeVideos = true, onProgress = null } = options;
 
   if (!isNativeFSSupported()) {
     throw new Error('Native FS not supported');
   }
 
-  // 确保导出目录存在
   await ensureDirExists(NATIVE_EXPORT_DIR);
 
-  // 生成文件名
   const now = new Date();
   const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
   const filename = `宝宝时光数据备份_${timestamp}.zip`;
   const filePath = `${NATIVE_EXPORT_DIR}/${filename}`;
-
-  // 创建ZIP构建器
   const zipBuilder = new NativeZipBuilder(filePath);
 
   try {
-    // ========== 步骤1: 读取并准备数据 ==========
     if (onProgress) {
-      onProgress({
-        step: 1,
-        progress: 10,
-        message: '正在读取数据库数据...',
-        stats: null
-      });
+      onProgress({ step: 1, progress: 10, message: '正在读取数据库数据...', stats: null });
     }
 
-    // 同时读取IndexDB和v2数据
     const [idbData, v2Data] = await Promise.all([
-      exportAllIDBData().catch(e => {
+      exportAllDBData().catch(e => {
         console.warn('[ZIP-Native] 读取IndexDB数据失败:', e);
         return null;
       }),
       exportV2AccountData()
     ]);
 
-    // 合并数据 ✅ 修复：idbData有一层data嵌套
     const mergedData = {
       ...(idbData?.data || {}),
       ...(idbData || {}),
@@ -479,9 +290,8 @@ async function exportWithNativeFS(options = {}) {
       exportVersion: '2.0.0'
     };
 
-    // 统计信息
     const stats = getStats(mergedData);
-    
+
     if (onProgress) {
       onProgress({
         step: 1,
@@ -491,15 +301,13 @@ async function exportWithNativeFS(options = {}) {
       });
     }
 
-    // 写入data.json（不包含Base64视频数据，避免JSON过大）
+    // 清理timeline中的Base64视频数据
     const dataForJson = JSON.parse(JSON.stringify(mergedData));
-    // 清理timeline中的Base64视频数据（已单独保存）
     if (dataForJson.v2AccountData?.timeline) {
       for (const moment of dataForJson.v2AccountData.timeline) {
         if (moment.videos) {
           moment.videos = moment.videos.map(video => {
             const cleaned = { ...video };
-            // 如果是Base64数据，只保留元信息，内容已单独保存到videos文件夹
             if (cleaned.filename?.startsWith('data:')) {
               cleaned.isBase64Exported = true;
               cleaned.originalFilename = cleaned.filename;
@@ -516,27 +324,20 @@ async function exportWithNativeFS(options = {}) {
       }
     }
 
-    // 将data.json写入ZIP
     const dataJsonStr = JSON.stringify(dataForJson, null, 2);
     const dataJsonBytes = zipBuilder.stringToUint8(dataJsonStr);
     await zipBuilder.addFile('data.json', dataJsonBytes);
 
     if (onProgress) {
-      onProgress({
-        step: 1,
-        progress: 40,
-        message: '数据JSON已写入ZIP',
-        stats
-      });
+      onProgress({ step: 1, progress: 40, message: '数据JSON已写入ZIP', stats });
     }
 
-    // ========== 步骤2: 串行读取并写入视频文件（原生导出使用串行，避免内存堆积） ==========
     if (includeVideos && stats.totalVideos > 0) {
       if (onProgress) {
         onProgress({
           step: 2,
           progress: 40,
-          message: `开始处理 ${stats.totalVideos} 个视频文件 (${stats.opfsVideos}个OPFS, ${stats.base64Videos}个Base64)...`,
+          message: `开始处理 ${stats.totalVideos} 个视频文件...`,
           stats
         });
       }
@@ -545,35 +346,21 @@ async function exportWithNativeFS(options = {}) {
       let successVideos = 0;
       let failedVideos = 0;
 
-      // 串行处理所有视频（原生导出使用串行，避免同时加载多个大视频到内存）
       for (const videoInfo of stats.videos) {
         try {
-          let fileBlob;
-          
+          let fileBlob = null;
           if (videoInfo.type === 'opfs') {
-            // 从OPFS读取
-            try {
-              fileBlob = await readVideoFromOPFS(videoInfo.filename);
-            } catch (e) {
-              console.warn(`[ZIP-Native] OPFS视频读取失败 ${videoInfo.filename}:`, e);
-              throw e;
-            }
+            fileBlob = await readVideoFromOPFS(videoInfo.filename);
           } else if (videoInfo.type === 'base64') {
-            // Base64转File
             fileBlob = base64ToFile(videoInfo.data, videoInfo.outputFilename);
           }
-
-          // 写入ZIP
           if (fileBlob) {
             const arrayBuffer = await fileBlob.arrayBuffer();
             const uint8array = new Uint8Array(arrayBuffer);
             await zipBuilder.addFile(`videos/${videoInfo.outputFilename}`, uint8array);
             successVideos++;
           }
-          
           processedVideos++;
-          
-          // 报告进度（视频处理占40%-85%）
           if (onProgress) {
             const videoProgress = 40 + Math.floor((processedVideos / stats.totalVideos) * 45);
             onProgress({
@@ -583,9 +370,7 @@ async function exportWithNativeFS(options = {}) {
               stats: { ...stats, processedVideos, successVideos, failedVideos }
             });
           }
-
-          triggerGC(); // 每个视频处理完主动GC
-
+          triggerGC();
         } catch (e) {
           failedVideos++;
           processedVideos++;
@@ -601,34 +386,14 @@ async function exportWithNativeFS(options = {}) {
           stats: { ...stats, processedVideos, successVideos, failedVideos }
         });
       }
-    } else if (!includeVideos) {
-      if (onProgress) {
-        onProgress({
-          step: 2,
-          progress: 85,
-          message: '已跳过视频文件导出',
-          stats
-        });
-      }
     } else {
       if (onProgress) {
-        onProgress({
-          step: 2,
-          progress: 85,
-          message: '没有视频文件需要导出',
-          stats
-        });
+        onProgress({ step: 2, progress: 85, message: includeVideos ? '没有视频文件需要导出' : '已跳过视频文件导出', stats });
       }
     }
 
-    // ========== 步骤3: 完成ZIP文件构建 ==========
     if (onProgress) {
-      onProgress({
-        step: 3,
-        progress: 88,
-        message: '正在完成ZIP文件...',
-        stats
-      });
+      onProgress({ step: 3, progress: 88, message: '正在完成ZIP文件...', stats });
     }
 
     await zipBuilder.finalize();
@@ -637,33 +402,20 @@ async function exportWithNativeFS(options = {}) {
       onProgress({
         step: 3,
         progress: 100,
-        message: `导出完成! 共 ${stats.v2Timeline || stats.oldMoments} 条数据, ${includeVideos ? stats.totalVideos : 0} 个视频`,
+        message: `导出完成！共 ${stats.v2Timeline || stats.oldMoments} 条数据，${includeVideos ? stats.totalVideos : 0} 个视频`,
         stats
       });
     }
 
-    return {
-      filePath,
-      filename,
-      isNative: true,
-      blob: null // 原生导出不返回Blob，返回文件路径
-    };
-
+    return { filePath, filename, isNative: true, blob: null };
   } catch (error) {
     console.error('[ZIP-Native] 原生导出失败:', error);
     throw error;
   }
 }
 
-// ============== 原有JSZip实现（保留作为降级方案） ==============
+// ==================== 降级方案：JSZip ====================
 
-/**
- * 简单的并发控制函数（类似p-limit）
- * @param {Array} items 待处理项
- * @param {Function} processor 处理函数
- * @param {number} concurrency 并发数
- * @param {Function} onProgress 进度回调(processed, total, currentItem)
- */
 async function withConcurrency(items, processor, concurrency = 5, onProgress = null) {
   const results = [];
   const errors = [];
@@ -689,55 +441,37 @@ async function withConcurrency(items, processor, concurrency = 5, onProgress = n
     }
   }
 
-  // 启动指定数量的worker
-  const workers = [];
   const actualConcurrency = Math.min(concurrency, total);
+  const workers = [];
   for (let i = 0; i < actualConcurrency; i++) {
     workers.push(worker());
   }
-
   await Promise.all(workers);
   return { results, errors };
 }
 
-/**
- * Base64转File对象
- * @param {string} dataUrl Base64数据URL
- * @param {string} filename 文件名
- * @returns {File}
- */
 export function base64ToFile(dataUrl, filename) {
-  // 提取MIME类型
   const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'video/mp4';
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
-  
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n);
   }
-  
   return new File([u8arr], filename, { type: mime });
 }
 
-/**
- * 从数据中收集所有视频文件信息
- * @param {Object} data 导出数据
- * @returns {Array<{type: 'opfs'|'base64', filename: string, data?: string, momentId: string}>}
- */
 function collectVideoFiles(data) {
   const videos = [];
-  const processedFilenames = new Set(); // 避免重复处理同一文件
+  const processedFilenames = new Set();
 
-  // 收集v2 timeline中的视频
   const timeline = data.v2AccountData?.timeline || [];
   for (const moment of timeline) {
     if (moment.videos && Array.isArray(moment.videos)) {
       for (const video of moment.videos) {
-        // OPFS存储的视频（有filename字段但没有url或url是相对路径）
         if (video.filename && !processedFilenames.has(video.filename)) {
-          // 检查是否为Base64格式
           if (video.filename.startsWith('data:')) {
             videos.push({
               type: 'base64',
@@ -756,32 +490,29 @@ function collectVideoFiles(data) {
           }
           processedFilenames.add(video.filename);
         }
-        // 内嵌的Base64视频（有url字段且是data:开头）
-        if (video.url && video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
-          videos.push({
-            type: 'base64',
-            filename: video.url,
-            data: video.url,
-            momentId: moment.id,
-            outputFilename: `${moment.id || 'video'}_${Date.now()}.mp4`
-          });
-          processedFilenames.add(video.url);
-        }
-        // ✅ 修复：url是文件名/相对路径（不是Base64），作为OPFS视频收集
-        else if (video.url && !video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
-          videos.push({
-            type: 'opfs',
-            filename: video.url,
-            momentId: moment.id,
-            outputFilename: video.url
-          });
+        if (video.url && !processedFilenames.has(video.url)) {
+          if (video.url.startsWith('data:')) {
+            videos.push({
+              type: 'base64',
+              filename: video.url,
+              data: video.url,
+              momentId: moment.id,
+              outputFilename: `${moment.id || 'video'}_${Date.now()}.mp4`
+            });
+          } else {
+            videos.push({
+              type: 'opfs',
+              filename: video.url,
+              momentId: moment.id,
+              outputFilename: video.url
+            });
+          }
           processedFilenames.add(video.url);
         }
       }
     }
   }
 
-  // 收集旧版moments中的视频
   const moments = data.moments || [];
   for (const moment of moments) {
     if (moment.videos && Array.isArray(moment.videos)) {
@@ -805,53 +536,42 @@ function collectVideoFiles(data) {
           }
           processedFilenames.add(video.filename);
         }
-        if (video.url && video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
-          videos.push({
-            type: 'base64',
-            filename: video.url,
-            data: video.url,
-            momentId: moment.id,
-            outputFilename: `${moment.id || 'video'}_${Date.now()}.mp4`
-          });
-          processedFilenames.add(video.url);
-        }
-        // ✅ 修复：url是文件名/相对路径（不是Base64），作为OPFS视频收集
-        else if (video.url && !video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
-          videos.push({
-            type: 'opfs',
-            filename: video.url,
-            momentId: moment.id,
-            outputFilename: video.url
-          });
+        if (video.url && !processedFilenames.has(video.url)) {
+          if (video.url.startsWith('data:')) {
+            videos.push({
+              type: 'base64',
+              filename: video.url,
+              data: video.url,
+              momentId: moment.id,
+              outputFilename: `${moment.id || 'video'}_${Date.now()}.mp4`
+            });
+          } else {
+            videos.push({
+              type: 'opfs',
+              filename: video.url,
+              momentId: moment.id,
+              outputFilename: video.url
+            });
+          }
           processedFilenames.add(video.url);
         }
       }
     }
   }
-
   return videos;
 }
 
-/**
- * 统计数据信息
- * @param {Object} data 导出数据
- * @returns {Object} 统计信息
- */
 function getStats(data) {
   const v2Timeline = data.v2AccountData?.timeline || [];
-  const v2HasTimeline = v2Timeline.length > 0;
-  
   const oldMoments = data.moments || [];
   const oldBabies = data.babies || [];
   const oldCapsules = data.capsules || [];
-  
   const videos = collectVideoFiles(data);
   const opfsVideos = videos.filter(v => v.type === 'opfs');
   const base64Videos = videos.filter(v => v.type === 'base64');
-
   return {
     v2Timeline: v2Timeline.length,
-    v2HasTimeline,
+    v2HasTimeline: v2Timeline.length > 0,
     oldMoments: oldMoments.length,
     oldBabies: oldBabies.length,
     oldCapsules: oldCapsules.length,
@@ -862,19 +582,9 @@ function getStats(data) {
   };
 }
 
-/**
- * 使用JSZip导出（降级方案）
- * @param {Object} options 导出选项
- * @returns {Promise<Blob>} ZIP文件Blob
- */
 async function exportWithJSZip(options = {}) {
-  const {
-    includeVideos = true,
-    concurrency = STORAGE_CONFIG.MAX_CONCURRENT_READ,
-    onProgress = null
-  } = options;
+  const { includeVideos = true, concurrency = STORAGE_CONFIG.MAX_CONCURRENT_READ, onProgress = null } = options;
 
-  // 检查JSZip是否可用
   if (typeof window.JSZip === 'undefined') {
     throw new Error('JSZip库未加载，请检查网络连接');
   }
@@ -883,26 +593,18 @@ async function exportWithJSZip(options = {}) {
   const videosFolder = zip.folder('videos');
 
   try {
-    // ========== 步骤1: 读取并准备数据 ==========
     if (onProgress) {
-      onProgress({
-        step: 1,
-        progress: 10,
-        message: '正在读取数据库数据...',
-        stats: null
-      });
+      onProgress({ step: 1, progress: 10, message: '正在读取数据库数据...', stats: null });
     }
 
-    // 同时读取IndexDB和v2数据
     const [idbData, v2Data] = await Promise.all([
-      exportAllIDBData().catch(e => {
+      exportAllDBData().catch(e => {
         console.warn('[ZIP] 读取IndexDB数据失败:', e);
         return null;
       }),
       exportV2AccountData()
     ]);
 
-    // 合并数据 ✅ 修复：idbData有一层data嵌套
     const mergedData = {
       ...(idbData?.data || {}),
       ...(idbData || {}),
@@ -911,9 +613,8 @@ async function exportWithJSZip(options = {}) {
       exportVersion: '2.0.0'
     };
 
-    // 统计信息
     const stats = getStats(mergedData);
-    
+
     if (onProgress) {
       onProgress({
         step: 1,
@@ -923,15 +624,12 @@ async function exportWithJSZip(options = {}) {
       });
     }
 
-    // 写入data.json（不包含Base64视频数据，避免JSON过大）
     const dataForJson = JSON.parse(JSON.stringify(mergedData));
-    // 清理timeline中的Base64视频数据（已单独保存）
     if (dataForJson.v2AccountData?.timeline) {
       for (const moment of dataForJson.v2AccountData.timeline) {
         if (moment.videos) {
           moment.videos = moment.videos.map(video => {
             const cleaned = { ...video };
-            // 如果是Base64数据，只保留元信息，内容已单独保存到videos文件夹
             if (cleaned.filename?.startsWith('data:')) {
               cleaned.isBase64Exported = true;
               cleaned.originalFilename = cleaned.filename;
@@ -951,21 +649,15 @@ async function exportWithJSZip(options = {}) {
     zip.file('data.json', JSON.stringify(dataForJson, null, 2));
 
     if (onProgress) {
-      onProgress({
-        step: 1,
-        progress: 40,
-        message: '数据JSON已写入ZIP',
-        stats
-      });
+      onProgress({ step: 1, progress: 40, message: '数据JSON已写入ZIP', stats });
     }
 
-    // ========== 步骤2: 流式读取并写入视频文件 ==========
     if (includeVideos && stats.totalVideos > 0) {
       if (onProgress) {
         onProgress({
           step: 2,
           progress: 40,
-          message: `开始处理 ${stats.totalVideos} 个视频文件 (${stats.opfsVideos}个OPFS, ${stats.base64Videos}个Base64)...`,
+          message: `开始处理 ${stats.totalVideos} 个视频文件...`,
           stats
         });
       }
@@ -974,35 +666,20 @@ async function exportWithJSZip(options = {}) {
       let successVideos = 0;
       let failedVideos = 0;
 
-      // 并发处理所有视频
       const { errors } = await withConcurrency(
         stats.videos,
         async (videoInfo) => {
-          let fileBlob;
-          
+          let fileBlob = null;
           if (videoInfo.type === 'opfs') {
-            // 从OPFS读取
-            try {
-              fileBlob = await readVideoFromOPFS(videoInfo.filename);
-            } catch (e) {
-              console.warn(`[ZIP] OPFS视频读取失败 ${videoInfo.filename}:`, e);
-              // OPFS读取失败时，尝试从data中查找（可能是内嵌数据）
-              throw e;
-            }
+            fileBlob = await readVideoFromOPFS(videoInfo.filename);
           } else if (videoInfo.type === 'base64') {
-            // Base64转File
             fileBlob = base64ToFile(videoInfo.data, videoInfo.outputFilename);
           }
-
-          // 写入ZIP（流式，不全部保存在内存）
           if (fileBlob) {
             videosFolder.file(videoInfo.outputFilename, fileBlob);
             successVideos++;
           }
-          
           processedVideos++;
-          
-          // 报告进度（视频处理占40%-85%）
           if (onProgress) {
             const videoProgress = 40 + Math.floor((processedVideos / stats.totalVideos) * 45);
             onProgress({
@@ -1015,7 +692,6 @@ async function exportWithJSZip(options = {}) {
         },
         concurrency
       );
-
       failedVideos = errors.length;
 
       if (onProgress) {
@@ -1026,174 +702,92 @@ async function exportWithJSZip(options = {}) {
           stats: { ...stats, processedVideos, successVideos, failedVideos }
         });
       }
-    } else if (!includeVideos) {
-      if (onProgress) {
-        onProgress({
-          step: 2,
-          progress: 85,
-          message: '已跳过视频文件导出',
-          stats
-        });
-      }
     } else {
       if (onProgress) {
-        onProgress({
-          step: 2,
-          progress: 85,
-          message: '没有视频文件需要导出',
-          stats
-        });
+        onProgress({ step: 2, progress: 85, message: includeVideos ? '没有视频文件需要导出' : '已跳过视频文件导出', stats });
       }
     }
 
-    // ========== 步骤3: 生成最终ZIP文件 ==========
     if (onProgress) {
-      onProgress({
-        step: 3,
-        progress: 88,
-        message: '正在生成ZIP文件...',
-        stats
-      });
+      onProgress({ step: 3, progress: 90, message: '正在生成ZIP文件...', stats });
     }
 
-    const zipBlob = await zip.generateAsync(
-      {
-        type: 'blob',
-        compression: 'DEFLATE',
-        compressionOptions: { level: 6 },
-        streamFiles: true // 流式处理，减少内存使用
-      },
-      (metadata) => {
-        if (onProgress) {
-          const zipProgress = 88 + Math.floor(metadata.percent * 0.12);
-          onProgress({
-            step: 3,
-            progress: zipProgress,
-            message: `ZIP压缩中: ${Math.round(metadata.percent)}%`,
-            stats
-          });
-        }
+    const zipBlob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    }, (metadata) => {
+      if (onProgress && metadata.percent) {
+        const progress = 90 + Math.floor(metadata.percent * 0.1);
+        onProgress({ step: 3, progress, message: 'ZIP生成中...', stats });
       }
-    );
+    });
 
     if (onProgress) {
       onProgress({
         step: 3,
         progress: 100,
-        message: `导出完成! 共 ${stats.v2Timeline || stats.oldMoments} 条数据, ${includeVideos ? stats.totalVideos : 0} 个视频`,
+        message: `导出完成！共 ${stats.v2Timeline || stats.oldMoments} 条数据，${includeVideos ? stats.totalVideos : 0} 个视频`,
         stats
       });
     }
 
-    return {
-      blob: zipBlob,
-      isNative: false,
-      filePath: null,
-      filename: null
-    };
-
+    return { blob: zipBlob, isNative: false, filePath: null, filename: null };
   } catch (error) {
     console.error('[ZIP] 导出失败:', error);
     throw error;
   }
 }
 
-// ============== 统一导出接口（对外完全兼容） ==============
+// ==================== 统一导出接口 ====================
 
-/**
- * 导出所有数据+视频为ZIP
- * 优先使用APP原生流式导出（低内存），失败自动降级到JSZip
- * 浏览器环境直接使用JSZip
- * 
- * @param {Object} options 导出选项
- * @param {boolean} options.includeVideos 是否包含视频文件，默认true
- * @param {number} options.concurrency 并发读取数，默认STORAGE_CONFIG.MAX_CONCURRENT_READ
- * @param {Function} options.onProgress 进度回调，参数: { step, progress, message, stats }
- *   - step: 1=准备数据, 2=处理视频, 3=生成ZIP
- *   - progress: 0-100
- *   - message: 当前操作描述
- *   - stats: 数据统计信息
- * @returns {Promise<Object>} 返回 { blob?, filePath?, filename?, isNative: boolean }
- *   - 原生导出: 返回 filePath 和 filename，blob为null
- *   - JSZip导出: 返回 blob，filePath为null
- */
 export async function exportAllData(options = {}) {
-  const {
-    includeVideos = true,
-    concurrency = STORAGE_CONFIG.MAX_CONCURRENT_READ,
-    onProgress = null
-  } = options;
+  const { includeVideos = true, concurrency = STORAGE_CONFIG.MAX_CONCURRENT_READ, onProgress = null } = options;
 
-  // 策略1：浏览器环境或开关关闭 -> 直接用JSZip
   if (!NATIVE_FS_EXPORT_ENABLED || !isNativeFSSupported()) {
     return await exportWithJSZip(options);
   }
 
-  // 策略2：APP环境 -> 先尝试原生流式导出，失败自动降级到JSZip
   try {
     console.log('[ZIP] 使用APP原生文件系统流式导出');
     return await exportWithNativeFS(options);
   } catch (nativeError) {
     console.warn('[ZIP] 原生导出失败，自动降级到JSZip:', nativeError);
     if (onProgress) {
-      onProgress({
-        step: 1,
-        progress: 5,
-        message: '原生导出失败，正在切换到兼容模式...',
-        stats: null
-      });
+      onProgress({ step: 1, progress: 5, message: '原生导出失败，正在切换到兼容模式...', stats: null });
     }
     return await exportWithJSZip(options);
   }
 }
 
-// ============== 导入功能（保持不变） ==============
+// ==================== 导入功能 ====================
 
-/**
- * 从ZIP文件导入数据
- * @param {File} zipFile ZIP文件
- * @param {Function} onProgress 进度回调(0-100)
- * @returns {Promise<Object>}
- */
 export async function importFromZip(zipFile, onProgress = null) {
   if (typeof window.JSZip === 'undefined') {
     throw new Error('JSZip库未加载，请检查网络连接');
   }
-
   try {
     if (onProgress) onProgress(5, '正在读取ZIP文件...');
-
     const zip = await window.JSZip.loadAsync(zipFile);
 
-    if (onProgress) onProgress(10, '正在解析数据...');
-
-    // 1. 读取数据JSON
     const dataJsonFile = zip.file('data.json');
     if (!dataJsonFile) {
       throw new Error('ZIP文件中未找到data.json');
     }
-
     const dataJson = await dataJsonFile.async('string');
     const data = JSON.parse(dataJson);
-
     if (onProgress) onProgress(30, '数据解析完成');
 
-    // 2. 读取视频文件（暂时只返回，后续可恢复到OPFS）
     const videosFolder = zip.folder('videos');
     const videoFiles = [];
-    
     if (videosFolder) {
-      const fileNames = Object.keys(videosFolder.files).filter(
-        (name) => !videosFolder.files[name].dir
-      );
-
+      const fileNames = Object.keys(videosFolder.files).filter(name => !videosFolder.files[name].dir);
       let processed = 0;
       const total = fileNames.length;
-
       for (const filename of fileNames) {
         try {
-          const fileData = await videosFolder.file(filename).async('blob');
-          videoFiles.push({ filename, file: fileData });
+          const fileBlob = await videosFolder.file(filename).async('blob');
+          videoFiles.push({ filename, file: fileBlob });
         } catch (e) {
           console.warn(`[ZIP] 读取视频文件失败 ${filename}:`, e);
         }
@@ -1205,25 +799,13 @@ export async function importFromZip(zipFile, onProgress = null) {
     }
 
     if (onProgress) onProgress(100, '导入完成');
-
-    return {
-      data,
-      videoFiles
-    };
-
+    return { data, videoFiles };
   } catch (error) {
     console.error('[ZIP] 导入失败:', error);
     throw error;
   }
 }
 
-// ============== 其他工具函数（保持不变） ==============
-
-/**
- * 触发浏览器下载
- * @param {Blob} blob 文件内容
- * @param {string} filename 文件名
- */
 export function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1235,23 +817,15 @@ export function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-/**
- * 向后兼容的exportToZip（使用exportAllData）
- * @deprecated 请使用 exportAllData 替代
- */
 export async function exportToZip(data, onProgress) {
   console.warn('exportToZip is deprecated, use exportAllData instead');
-  
   if (typeof window.JSZip === 'undefined') {
     throw new Error('JSZip库未加载');
   }
-
   const zip = new window.JSZip();
   zip.file('data.json', JSON.stringify(data, null, 2));
-
   const videoFiles = collectVideoFiles(data);
   const videosFolder = zip.folder('videos');
-
   for (const video of videoFiles) {
     try {
       if (video.type === 'opfs') {
@@ -1265,7 +839,6 @@ export async function exportToZip(data, onProgress) {
       console.warn(`[ZIP] 视频处理失败 ${video.filename}:`, e);
     }
   }
-
   return zip.generateAsync({
     type: 'blob',
     compression: 'DEFLATE',
@@ -1281,5 +854,5 @@ export default {
   importFromZip,
   triggerDownload,
   base64ToFile,
-  withConcurrency
+  withConcurrency,
 };
