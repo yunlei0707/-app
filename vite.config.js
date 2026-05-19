@@ -9,13 +9,9 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: [
-        '@capacitor/core',
-        '@capacitor/camera',
-        '@capacitor/filesystem',
-        '@capacitor/share',
-        'capacitor-voice-recorder'
-      ]
+      // 注意：不要把Capacitor插件设为external！
+      // 它们的JavaScript部分必须被打包进bundle
+      // 原生部分由Capacitor CLI在构建APK时处理
     }
   }
 })
