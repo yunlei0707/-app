@@ -11,10 +11,7 @@
 
 import { format } from 'date-fns';
 
-// 从window对象安全获取Capacitor，避免直接import导致Web环境崩溃
-const Capacitor = window.Capacitor || null;
-
-// 导入NativeAPI
+// 导入NativeAPI（已修复了isNativePlatform函数
 import * as NativeAPI from './nativeApi';
 
 // ==================== 环境检测（保持不变） ====================
@@ -24,7 +21,7 @@ import * as NativeAPI from './nativeApi';
  * 使用标准Capacitor.isNativePlatform()实现
  */
 export const isInApp = () => {
-  return Capacitor.isNativePlatform();
+  return NativeAPI.isNativePlatform();
 };
 
 /**

@@ -12,10 +12,19 @@
  * 注意：所有导入都是动态导入，确保在Web环境下不会崩溃
  */
 
-// 从window对象安全获取Capacitor，避免直接import导致Web环境崩溃
-const Capacitor = window.Capacitor || null;
-
 // ====== 环境检测 ======
+
+/**
+ * 获取Capacitor对象（每次调用时检查，避免模块加载时还没注入）
+ * @returns {object|null} Capacitor对象
+ */
+function getCapacitor() {
+  try {
+    return window.Capacitor || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 /**
  * 检测是否在原生APP环境
@@ -23,7 +32,10 @@ const Capacitor = window.Capacitor || null;
  */
 export function isNativePlatform() {
   try {
-    return Capacitor.isNativePlatform();
+    const Capacitor = getCapacitor();
+    return Capacitor && typeof Capacitor.isNativePlatform === 'function' 
+      ? Capacitor.isNativePlatform() 
+      : false;
   } catch (e) {
     return false;
   }

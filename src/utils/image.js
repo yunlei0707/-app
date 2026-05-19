@@ -5,8 +5,17 @@
  * 【重要】所有图片显示必须使用此工具，否则会出现"上传成功但不显示"的问题
  */
 
-// 从window对象安全获取Capacitor，避免直接import导致Web环境崩溃
-const Capacitor = window.Capacitor || null;
+/**
+ * 获取Capacitor对象（每次调用时检查，避免模块加载时还没注入）
+ * @returns {object|null} Capacitor对象
+ */
+function getCapacitor() {
+  try {
+    return window.Capacitor || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 /**
  * 获取可正常显示的图片源地址
@@ -29,7 +38,10 @@ export function getImageSrc(uri) {
   }
   
   // 3. Capacitor 本地文件路径转换（核心：必须转换才能在 WebView 中显示）
-  return Capacitor.convertFileSrc(uri);
+  const Capacitor = getCapacitor();
+  return Capacitor && typeof Capacitor.convertFileSrc === 'function' 
+    ? Capacitor.convertFileSrc(uri) 
+    : uri;
 }
 
 /**

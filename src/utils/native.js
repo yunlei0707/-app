@@ -4,18 +4,32 @@
  * 提供 Web 端降级实现（开发环境）
  */
 
-// 从window对象安全检测Capacitor，避免直接import导致Web环境崩溃
+/**
+ * 获取Capacitor对象（每次调用时检查，避免模块加载时还没注入）
+ * @returns {object|null} Capacitor对象
+ */
 function getCapacitor() {
   try {
-    return window.Capacitor;
+    return window.Capacitor || null;
   } catch (e) {
     return null;
   }
 }
 
-// 检查是否在原生环境运行
-const Capacitor = getCapacitor();
-export const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
+/**
+ * 检测是否在原生APP环境
+ * @returns {boolean}
+ */
+export function isNativePlatform() {
+  try {
+    const Capacitor = getCapacitor();
+    return Capacitor && typeof Capacitor.isNativePlatform === 'function' 
+      ? Capacitor.isNativePlatform() 
+      : false;
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * 转换文件路径为 Web 可访问路径
@@ -40,7 +54,7 @@ let Filesystem = null;
 let CameraSource = null;
 
 async function loadCameraPlugin() {
-  if (!isNativePlatform) return null;
+  if (!isNativePlatform()) return null;
   if (Camera) return Camera;
   try {
     const module = await import('@capacitor/camera');
@@ -54,7 +68,7 @@ async function loadCameraPlugin() {
 }
 
 async function loadFilesystemPlugin() {
-  if (!isNativePlatform) return null;
+  if (!isNativePlatform()) return null;
   if (Filesystem) return Filesystem;
   try {
     const module = await import('@capacitor/filesystem');
@@ -73,7 +87,7 @@ async function loadFilesystemPlugin() {
  */
 export async function takePhoto(options = {}) {
   // Web 端降级实现
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -118,7 +132,7 @@ let VoiceRecorder = null;
 let isRecording = false;
 
 async function loadVoiceRecorderPlugin() {
-  if (!isNativePlatform) return null;
+  if (!isNativePlatform()) return null;
   if (VoiceRecorder) return VoiceRecorder;
   try {
     const module = await import('capacitor-voice-recorder');
@@ -134,7 +148,7 @@ async function loadVoiceRecorderPlugin() {
  * 检查录音权限状态
  */
 export async function checkAudioPermission() {
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     return true; // Web环境在调用时才检查
   }
   
@@ -154,7 +168,7 @@ export async function checkAudioPermission() {
  * 请求录音权限
  */
 export async function requestAudioPermission() {
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       return true;
@@ -185,7 +199,7 @@ export async function requestAudioPermission() {
  * 开始录音
  */
 export async function startRecording() {
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       window._mediaRecorder = new MediaRecorder(stream);
@@ -232,7 +246,7 @@ export async function startRecording() {
 export async function stopRecording() {
   if (!isRecording) return null;
   
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     return new Promise((resolve) => {
       window._mediaRecorder.onstop = () => {
         const blob = new Blob(window._audioChunks, { type: 'audio/webm' });
@@ -279,7 +293,7 @@ export async function stopRecording() {
 let Share = null;
 
 async function loadSharePlugin() {
-  if (!isNativePlatform) return null;
+  if (!isNativePlatform()) return null;
   if (Share) return Share;
   try {
     const module = await import('@capacitor/share');
@@ -296,7 +310,7 @@ async function loadSharePlugin() {
  * @param {Object} options - 分享选项
  */
 export async function shareContent(options = {}) {
-  if (!isNativePlatform) {
+  if (!isNativePlatform()) {
     if (navigator.share) {
       try {
         await navigator.share({
