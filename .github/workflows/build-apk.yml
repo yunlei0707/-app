@@ -44,7 +44,29 @@ jobs:
         run: npx cap init "宝贝时光" com.babytime.app --web-dir dist
 
       - name: Add Android
-        run: npx cap add android
+        run: |
+          # 先保存我们的配置文件
+          mkdir -p /tmp/android_configs
+          if [ -d android/app/src/main/ ]; then
+            cp -r android/app/src/main/* /tmp/android_configs/
+            echo "保存配置文件到临时目录"
+          fi
+          # 删除旧目录重新生成
+          rm -rf android
+          npx cap add android
+
+      - name: Apply custom Android configs
+        run: |
+          # 把我们的权限配置文件覆盖到新生成的 android 目录
+          if [ -f /tmp/android_configs/AndroidManifest.xml ]; then
+            cp -f /tmp/android_configs/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+            echo "已应用自定义 AndroidManifest.xml"
+          fi
+          if [ -f /tmp/android_configs/res/xml/file_paths.xml ]; then
+            mkdir -p android/app/src/main/res/xml
+            cp -f /tmp/android_configs/res/xml/file_paths.xml android/app/src/main/res/xml/file_paths.xml
+            echo "已应用自定义 file_paths.xml"
+          fi
 
       - name: Sync Android
         run: npx cap sync android
