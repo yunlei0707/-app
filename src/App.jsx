@@ -33,7 +33,6 @@ import { AIChoiceModal } from './components/AIChoiceModal';
 import { GrowthRecordForm } from './components/GrowthRecordForm';
 import { cleanupOrphanFiles } from './utils/opfs';
 import { STORAGE_CONFIG } from './config/storage';
-import FloatingPig from './components/FloatingPig';
 
 // 登录保护
 function AuthGuard({ children }) {
@@ -478,7 +477,6 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-gray-900">
       {/* 悬浮小猪按钮 */}
-      <FloatingPig />
       
       {/* 页面内容 */}
       {renderPage()}
