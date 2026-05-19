@@ -63,7 +63,8 @@ function fileToBase64(file, onProgress = null) {
 // ==================== 原生文件系统操作 ====================
 
 /**
- * 保存视频到APP原生文件系统
+ * 保存文件到APP原生文件系统（照片/视频/音频通用）
+ * ✅ 支持 Blob 直接写入，避免大文件转 Base64 卡死
  */
 export async function saveVideoToNative(file, onProgress = null) {
   if (!isAppEnvironment()) {
@@ -71,35 +72,57 @@ export async function saveVideoToNative(file, onProgress = null) {
   }
 
   try {
-    console.log('[Storage] 保存视频到原生文件系统');
+    console.log('[Storage] 保存文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB');
     const filename = generateUniqueFilename(file.name);
-    const totalSize = file.size;
+    const startTime = Date.now();
 
-    // 转成Base64（Capacitor Filesystem要求）
-    const base64 = await fileToBase64(file, onProgress);
+    // 加载插件并解构
+    const FilesystemModule = await loadFilesystem();
+    if (!FilesystemModule) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = FilesystemModule;
 
-    // 写入文件系统
-    const Filesystem = await loadFilesystem();
-    if (!Filesystem) throw new Error('文件系统不可用');
+    // ✅ 方案1：直接 Blob 写入（Capacitor 5+ 支持）
+    let writeSucceeded = false;
+    try {
+      await Filesystem.writeFile({
+        path: `BabyTime/videos/${filename}`,
+        data: file,  // 直接传 Blob/File 对象
+        directory: Directory.Documents,
+        recursive: true,
+      });
+      writeSucceeded = true;
+      console.log('[Storage] ✅ 直接Blob写入成功');
+    } catch (blobError) {
+      console.warn('[Storage] Blob写入失败，降级为Base64:', blobError.message);
+    }
 
-    await Filesystem.writeFile({
-      path: `BabyTime/videos/${filename}`,
-      data: base64,
-      directory: Filesystem.Directory.Documents,
-      recursive: true,
-    });
+    // ❌ 方案2：降级为 Base64（仅用于小文件/兼容旧版本）
+    if (!writeSucceeded) {
+      const base64 = await fileToBase64(file, onProgress);
+      await Filesystem.writeFile({
+        path: `BabyTime/videos/${filename}`,
+        data: base64,
+        directory: Directory.Documents,
+        recursive: true,
+      });
+    }
 
-    console.log('[Storage] 视频保存成功:', filename);
+    const totalTime = (Date.now() - startTime) / 1000;
+    const avgSpeed = (file.size / 1024 / 1024 / totalTime).toFixed(1);
+    console.log(`[Storage] ✅ 保存成功: ${filename}, 平均速度: ${avgSpeed} MB/s`);
+
+    if (onProgress) onProgress(100);
 
     return {
       filename,
       size: file.size,
       type: file.type,
       storageType: 'native',
+      avgSpeed: parseFloat(avgSpeed),
     };
 
   } catch (e) {
-    console.error('[Storage] 视频保存失败:', e);
+    console.error('[Storage] ❌ 保存失败:', e);
     throw new Error(`保存失败: ${e.message}`);
   }
 }
@@ -113,12 +136,13 @@ export async function readVideoFromNative(filename) {
   }
 
   try {
-    const Filesystem = await loadFilesystem();
-    if (!Filesystem) throw new Error('文件系统不可用');
+    const FilesystemModule = await loadFilesystem();
+    if (!FilesystemModule) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = FilesystemModule;
 
     const result = await Filesystem.readFile({
       path: `BabyTime/videos/${filename}`,
-      directory: Filesystem.Directory.Documents,
+      directory: Directory.Documents,
     });
 
     // base64转Blob
@@ -138,12 +162,13 @@ export async function deleteVideoFromNative(filename) {
   if (!isAppEnvironment()) return false;
 
   try {
-    const Filesystem = await loadFilesystem();
-    if (!Filesystem) throw new Error('文件系统不可用');
+    const FilesystemModule = await loadFilesystem();
+    if (!FilesystemModule) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = FilesystemModule;
 
     await Filesystem.deleteFile({
       path: `BabyTime/videos/${filename}`,
-      directory: Filesystem.Directory.Documents,
+      directory: Directory.Documents,
     });
 
     console.log('[Storage] 视频已删除:', filename);
