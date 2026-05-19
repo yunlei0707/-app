@@ -42,10 +42,20 @@ const NATIVE_EXPORT_DIR = 'fs://file/BabyTimeBackup';
  * @returns {boolean} 是否支持
  */
 function isNativeFSSupported() {
-  return typeof window !== 'undefined' && 
-         typeof window.jsBridge !== 'undefined' && 
-         window.jsBridge.inApp === true &&
-         window.jsBridge.fs;
+  // Capacitor环境检测
+  if (typeof window !== 'undefined') {
+    // 标准Capacitor检测
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      return true;
+    }
+    // 旧版jsBridge检测（向后兼容）
+    if (typeof window.jsBridge !== 'undefined' && 
+        window.jsBridge.inApp === true &&
+        window.jsBridge.fs) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -29,12 +29,15 @@ let Camera = null;
 let Filesystem = null;
 
 // 懒加载 Capacitor 插件
+let CameraSource = null;
+
 async function loadCameraPlugin() {
   if (!isNativePlatform) return null;
   if (Camera) return Camera;
   try {
     const module = await import('@capacitor/camera');
     Camera = module.Camera;
+    CameraSource = module.CameraSource;
     return Camera;
   } catch (e) {
     console.warn('[Native] 相机插件加载失败:', e);
@@ -90,21 +93,15 @@ export async function takePhoto(options = {}) {
   
   const photo = await camera.getPhoto({
     quality: options.quality || 85,
-    resultType: 'base64',
-    source: options.source || 'PROMPT',
+    resultType: 'uri',  // 返回URI而不是base64，减少内存
+    source: options.source || CameraSource.Prompt,
     width: options.width || 1920,
     height: options.height || 1920,
     correctOrientation: true,
   });
   
-  const fileName = `photo_${Date.now()}.jpg`;
-  const savedFile = await filesystem.writeFile({
-    path: fileName,
-    data: photo.base64String,
-    directory: 'Data',
-  });
-  
-  return savedFile.uri;
+  // 返回文件路径（Capacitor会自动处理临时文件）
+  return photo.webPath || photo.path || photo.uri;
 }
 
 // ==================== 录音能力 ====================
@@ -126,6 +123,26 @@ async function loadVoiceRecorderPlugin() {
 }
 
 /**
+ * 检查录音权限状态
+ */
+export async function checkAudioPermission() {
+  if (!isNativePlatform) {
+    return true; // Web环境在调用时才检查
+  }
+  
+  const recorder = await loadVoiceRecorderPlugin();
+  if (!recorder) return false;
+  
+  try {
+    const result = await recorder.checkPermissions();
+    return result.value?.audio_recording === 'granted' || result.value?.audio_recording === true;
+  } catch (e) {
+    console.warn('[Native] 检查录音权限失败:', e);
+    return false;
+  }
+}
+
+/**
  * 请求录音权限
  */
 export async function requestAudioPermission() {
@@ -141,8 +158,19 @@ export async function requestAudioPermission() {
   const recorder = await loadVoiceRecorderPlugin();
   if (!recorder) return false;
   
-  const result = await recorder.requestAudioRecordingPermission();
-  return result.value === 'granted' || result.value === true;
+  try {
+    // 先检查当前权限状态
+    const hasPermission = await checkAudioPermission();
+    if (hasPermission) return true;
+    
+    // 请求权限
+    const result = await recorder.requestAudioRecordingPermission();
+    return result.value === 'granted' || result.value === true;
+  } catch (e) {
+    console.warn('[Native] 请求录音权限失败:', e);
+    // 即使权限检查失败也继续尝试（某些设备可能绕过了权限检查）
+    return true;
+  }
 }
 
 /**
@@ -162,19 +190,32 @@ export async function startRecording() {
       return true;
     } catch (e) {
       console.error('[Native] Web 录音失败:', e);
-      return false;
+      throw new Error('麦克风权限被拒绝或不可用');
     }
   }
   
   const recorder = await loadVoiceRecorderPlugin();
-  if (!recorder) return false;
+  if (!recorder) {
+    throw new Error('录音插件不可用');
+  }
   
   const canRecord = await requestAudioPermission();
-  if (!canRecord) return false;
+  if (!canRecord) {
+    throw new Error('录音权限被拒绝');
+  }
   
-  await recorder.startRecording();
-  isRecording = true;
-  return true;
+  try {
+    await recorder.startRecording();
+    isRecording = true;
+    return true;
+  } catch (e) {
+    console.error('[Native] 开始录音失败:', e);
+    // 如果是权限相关错误，给出更友好的提示
+    if (e.message?.includes('permission') || e.message?.includes('Permission')) {
+      throw new Error('请在应用设置中允许录音权限');
+    }
+    throw e;
+  }
 }
 
 /**

@@ -9,7 +9,7 @@ import { getCurrentBabyInfo, isSystemAccount } from '../utils/dbV2';
 import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
 import { saveVideo, deleteVideo } from '../utils/storageAdapter';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
-import { shouldUseOPFS } from '../utils/storageCheck';
+import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
@@ -274,32 +274,43 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       const result = await jsBridgeAudioRecorder.stopRecord();
       const duration = result?.duration || recordingTime;
       
-      // 读取录音数据
+      // 读取录音数据并存入IndexedDB（避免Base64内存开销）
       const base64 = await jsBridgeAudioRecorder.read();
       const blob = jsBridgeAudioRecorder.toBlob(base64, 'audio/mp4');
-      const reader = new FileReader();
       
-      reader.onload = () => {
-        // 生成模拟波形数据
-        const simulatedWaveform = [];
-        for (let i = 0; i < 50; i++) {
-          simulatedWaveform.push(Array.from({length: 32}, () => Math.random() * 200));
-        }
-        
-        const audioData = {
-          url: reader.result,
-          duration: duration,
-          waveform: simulatedWaveform
-        };
-        setAudios(prev => [...prev, audioData]);
+      // 生成唯一文件ID并存入IndexedDB
+      const fileId = generateFileId();
+      await saveAudioFile(fileId, blob, {
+        name: `recording_${Date.now()}.mp4`,
+        type: 'audio/mp4',
+        duration: duration
+      });
+      
+      // 生成临时预览URL（不存入JSON，只用于当前会话显示）
+      const displayURL = URL.createObjectURL(blob);
+      
+      // 生成模拟波形数据
+      const simulatedWaveform = [];
+      for (let i = 0; i < 50; i++) {
+        simulatedWaveform.push(Array.from({length: 32}, () => Math.random() * 200));
+      }
+      
+      // ✅ 只存fileId引用，不存Base64，避免JSON体积爆炸
+      const audioData = {
+        audioFileId: fileId,
+        displayURL: displayURL,
+        duration: duration,
+        waveform: simulatedWaveform,
+        storageType: 'indexeddb-blob'
       };
-      reader.readAsDataURL(blob);
+      setAudios(prev => [...prev, audioData]);
       
       setIsRecording(false);
       return true;
     } catch (error) {
       console.error('APP停止录音失败:', error);
       setIsRecording(false);
+      alert('录音保存失败: ' + (error.message || '未知错误'));
       return false;
     }
   };
@@ -359,18 +370,28 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       }
     };
     
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.onload = () => {
-        const audioData = {
-          url: reader.result,
-          duration: recordingTime,
-          waveform: [...audioWaveform]
-        };
-        setAudios(prev => [...prev, audioData]);
+      
+      // ✅ 存入IndexedDB，避免Base64内存开销
+      const fileId = generateFileId();
+      await saveAudioFile(fileId, audioBlob, {
+        name: `recording_${Date.now()}.webm`,
+        type: 'audio/webm',
+        duration: recordingTime
+      });
+      
+      // 生成临时预览URL（不存入JSON）
+      const displayURL = URL.createObjectURL(audioBlob);
+      
+      const audioData = {
+        audioFileId: fileId,
+        displayURL: displayURL,
+        duration: recordingTime,
+        waveform: [...audioWaveform],
+        storageType: 'indexeddb-blob'
       };
-      reader.readAsDataURL(audioBlob);
+      setAudios(prev => [...prev, audioData]);
     };
     
     mediaRecorder.start();
@@ -1017,7 +1038,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
 
     try {
       // 检测是否使用OPFS
-      const useOPFS = await shouldUseOPFS();
+      const useOPFS = await shouldUseFileStorage();
       
       if (STORAGE_CONFIG.DEBUG_MODE) {
         console.log('[MomentForm] 照片存储模式:', useOPFS ? 'OPFS' : 'Base64');
@@ -1134,7 +1155,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     
     try {
       // 检测是否使用OPFS
-      const useOPFS = await shouldUseOPFS();
+      const useOPFS = await shouldUseFileStorage();
       
       if (STORAGE_CONFIG.DEBUG_MODE) {
         console.log('[MomentForm] 视频存储模式:', useOPFS ? 'OPFS' : 'Base64');

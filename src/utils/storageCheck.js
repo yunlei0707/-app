@@ -4,6 +4,19 @@
 
 import { STORAGE_CONFIG } from '../config/storage';
 import { isOPFSSupported } from './opfs';
+import { Capacitor } from '@capacitor/core';
+
+/**
+ * 检测是否在Capacitor APP原生环境
+ * @returns {boolean}
+ */
+export function isNativeAppEnvironment() {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * 检测当前环境的存储能力
@@ -11,16 +24,21 @@ import { isOPFSSupported } from './opfs';
  *   opfsSupported: boolean,
  *   indexedDBSupported: boolean,
  *   localStorageSupported: boolean,
- *   recommendedMode: 'opfs' | 'base64'
+ *   nativeApp: boolean,
+ *   recommendedMode: 'opfs' | 'native' | 'base64'
  * }>}
  */
 export async function checkStorageCapability() {
+  const nativeApp = isNativeAppEnvironment();
   const opfsSupported = await isOPFSSupported();
   const indexedDBSupported = !!window.indexedDB;
   const localStorageSupported = !!window.localStorage;
 
   let recommendedMode = 'base64';
-  if (opfsSupported) {
+  if (nativeApp) {
+    // APP环境优先使用原生文件系统
+    recommendedMode = 'native';
+  } else if (opfsSupported) {
     recommendedMode = 'opfs';
   }
 
@@ -28,19 +46,25 @@ export async function checkStorageCapability() {
     opfsSupported,
     indexedDBSupported,
     localStorageSupported,
+    nativeApp,
     recommendedMode,
   };
 }
 
 /**
- * 判断是否应该使用OPFS存储
- * 考虑配置开关和实际兼容性
+ * 判断是否应该使用文件系统存储（原生或OPFS）
+ * 在APP环境返回true（使用原生文件系统），在Web环境检查OPFS支持
  * @returns {Promise<boolean>}
  */
-export async function shouldUseOPFS() {
+export async function shouldUseFileStorage() {
   // 强制关闭
   if (STORAGE_CONFIG.USE_OPFS === false) {
     return false;
+  }
+
+  // APP原生环境始终使用文件系统
+  if (isNativeAppEnvironment()) {
+    return true;
   }
 
   // 强制开启（即使检测不通过，风险由用户承担）
