@@ -5,7 +5,8 @@
  * 【重要】所有图片显示必须使用此工具，否则会出现"上传成功但不显示"的问题
  */
 
-import { Capacitor } from '@capacitor/core';
+// 从window对象安全获取Capacitor，避免直接import导致Web环境崩溃
+const Capacitor = window.Capacitor || null;
 
 /**
  * 获取可正常显示的图片源地址

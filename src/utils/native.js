@@ -4,10 +4,18 @@
  * 提供 Web 端降级实现（开发环境）
  */
 
-import { Capacitor } from '@capacitor/core';
+// 从window对象安全检测Capacitor，避免直接import导致Web环境崩溃
+function getCapacitor() {
+  try {
+    return window.Capacitor;
+  } catch (e) {
+    return null;
+  }
+}
 
 // 检查是否在原生环境运行
-export const isNativePlatform = Capacitor.isNativePlatform();
+const Capacitor = getCapacitor();
+export const isNativePlatform = Capacitor?.isNativePlatform?.() || false;
 
 /**
  * 转换文件路径为 Web 可访问路径

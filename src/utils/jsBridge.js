@@ -10,7 +10,9 @@
  */
 
 import { format } from 'date-fns';
-import { Capacitor } from '@capacitor/core';
+
+// 从window对象安全获取Capacitor，避免直接import导致Web环境崩溃
+const Capacitor = window.Capacitor || null;
 
 // 导入NativeAPI
 import * as NativeAPI from './nativeApi';

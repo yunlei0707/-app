@@ -4,15 +4,15 @@
 
 import { STORAGE_CONFIG } from '../config/storage';
 import { isOPFSSupported } from './opfs';
-import { Capacitor } from '@capacitor/core';
 
 /**
  * 检测是否在Capacitor APP原生环境
+ * 从window对象安全检测，避免直接import导致的崩溃
  * @returns {boolean}
  */
 export function isNativeAppEnvironment() {
   try {
-    return Capacitor.isNativePlatform();
+    return window.Capacitor?.isNativePlatform?.() || false;
   } catch (e) {
     return false;
   }
