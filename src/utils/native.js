@@ -34,15 +34,26 @@ async function loadFilesystem() {
 }
 
 async function loadVoiceRecorder() {
-  if (VoiceRecorderModule) return VoiceRecorderModule;
+  if (VoiceRecorderModule) {
+    console.log('[Native] 录音插件已缓存，直接返回');
+    return VoiceRecorderModule;
+  }
   try {
+    console.log('[Native] 开始加载录音插件...');
     const module = await import('capacitor-voice-recorder');
-    // 兼容不同的导出方式：module.VoiceRecorder / module.default / module
+    console.log('[Native] 录音插件module keys:', Object.keys(module));
+    
+    // 兼容不同的导出方式
     VoiceRecorderModule = module.VoiceRecorder || module.default || module;
-    console.log('[Native] 录音插件加载成功:', !!VoiceRecorderModule);
+    console.log('[Native] 录音插件加载结果:', {
+      hasModule: !!VoiceRecorderModule,
+      hasStartRecording: !!VoiceRecorderModule?.startRecording,
+      hasRequestPermission: !!VoiceRecorderModule?.requestAudioRecordingPermission,
+      hasHasPermission: !!VoiceRecorderModule?.hasAudioRecordingPermission,
+    });
     return VoiceRecorderModule;
   } catch (e) {
-    console.warn('[Native] VoiceRecorder plugin not available:', e);
+    console.error('[Native] ❌ 录音插件加载失败:', e);
     return null;
   }
 }
@@ -87,27 +98,34 @@ export async function requestCameraPermission() {
  * 请求录音权限
  */
 export async function requestAudioPermission() {
-  if (!isNativePlatform()) return true;
+  console.log('[Native] 开始请求录音权限');
+  
+  if (!isNativePlatform()) {
+    console.log('[Native] 不是原生环境，跳过权限请求');
+    return true;
+  }
   
   try {
     const recorder = await loadVoiceRecorder();
     if (!recorder) {
-      console.error('[Native] 录音插件未加载');
+      console.error('[Native] ❌ 录音插件未加载，无法请求权限');
       return false;
     }
     
-    console.log('[Native] 检查录音权限');
+    console.log('[Native] 检查录音权限...');
     const hasPermission = await recorder.hasAudioRecordingPermission();
-    console.log('[Native] 当前录音权限:', hasPermission.value);
+    console.log('[Native] 当前录音权限状态:', hasPermission);
     
     if (!hasPermission.value) {
+      console.log('[Native] 权限未授予，开始请求权限...');
       const result = await recorder.requestAudioRecordingPermission();
-      console.log('[Native] 请求录音权限结果:', result.value);
+      console.log('[Native] 请求权限结果:', result);
       return result.value === 'granted' || result.value === true;
     }
+    console.log('[Native] ✅ 已有录音权限');
     return true;
   } catch (e) {
-    console.error('[Native] 请求录音权限失败:', e);
+    console.error('[Native] ❌ 请求录音权限异常:', e);
     return false;
   }
 }
@@ -178,20 +196,25 @@ export async function takePhoto(options = {}) {
 // ==================== 录音能力 ====================
 
 export async function startRecording() {
+  console.log('[Native] ========= startRecording 被调用 ========');
+  
   if (!isNativePlatform()) {
+    console.log('[Native] 不是原生环境，尝试Web录音');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       window._mediaRecorder = new MediaRecorder(stream);
       window._audioChunks = [];
       window._mediaRecorder.ondataavailable = (e) => window._audioChunks.push(e.data);
       window._mediaRecorder.start();
+      console.log('[Native] Web录音启动成功');
       return true;
     } catch (e) {
+      console.error('[Native] Web录音失败:', e);
       throw new Error('麦克风权限被拒绝');
     }
   }
 
-  console.log('[Native] 开始录音流程');
+  console.log('[Native] 开始原生录音流程');
   
   // ✅ 先请求权限
   const hasPermission = await requestAudioPermission();
@@ -204,10 +227,15 @@ export async function startRecording() {
     throw new Error('录音插件不可用');
   }
 
-  console.log('[Native] 启动录音');
-  await recorder.startRecording();
-  console.log('[Native] 录音已启动');
-  return true;
+  console.log('[Native] 调用startRecording()');
+  try {
+    await recorder.startRecording();
+    console.log('[Native] ✅ 录音已启动');
+    return true;
+  } catch (e) {
+    console.error('[Native] ❌ 启动录音异常:', e);
+    throw e;
+  }
 }
 
 export async function stopRecording() {

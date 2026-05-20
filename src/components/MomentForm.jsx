@@ -533,19 +533,22 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 开始录音（统一入口）
   const startRecording = async () => {
+    console.log('[录音] ========= 点击录音按钮 ========');
+    
     const isNative = isNativePlatform();
     console.log('[录音] 检测运行环境:', {
       isNative,
+      hasCapacitor: !!window.Capacitor,
+      isNativePlatformFunc: !!window.Capacitor?.isNativePlatform,
       protocol: location.protocol,
       hostname: location.hostname,
-      isInApp: window.Capacitor?.isNativePlatform?.(),
     });
     
     if (isNative) {
-      console.log('[录音] 使用Capacitor原生录音');
+      console.log('[录音] ✅ 使用Capacitor原生录音');
       try {
         await nativeStartRecording();
-        console.log('[录音] 原生录音启动成功');
+        console.log('[录音] ✅ 原生录音启动成功，准备更新UI状态');
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
@@ -559,14 +562,30 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
-        console.log('[录音] 状态已更新，计时器已启动');
+        console.log('[录音] ✅ UI状态已更新，计时器已启动');
       } catch (e) {
-        console.error('[录音] 原生录音启动失败:', e);
+        console.error('[录音] ❌ 原生录音启动失败:', e);
         alert('录音启动失败: ' + (e.message || '未知错误，请检查麦克风权限'));
       }
     } else {
-      console.log('[录音] 使用浏览器录音');
-      await startBrowserRecording();
+      console.log('[录音] ⚠️ 不是原生环境，尝试浏览器录音');
+      // APP环境下也用原生录音，即使isNativePlatform返回false
+      if (window.Capacitor) {
+        console.log('[录音] 检测到Capacitor，强制使用原生录音');
+        try {
+          await nativeStartRecording();
+          setIsRecording(true);
+          setRecordingTime(0);
+          timerRef.current = setInterval(() => {
+            setRecordingTime(prev => prev + 1);
+          }, 1000);
+        } catch (e) {
+          console.error('[录音] 原生录音启动失败:', e);
+          alert('录音启动失败: ' + e.message);
+        }
+      } else {
+        await startBrowserRecording();
+      }
     }
   };
   
