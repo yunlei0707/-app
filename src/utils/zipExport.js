@@ -23,18 +23,23 @@ function isNativePlatform() {
 
 async function loadFilesystem() {
   try {
-    // 🔴 关键修复：从Capacitor.Plugins获取，不使用动态import
+    // 从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Filesystem) {
       console.log('[ZIP] 从Capacitor.Plugins获取文件系统插件');
-      // Directory 枚举在原生环境中可能不存在，使用常量字符串
-      const Filesystem = window.Capacitor.Plugins.Filesystem;
-      const Directory = {
+      const filesystemModule = window.Capacitor.Plugins.Filesystem;
+      
+      // 兼容不同的导出方式：模块对象可能包含 .Filesystem 属性
+      const Filesystem = filesystemModule.Filesystem || filesystemModule.default?.Filesystem || filesystemModule;
+      
+      // Directory 枚举值
+      const Directory = filesystemModule.Directory || filesystemModule.default?.Directory || {
         Documents: 'DOCUMENTS',
         Data: 'DATA',
         Cache: 'CACHE',
         External: 'EXTERNAL',
         ExternalStorage: 'EXTERNAL_STORAGE'
       };
+      
       return { Filesystem, Directory };
     }
     
@@ -48,16 +53,12 @@ async function loadFilesystem() {
 
 async function loadShare() {
   try {
-    // 🔴 关键修复：从Capacitor.Plugins获取，不使用动态import
+    // 从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Share) {
       console.log('[ZIP] 从Capacitor.Plugins获取分享插件');
-      return window.Capacitor.Plugins.Share;
-    }
-    
-    // 尝试其他方式
-    if (window.Share) {
-      console.log('[ZIP] 从window.Share获取');
-      return window.Share;
+      const shareModule = window.Capacitor.Plugins.Share;
+      // 兼容不同的导出方式：模块对象可能包含 .Share 属性
+      return shareModule.Share || shareModule.default?.Share || shareModule;
     }
     
     console.warn('[ZIP] 未找到分享插件');

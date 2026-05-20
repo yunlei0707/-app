@@ -135,13 +135,15 @@ export async function requestCameraPermission() {
   if (!isNativePlatform()) return true;
   
   try {
-    const Camera = await loadCamera();
-    if (!Camera) return false;
+    const cameraModule = await loadCamera();
+    if (!cameraModule) return false;
     
-    // 🔴 修复：Camera 本身就是 API 对象，不需要再 .Camera
-    const status = await Camera.checkPermissions();
+    // 兼容不同的导出方式：模块对象可能包含 .Camera 属性
+    const CameraAPI = cameraModule.Camera || cameraModule.default || cameraModule;
+    
+    const status = await CameraAPI.checkPermissions();
     if (status.camera !== 'granted' || status.photos !== 'granted') {
-      const result = await Camera.requestPermissions();
+      const result = await CameraAPI.requestPermissions();
       return result.camera === 'granted' || result.photos === 'granted';
     }
     return true;
@@ -230,11 +232,13 @@ export async function takePhoto(options = {}) {
     throw new Error('请授予相机权限后重试');
   }
 
-  const CameraAPI = await loadCamera();
-  if (!CameraAPI) throw new Error('相机插件不可用');
+  const cameraModule = await loadCamera();
+  if (!cameraModule) throw new Error('相机插件不可用');
+
+  // 兼容不同的导出方式
+  const CameraAPI = cameraModule.Camera || cameraModule.default || cameraModule;
 
   console.log('[Native] 调用相机选择器');
-  // 🔴 修复：直接使用 CameraAPI.getPhoto，不需要 .Camera
   const photo = await CameraAPI.getPhoto({
     quality: options.quality || 85,
     resultType: 'uri',

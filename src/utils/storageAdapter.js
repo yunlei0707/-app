@@ -15,17 +15,23 @@ function isAppEnvironment() {
 
 async function loadFilesystem() {
   try {
-    // 🔴 关键修复：从Capacitor.Plugins获取，不使用动态import
+    // 从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Filesystem) {
       console.log('[Storage] 从Capacitor.Plugins获取文件系统插件');
-      const Filesystem = window.Capacitor.Plugins.Filesystem;
-      const Directory = {
+      const filesystemModule = window.Capacitor.Plugins.Filesystem;
+      
+      // 兼容不同的导出方式：模块对象可能包含 .Filesystem 属性
+      const Filesystem = filesystemModule.Filesystem || filesystemModule.default?.Filesystem || filesystemModule;
+      
+      // Directory 枚举值
+      const Directory = filesystemModule.Directory || filesystemModule.default?.Directory || {
         Documents: 'DOCUMENTS',
         Data: 'DATA',
         Cache: 'CACHE',
         External: 'EXTERNAL',
         ExternalStorage: 'EXTERNAL_STORAGE'
       };
+      
       return { Filesystem, Directory };
     }
     
