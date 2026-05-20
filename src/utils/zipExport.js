@@ -1,13 +1,15 @@
 /**
- * ✅ 生产级：ZIP导出工具（终极方案）
+ * ✅ 生产级：ZIP导出工具（终极方案 + P2.5加固）
  * 核心设计：逐个处理 + 不炸内存 + 可恢复
  * 
  * 架构：
  * 1. JSZip打包（浏览器+APP通用）
  * 2. for循环串行读取视频（禁止Promise.all）
- * 3. 每处理2个视频让出一次主线程
+ * 3. 每处理2个视频让出主线程（requestAnimationFrame更稳）
  * 4. 最大300个视频导出限制
  * 5. 压缩级别=3（平衡速度/体积）
+ * 6. 失败重试机制（最多2次）
+ * 7. ZIP流式生成（streamFiles）
  */
 
 import { readVideoFromOPFS } from './opfs';
@@ -20,6 +22,7 @@ import { BASE_DIR } from '../constants/storage.js';
 const CHUNK_SIZE = 1024 * 1024; // 1MB分块
 const MAX_VIDEOS = 300; // 最大导出视频数量
 const COMPRESSION_LEVEL = 3; // 压缩级别：平衡速度/体积
+const MAX_RETRY = 2; // 视频读取失败重试次数
 
 // ==================== 工具函数 ====================
 
@@ -130,6 +133,39 @@ function extractVideosFromData(mergedData) {
   }
   
   return videos;
+}
+
+/**
+ * 带重试的视频读取
+ */
+async function readVideoWithRetry(videoInfo, retryCount = 0) {
+  try {
+    let fileBlob;
+
+    if (videoInfo.type === 'opfs') {
+      fileBlob = await readVideoFromOPFS(videoInfo.filename);
+    } else if (videoInfo.type === 'base64') {
+      // Base64转Blob
+      const base64Data = videoInfo.data.split(',')[1] || videoInfo.data;
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      fileBlob = new Blob([byteArray], { type: 'video/mp4' });
+    }
+
+    return fileBlob;
+  } catch (e) {
+    if (retryCount < MAX_RETRY) {
+      console.warn(`[ZIP] 视频读取失败，第${retryCount + 1}次重试: ${videoInfo.filename}`);
+      // 等待100ms后重试
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return readVideoWithRetry(videoInfo, retryCount + 1);
+    }
+    throw e;
+  }
 }
 
 // ==================== 核心导出函数 ====================
@@ -250,27 +286,8 @@ export async function exportAllData(options = {}) {
       // ✅ 串行处理：每次只在内存里放一个视频
       for (const videoInfo of allVideos) {
         try {
-          let fileBlob;
-
-          if (videoInfo.type === 'opfs') {
-            // 从OPFS读取
-            try {
-              fileBlob = await readVideoFromOPFS(videoInfo.filename);
-            } catch (e) {
-              console.warn(`[ZIP] OPFS视频读取失败 ${videoInfo.filename}:`, e);
-              throw e;
-            }
-          } else if (videoInfo.type === 'base64') {
-            // Base64转Blob
-            const base64Data = videoInfo.data.split(',')[1] || videoInfo.data;
-            const byteCharacters = atob(base64Data);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            fileBlob = new Blob([byteArray], { type: 'video/mp4' });
-          }
+          // ✅ P2.5加固：带重试的视频读取（最多2次）
+          const fileBlob = await readVideoWithRetry(videoInfo);
 
           // 写入ZIP
           if (fileBlob) {
@@ -291,15 +308,16 @@ export async function exportAllData(options = {}) {
             });
           }
 
-          // ✅ 每处理2个视频让出一次主线程，防止UI卡死
+          // ✅ P2.5加固：每处理2个视频用requestAnimationFrame让出主线程
+          // 比setTimeout(0)更稳定，确保真的让出主线程给UI渲染
           if (processedVideos % 2 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
+            await new Promise(requestAnimationFrame);
           }
 
         } catch (e) {
           failedVideos++;
           processedVideos++;
-          console.warn(`[ZIP] 视频处理失败 ${videoInfo.filename}:`, e);
+          console.warn(`[ZIP] 视频处理最终失败 ${videoInfo.filename}:`, e);
         }
       }
 
@@ -336,10 +354,12 @@ export async function exportAllData(options = {}) {
       onProgress({ step: 4, progress: 90, message: '正在生成ZIP文件...', stats });
     }
 
+    // ✅ P2.5加固：开启streamFiles，流式生成减少内存峰值
     const zipBlob = await zip.generateAsync({
       type: 'blob',
       compression: 'DEFLATE',
       compressionOptions: { level: COMPRESSION_LEVEL },
+      streamFiles: true, // 关键：流式生成，减少生成阶段的内存峰值
     });
 
     if (onProgress) {
