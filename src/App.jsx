@@ -33,6 +33,10 @@ import { AIChoiceModal } from './components/AIChoiceModal';
 import { GrowthRecordForm } from './components/GrowthRecordForm';
 import { cleanupOrphanFiles } from './utils/opfs';
 import { STORAGE_CONFIG } from './config/storage';
+// P4阶段：同步工具
+import { executeSync, setupVisibilitySync, formatLastSyncTime, isSyncing } from './utils/sync';
+// P4阶段：媒体上传状态管理
+import { initMediaUpload, cleanupMediaUpload } from './utils/mediaUpload';
 
 // 登录保护
 function AuthGuard({ children }) {
@@ -123,6 +127,47 @@ function AppContent() {
         console.error('v2 初始化失败:', err);
       });
     }
+  }, [currentUser]);
+
+  // ========== P4阶段：启动自动同步 + 切前台同步 ==========
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // 1. 设置切前台自动同步
+    const cleanupVisibility = setupVisibilitySync();
+    
+    // 2. 延迟启动同步（5秒，不影响首屏加载）
+    const syncTimer = setTimeout(async () => {
+      try {
+        if (!isSyncing()) {
+          console.log('[App] 启动自动同步');
+          await executeSync({
+            onProgress: ({ progress, message }) => {
+              console.log(`[App] 同步进度: ${progress}% - ${message}`);
+            }
+          });
+          console.log('[App] 同步完成，上次同步:', formatLastSyncTime());
+        }
+      } catch (e) {
+        console.warn('[App] 启动同步失败:', e);
+      }
+    }, 5000);
+    
+    return () => {
+      cleanupVisibility();
+      clearTimeout(syncTimer);
+    };
+  }, [currentUser]);
+
+  // ========== P4阶段：初始化媒体上传模块 ==========
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    initMediaUpload();
+    
+    return () => {
+      cleanupMediaUpload();
+    };
   }, [currentUser]);
 
   // 启动时清理OPFS孤儿文件（延迟执行，不影响首屏加载）
