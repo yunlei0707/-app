@@ -534,23 +534,18 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   // 开始录音（统一入口）
   const startRecording = async () => {
     // 先弹个框，确认点击事件触发了
-    alert('点击事件已触发！正在启动录音...');
-    console.log('[录音] ========= 点击录音按钮 ========');
+    alert('1️⃣ 点击事件已触发！');
     
-    const isNative = isNativePlatform();
-    console.log('[录音] 检测运行环境:', {
-      isNative,
-      hasCapacitor: !!window.Capacitor,
-      isNativePlatformFunc: !!window.Capacitor?.isNativePlatform,
-      protocol: location.protocol,
-      hostname: location.hostname,
-    });
-    
-    if (isNative) {
-      console.log('[录音] ✅ 使用Capacitor原生录音');
-      try {
+    try {
+      alert('2️⃣ 开始检测环境...');
+      const isNative = isNativePlatform();
+      alert(`3️⃣ 环境检测结果: isNative=${isNative}`);
+      
+      if (isNative) {
+        alert('4️⃣ 开始调用原生录音...');
         await nativeStartRecording();
-        console.log('[录音] ✅ 原生录音启动成功，准备更新UI状态');
+        alert('5️⃣ ✅ 原生录音调用成功！');
+        
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
@@ -564,30 +559,26 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
-        console.log('[录音] ✅ UI状态已更新，计时器已启动');
-      } catch (e) {
-        console.error('[录音] ❌ 原生录音启动失败:', e);
-        alert('录音启动失败: ' + (e.message || '未知错误，请检查麦克风权限'));
-      }
-    } else {
-      console.log('[录音] ⚠️ 不是原生环境，尝试浏览器录音');
-      // APP环境下也用原生录音，即使isNativePlatform返回false
-      if (window.Capacitor) {
-        console.log('[录音] 检测到Capacitor，强制使用原生录音');
-        try {
+        alert('6️⃣ ✅ 录音已启动！UI已更新');
+      } else {
+        alert('4️⃣ 不是原生环境，检测Capacitor...');
+        // APP环境下也用原生录音，即使isNativePlatform返回false
+        if (window.Capacitor) {
+          alert('5️⃣ 检测到Capacitor，强制使用原生录音');
           await nativeStartRecording();
           setIsRecording(true);
           setRecordingTime(0);
           timerRef.current = setInterval(() => {
             setRecordingTime(prev => prev + 1);
           }, 1000);
-        } catch (e) {
-          console.error('[录音] 原生录音启动失败:', e);
-          alert('录音启动失败: ' + e.message);
+        } else {
+          alert('5️⃣ 使用浏览器录音');
+          await startBrowserRecording();
         }
-      } else {
-        await startBrowserRecording();
       }
+    } catch (e) {
+      alert(`❌ 录音失败: ${e.message}`);
+      console.error('[录音] 失败:', e);
     }
   };
   
