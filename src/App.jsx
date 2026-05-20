@@ -293,11 +293,12 @@ function AppContent() {
       // 通知 TimelinePage 刷新数据
       window.dispatchEvent(new Event('v2-moment-updated'));
       
-      setShowMomentForm(false);
-      setEditingMoment(null);
       
     } catch (error) {
       console.error('[GrowthRecord] Save error:', error); showToast('保存失败: ' + error.message, 'error');
+    } finally {
+      setEditingMoment(null);
+      setShowMomentForm(false);
     }
   };
 

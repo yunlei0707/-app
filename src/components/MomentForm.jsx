@@ -1319,6 +1319,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
 
   const handleSubmit = async () => {
     // 系统账号不可添加/编辑记录
+    if (saving) return;
     if (isSystemAccount()) {
       alert("系统账号不可添加或编辑记录");
       return;
