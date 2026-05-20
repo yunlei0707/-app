@@ -247,9 +247,8 @@ function AppContent() {
         let savedMoment;
         if (isV2Account) {
           savedMoment = await addMomentToCurrentAccount(momentData);
-          // ✅ 【修复6】v2账号保存后也刷新 context 中的 moments
-          const updatedMoments = await getMomentsByBaby(momentData.babyId);
-          setMoments(updatedMoments);
+          // ✅ v2账号：只触发事件，TimelinePage会自动从localStorage刷新
+          // 注意：v2数据存在localStorage，不能调用getMomentsByBaby（IndexedDB）
         } else {
           savedMoment = await addMoment(momentData);
           // 普通宝宝保存成功后刷新 context 中的 moments

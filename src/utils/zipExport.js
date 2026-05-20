@@ -113,18 +113,23 @@ function blobToBase64(blob) {
  */
 function extractVideosFromData(mergedData) {
   const videos = [];
+  const videoMap = new Map(); // 去重用
   
-  // 从v2账号数据中提取视频
-  if (mergedData.v2AccountData?.timeline) {
-    for (const moment of mergedData.v2AccountData.timeline) {
+  // ========== 【修复】从IndexedDB数据中提取视频（普通宝宝）
+  function addVideosFromMoments(moments, source) {
+    if (!moments || !Array.isArray(moments)) return;
+    
+    for (const moment of moments) {
       if (moment.videos && moment.videos.length > 0) {
         for (const video of moment.videos) {
-          if (video.filename || video.url) {
-            videos.push({
-              type: video.filename ? 'opfs' : 'base64',
-              filename: video.filename,
+          const filePath = video.opfsPath || video.filename || video.url;
+          if (filePath && !videoMap.has(filePath)) {
+            videoMap.set(filePath, {
+              type: video.opfsPath || video.filename ? 'opfs' : 'base64',
+              filename: video.opfsPath || video.filename,
               data: video.url,
               outputFilename: video.filename || `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp4`,
+              source: source
             });
           }
         }
@@ -132,7 +137,23 @@ function extractVideosFromData(mergedData) {
     }
   }
   
-  return videos;
+  // 1. 从v2账号数据中提取视频
+  if (mergedData.v2AccountData?.timeline) {
+    addVideosFromMoments(mergedData.v2AccountData.timeline, 'v2');
+  }
+  
+  // 2. 从IndexedDB数据中提取视频（data.moments 结构）
+  if (mergedData.data?.moments) {
+    addVideosFromMoments(mergedData.data.moments, 'indexeddb-data');
+  }
+  
+  // 3. 从顶层moments中提取视频
+  if (mergedData.moments) {
+    addVideosFromMoments(mergedData.moments, 'indexeddb-top');
+  }
+  
+  console.log(`[ZIP] extractVideosFromData: 共提取到 ${videoMap.size} 个视频文件`);
+  return Array.from(videoMap.values());
 }
 
 /**
