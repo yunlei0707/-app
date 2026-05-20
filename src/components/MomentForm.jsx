@@ -533,6 +533,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 开始录音（统一入口）
   const startRecording = async () => {
+    // 先弹个框，确认点击事件触发了
+    alert('点击事件已触发！正在启动录音...');
     console.log('[录音] ========= 点击录音按钮 ========');
     
     const isNative = isNativePlatform();
