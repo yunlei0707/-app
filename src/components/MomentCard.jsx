@@ -8,8 +8,8 @@ import { formatDateFriendly, formatTime } from '../utils/dateUtils';
 import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X } from 'lucide-react';
 import { readFileFromOPFS, getFileDisplayURL } from '../utils/opfs';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
-import { isInApp } from '../utils/jsBridge';
 import { getImageSrc } from '../utils/image';
+import { readVideo } from '../utils/storageAdapter';
 
 // 图片组件 - 支持OPFS、Base64和直接URL三种格式
 function LazyImage({ src, alt, className, onClick }) {
@@ -128,7 +128,84 @@ const milestoneTypes = {
   daily: { label: '日常', className: 'daily', emoji: '✨' },
 };
 
-// 视频子组件 - 支持OPFS和Base64两种模式
+// 音频子组件 - 支持原生/OPFS/Base64三种模式
+function AudioItem({ audio }) {
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const objectUrlRef = useRef(null);
+
+  useEffect(() => {
+    if (audio.url) {
+      // Base64模式：直接使用url
+      setAudioUrl(audio.url);
+    } else if (audio.filename) {
+      // 文件系统模式
+      loadAudioFromFS();
+    }
+
+    // 清理：组件卸载时释放Blob URL
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, [audio.url, audio.filename]);
+
+  const loadAudioFromFS = async () => {
+    try {
+      setLoading(true);
+      const blob = await readVideo(audio.filename, audio.storageType);
+      const url = URL.createObjectURL(blob);
+      objectUrlRef.current = url;
+      setAudioUrl(url);
+    } catch (e) {
+      console.error('[MomentCard] 音频加载失败:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-cream-50 dark:bg-gray-800 rounded-xl p-3">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0">
+          <Mic className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                {audio.fileName || audio.name || '语音记录'}
+              </span>
+            </div>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+              {audio.duration ? formatTime2(audio.duration) : '--:--'}
+            </span>
+          </div>
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-10 text-sm text-gray-400">
+          加载中...
+        </div>
+      ) : audioUrl ? (
+        <audio
+          src={audioUrl}
+          controls
+          style={{
+            width: '100%',
+            height: '40px',
+            borderRadius: '20px'
+          }}
+          preload="metadata"
+          onError={(e) => console.error('[MomentCard] 语音加载失败:', e)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// 视频子组件 - 支持原生/OPFS/Base64三种模式
 function VideoItem({ video }) {
   const [videoUrl, setVideoUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -141,8 +218,8 @@ function VideoItem({ video }) {
       // Base64模式：直接使用url
       setVideoUrl(video.url);
     } else if (video.filename) {
-      // OPFS模式：从文件系统加载
-      loadOPFSVideo();
+      // 文件系统模式：原生APP或OPFS，自动选择
+      loadVideoFromFS();
     }
 
     // 清理：组件卸载时释放Blob URL
@@ -153,15 +230,15 @@ function VideoItem({ video }) {
     };
   }, [video.url, video.filename]);
 
-  const loadOPFSVideo = async () => {
+  const loadVideoFromFS = async () => {
     try {
       setLoading(true);
-      const file = await readFileFromOPFS(video.filename);
-      const url = URL.createObjectURL(file);
+      const blob = await readVideo(video.filename, video.storageType);
+      const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;
       setVideoUrl(url);
     } catch (e) {
-      console.error('[MomentCard] OPFS视频加载失败:', e);
+      console.error('[MomentCard] 视频加载失败:', e);
       setError(true);
     } finally {
       setLoading(false);
@@ -386,39 +463,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
       {moment.type === 'audio' && moment.audios && moment.audios.length > 0 && (
         <div className="mb-3 space-y-2">
           {moment.audios.map((audio, index) => (
-            <div 
-              key={index} 
-              className="bg-cream-50 dark:bg-gray-800 rounded-xl p-3"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Mic className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
-                        {audio.fileName || '语音记录'}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0">
-                      {audio.duration ? formatTime2(audio.duration) : '--:--'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <audio
-                src={audio.url}
-                controls
-                style={{
-                  width: '100%',
-                  height: '40px',
-                  borderRadius: '20px'
-                }}
-                preload="metadata"
-                onError={(e) => console.error('[MomentCard] 语音加载失败:', e)}
-              />
-            </div>
+            <AudioItem key={index} audio={audio} />
           ))}
         </div>
       )}

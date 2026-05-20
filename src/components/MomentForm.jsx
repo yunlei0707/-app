@@ -332,7 +332,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       try {
         const result = await nativeStopRecording();
         if (result && result.base64) {
-          // 将base64转成blob保存
+          // 将base64转成blob，然后存入文件系统（不是IndexedDB）
           const base64Data = result.base64;
           const mimeType = result.mimeType || 'audio/m4a';
           const byteCharacters = atob(base64Data);
@@ -347,25 +347,26 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             byteArrays.push(byteArray);
           }
           const blob = new Blob(byteArrays, { type: mimeType });
-          const file = new File([blob], `recording_${Date.now()}.m4a`, { type: mimeType });
           
-          // 保存到文件系统
-          const fileId = generateFileId();
-          const audioUrl = await saveAudioFile(fileId, file);
+          // ✅ 保存到文件系统（只存filename，不存整个Base64）
+          const fileToSave = new File([blob], `recording_${Date.now()}.m4a`, { type: mimeType });
+          const { filename, storageType } = await saveVideo(fileToSave);
+          console.log('[录音] 保存到文件系统:', { filename, storageType });
           
           const audioData = {
-            id: fileId,
-            url: audioUrl,
-            name: file.name,
-            size: file.size,
+            filename,
+            storageType,
+            name: `recording_${Date.now()}.m4a`,
+            size: blob.size,
             duration: recordingTime,
             waveform: [...audioWaveform],
-            storageType: 'indexeddb-blob',
             mimeType,
+            isImported: false,
           };
           setAudios(prev => [...prev, audioData]);
         }
         setIsRecording(false);
+        console.log('[录音] 录音保存完成');
       } catch (e) {
         console.error('[录音] 原生录音停止失败:', e);
         setIsRecording(false);
@@ -532,16 +533,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 开始录音（统一入口）
   const startRecording = async () => {
+    const isNative = isNativePlatform();
     console.log('[录音] 检测运行环境:', {
-      isNative: isNativePlatform(),
+      isNative,
       protocol: location.protocol,
       hostname: location.hostname,
+      isInApp: window.Capacitor?.isNativePlatform?.(),
     });
     
-    if (isNativePlatform()) {
+    if (isNative) {
       console.log('[录音] 使用Capacitor原生录音');
       try {
         await nativeStartRecording();
+        console.log('[录音] 原生录音启动成功');
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
@@ -555,9 +559,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
+        console.log('[录音] 状态已更新，计时器已启动');
       } catch (e) {
         console.error('[录音] 原生录音启动失败:', e);
-        alert(e.message || '录音启动失败，请检查麦克风权限');
+        alert('录音启动失败: ' + (e.message || '未知错误，请检查麦克风权限'));
       }
     } else {
       console.log('[录音] 使用浏览器录音');
@@ -866,35 +871,50 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       
       const displayURL = URL.createObjectURL(audioBlob);
       
-      // 立即转成Base64存入state，避免File对象失效
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = () => reject(new Error('音频读取失败'));
-        reader.readAsDataURL(audioBlob);
-      });
+      // ✅ 存入文件系统，不再用Base64
+      const useFS = await shouldUseFileStorage();
+      let audioData;
       
-      // 生成模拟波形数据
-      const simulatedWaveform = [];
-      for (let i = 0; i < 50; i++) {
-        const frame = Array.from({ length: 32 }, () => Math.random() * 200 + 50);
-        simulatedWaveform.push(frame);
+      if (useFS) {
+        // 使用文件系统：原生APP或OPFS（复用saveVideo函数，文件系统不区分类型）
+        const fileToSave = new File([audioBlob], file.name, { type: inferredMimeType });
+        const { filename, storageType } = await saveVideo(fileToSave);
+        console.log('[Audio Upload] 保存到文件系统:', { filename, storageType });
+        
+        audioData = {
+          filename,        // 文件名，不存Base64避免JSON超限
+          storageType,     // 'native' or 'opfs'
+          displayURL,      // 临时URL用于预览播放
+          duration: 0,
+          waveform: [],    // 简化波形
+          fileName: file.name,
+          fileType: inferredMimeType,
+          fileSize: file.size,
+          isImported: true
+        };
+      } else {
+        // 降级：Base64方式
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('音频读取失败'));
+          reader.readAsDataURL(audioBlob);
+        });
+        
+        audioData = {
+          url: base64,
+          displayURL,
+          duration: 0,
+          waveform: [],
+          fileName: file.name,
+          fileType: inferredMimeType,
+          fileSize: file.size,
+          isImported: true
+        };
       }
-
-      const audioData = {
-        url: base64,  // 直接存base64用于保存
-        displayURL: displayURL,  // 临时URL用于预览播放
-        duration: 0, // 简化：不获取时长了
-        waveform: simulatedWaveform,
-        fileName: file.name,
-        fileType: inferredMimeType, // 使用推断后的 MIME type
-        fileSize: file.size,
-        isImported: true
-      };
       
       setAudios(prev => [...prev, audioData]);
-      
-      console.log('[Audio Upload] 上传成功！已转Base64');
+      console.log('[Audio Upload] 上传成功！');
       
     } catch (error) {
       console.error('[MomentForm] 音频上传失败:', error);
@@ -1170,10 +1190,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     const { cover, duration } = await generateVideoCover(file);
     
     if (useOPFS) {
-      // OPFS模式：存文件，不存base64
+      // 文件系统模式：原生APP用Capacitor Filesystem，Web用OPFS
       const { filename, storageType } = await saveVideo(file);
       return {
         filename,
+        storageType,  // 'native' or 'opfs'
         cover: cover,
         name: file.name,
         size: file.size,
