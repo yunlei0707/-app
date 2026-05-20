@@ -26,16 +26,16 @@ async function loadFilesystem() {
     // 🔴 关键修复：从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Filesystem) {
       console.log('[ZIP] 从Capacitor.Plugins获取文件系统插件');
-      return { 
-        Filesystem: window.Capacitor.Plugins.Filesystem,
-        Directory: window.Capacitor.Plugins.Filesystem?.Directory || window.Capacitor?.Plugins?.Directory
+      // Directory 枚举在原生环境中可能不存在，使用常量字符串
+      const Filesystem = window.Capacitor.Plugins.Filesystem;
+      const Directory = {
+        Documents: 'DOCUMENTS',
+        Data: 'DATA',
+        Cache: 'CACHE',
+        External: 'EXTERNAL',
+        ExternalStorage: 'EXTERNAL_STORAGE'
       };
-    }
-    
-    // 尝试其他方式
-    if (window.Filesystem) {
-      console.log('[ZIP] 从window.Filesystem获取');
-      return { Filesystem: window.Filesystem, Directory: window.Directory };
+      return { Filesystem, Directory };
     }
     
     console.warn('[ZIP] 未找到文件系统插件');

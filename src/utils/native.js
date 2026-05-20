@@ -138,9 +138,10 @@ export async function requestCameraPermission() {
     const Camera = await loadCamera();
     if (!Camera) return false;
     
-    const status = await Camera.Camera.checkPermissions();
+    // 🔴 修复：Camera 本身就是 API 对象，不需要再 .Camera
+    const status = await Camera.checkPermissions();
     if (status.camera !== 'granted' || status.photos !== 'granted') {
-      const result = await Camera.Camera.requestPermissions();
+      const result = await Camera.requestPermissions();
       return result.camera === 'granted' || result.photos === 'granted';
     }
     return true;
@@ -229,17 +230,14 @@ export async function takePhoto(options = {}) {
     throw new Error('请授予相机权限后重试');
   }
 
-  const cameraModule = await loadCamera();
-  if (!cameraModule) throw new Error('相机插件不可用');
+  const CameraAPI = await loadCamera();
+  if (!CameraAPI) throw new Error('相机插件不可用');
 
-  // 兼容不同的导出方式
-  const CameraAPI = cameraModule.Camera || cameraModule.default || cameraModule;
-  
   console.log('[Native] 调用相机选择器');
+  // 🔴 修复：直接使用 CameraAPI.getPhoto，不需要 .Camera
   const photo = await CameraAPI.getPhoto({
     quality: options.quality || 85,
     resultType: 'uri',
-    source: options.source || (cameraModule.CameraSource?.Prompt || 'PROMPT'),
     width: options.width || 1920,
     height: options.height || 1920,
     correctOrientation: true,
