@@ -16,9 +16,12 @@ function isAppEnvironment() {
 async function loadFilesystem() {
   try {
     const module = await import('@capacitor/filesystem');
-    return module.Filesystem;
+    // 支持多种导出方式：module.Filesystem / module.default.Filesystem / module
+    const Filesystem = module.Filesystem || module.default?.Filesystem || module;
+    const Directory = module.Directory || module.default?.Directory || module;
+    return { Filesystem, Directory };
   } catch (e) {
-    console.warn('[Storage] Filesystem plugin not available');
+    console.warn('[Storage] Filesystem plugin not available', e);
     return null;
   }
 }
@@ -76,10 +79,10 @@ export async function saveVideoToNative(file, onProgress = null) {
     const filename = generateUniqueFilename(file.name);
     const startTime = Date.now();
 
-    // 加载插件并解构
-    const FilesystemModule = await loadFilesystem();
-    if (!FilesystemModule) throw new Error('文件系统不可用');
-    const { Filesystem, Directory } = FilesystemModule;
+    // 加载插件
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
 
     // ✅ 方案1：直接 Blob 写入（Capacitor 5+ 支持）
     let writeSucceeded = false;
@@ -136,9 +139,9 @@ export async function readVideoFromNative(filename) {
   }
 
   try {
-    const FilesystemModule = await loadFilesystem();
-    if (!FilesystemModule) throw new Error('文件系统不可用');
-    const { Filesystem, Directory } = FilesystemModule;
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
 
     const result = await Filesystem.readFile({
       path: `BabyTime/videos/${filename}`,
@@ -162,9 +165,9 @@ export async function deleteVideoFromNative(filename) {
   if (!isAppEnvironment()) return false;
 
   try {
-    const FilesystemModule = await loadFilesystem();
-    if (!FilesystemModule) throw new Error('文件系统不可用');
-    const { Filesystem, Directory } = FilesystemModule;
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
 
     await Filesystem.deleteFile({
       path: `BabyTime/videos/${filename}`,

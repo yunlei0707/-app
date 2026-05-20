@@ -24,9 +24,12 @@ function isNativePlatform() {
 async function loadFilesystem() {
   try {
     const module = await import('@capacitor/filesystem');
-    return module.Filesystem;
+    // 支持多种导出方式
+    const Filesystem = module.Filesystem || module.default?.Filesystem || module;
+    const Directory = module.Directory || module.default?.Directory || module;
+    return { Filesystem, Directory };
   } catch (e) {
-    console.warn('[ZIP] Filesystem plugin not available');
+    console.warn('[ZIP] Filesystem plugin not available', e);
     return null;
   }
 }
@@ -34,9 +37,10 @@ async function loadFilesystem() {
 async function loadShare() {
   try {
     const module = await import('@capacitor/share');
-    return module.Share;
+    // 支持多种导出方式
+    return module.Share || module.default?.Share || module;
   } catch (e) {
-    console.warn('[ZIP] Share plugin not available');
+    console.warn('[ZIP] Share plugin not available', e);
     return null;
   }
 }
@@ -104,13 +108,14 @@ export async function exportAllData(options = {}) {
     const jsonStr = JSON.stringify(mergedData, null, 2);
     const jsonBase64 = btoa(unescape(encodeURIComponent(jsonStr)));
 
-    const Filesystem = await loadFilesystem();
-    if (!Filesystem) throw new Error('文件系统不可用');
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
 
     await Filesystem.writeFile({
       path: filePath,
       data: jsonBase64,
-      directory: Filesystem.Directory.Documents,
+      directory: Directory.Documents,
       recursive: true,
     });
 
@@ -121,7 +126,7 @@ export async function exportAllData(options = {}) {
     // 获取文件URI并分享
     const fileUri = await Filesystem.getUri({
       path: filePath,
-      directory: Filesystem.Directory.Documents,
+      directory: Directory.Documents,
     });
 
     const Share = await loadShare();

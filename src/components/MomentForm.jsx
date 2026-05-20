@@ -13,7 +13,7 @@ import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { takePhoto } from '../utils/native';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform } from '../utils/native';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -317,8 +317,60 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 停止录音（统一入口）
   const stopRecording = async () => {
-    if (isInApp() && jsBridgeAudioRecorder.isAvailable()) {
-      await stopAppRecording();
+    // 清理计时器
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    
+    if (isNativePlatform()) {
+      console.log('[录音] 停止Capacitor原生录音');
+      try {
+        const result = await nativeStopRecording();
+        if (result && result.base64) {
+          // 将base64转成blob保存
+          const base64Data = result.base64;
+          const mimeType = result.mimeType || 'audio/m4a';
+          const byteCharacters = atob(base64Data);
+          const byteArrays = [];
+          for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+              byteNumbers[i] = slice.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+          }
+          const blob = new Blob(byteArrays, { type: mimeType });
+          const file = new File([blob], `recording_${Date.now()}.m4a`, { type: mimeType });
+          
+          // 保存到文件系统
+          const fileId = generateFileId();
+          const audioUrl = await saveAudioFile(fileId, file);
+          
+          const audioData = {
+            id: fileId,
+            url: audioUrl,
+            name: file.name,
+            size: file.size,
+            duration: recordingTime,
+            waveform: [...audioWaveform],
+            storageType: 'indexeddb-blob',
+            mimeType,
+          };
+          setAudios(prev => [...prev, audioData]);
+        }
+        setIsRecording(false);
+      } catch (e) {
+        console.error('[录音] 原生录音停止失败:', e);
+        setIsRecording(false);
+        alert('录音保存失败: ' + (e.message || '未知错误'));
+      }
     } else {
       stopBrowserRecording();
     }
@@ -481,16 +533,32 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   // 开始录音（统一入口）
   const startRecording = async () => {
     console.log('[录音] 检测运行环境:', {
-      isInApp: isInApp(),
-      jsBridgeAvailable: jsBridgeAudioRecorder.isAvailable(),
+      isNative: isNativePlatform(),
       protocol: location.protocol,
       hostname: location.hostname,
-      userAgent: navigator.userAgent
     });
     
-    if (isInApp() && jsBridgeAudioRecorder.isAvailable()) {
-      console.log('[录音] 使用APP原生录音');
-      await startAppRecording();
+    if (isNativePlatform()) {
+      console.log('[录音] 使用Capacitor原生录音');
+      try {
+        await nativeStartRecording();
+        setIsRecording(true);
+        setRecordingTime(0);
+        setAudioWaveform([]);
+        // 开始计时
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => {
+            if (prev >= 599) {
+              stopRecording();
+              return prev;
+            }
+            return prev + 1;
+          });
+        }, 1000);
+      } catch (e) {
+        console.error('[录音] 原生录音启动失败:', e);
+        alert(e.message || '录音启动失败，请检查麦克风权限');
+      }
     } else {
       console.log('[录音] 使用浏览器录音');
       await startBrowserRecording();
