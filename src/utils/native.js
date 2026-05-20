@@ -9,72 +9,119 @@ let FilesystemModule = null;
 let VoiceRecorderModule = null;
 let ShareModule = null;
 
+/**
+ * 🔴 修复：不使用动态import
+ */
 async function loadCamera() {
   if (CameraModule) return CameraModule;
+  
   try {
-    const module = await import('@capacitor/camera');
-    CameraModule = module;
-    return CameraModule;
+    // 优先从 Capacitor.Plugins 获取
+    if (window.Capacitor?.Plugins?.Camera) {
+      console.log('[Native] 从Capacitor.Plugins获取相机插件');
+      CameraModule = window.Capacitor.Plugins.Camera;
+      return CameraModule;
+    }
+    
+    console.warn('[Native] 未找到相机插件');
+    return null;
   } catch (e) {
-    console.warn('[Native] Camera plugin not available');
+    console.warn('[Native] Camera plugin not available:', e);
     return null;
   }
 }
 
+/**
+ * 🔴 修复：不使用动态import
+ */
 async function loadFilesystem() {
   if (FilesystemModule) return FilesystemModule;
+  
   try {
-    const module = await import('@capacitor/filesystem');
-    FilesystemModule = module;
-    return FilesystemModule;
+    // 优先从 Capacitor.Plugins 获取
+    if (window.Capacitor?.Plugins?.Filesystem) {
+      console.log('[Native] 从Capacitor.Plugins获取文件系统插件');
+      FilesystemModule = window.Capacitor.Plugins.Filesystem;
+      return FilesystemModule;
+    }
+    
+    console.warn('[Native] 未找到文件系统插件');
+    return null;
   } catch (e) {
-    console.warn('[Native] Filesystem plugin not available');
+    console.warn('[Native] Filesystem plugin not available:', e);
     return null;
   }
 }
 
+/**
+ * 🔴 关键修复：完全不使用动态import
+ * 动态import在Android WebView中可能导致Promise永远pending（无resolve也无reject）
+ * Capacitor插件在原生环境下会自动注册到window.Capacitor.Plugins
+ */
 async function loadVoiceRecorder() {
   if (VoiceRecorderModule) {
     console.log('[Native] 录音插件已缓存，直接返回');
     return VoiceRecorderModule;
   }
+  
   try {
     console.log('[Native] 开始加载录音插件...');
-    // 🔴 关键修复：改用静态导入（动态import在Android WebView中可能卡住）
-    // 先在window上查找，找不到再用动态import
+    
+    // 1. 优先从 Capacitor.Plugins 获取（这是原生环境下最可靠的方式）
+    if (window.Capacitor?.Plugins?.VoiceRecorder) {
+      console.log('[Native] 从Capacitor.Plugins获取录音插件');
+      VoiceRecorderModule = window.Capacitor.Plugins.VoiceRecorder;
+      return VoiceRecorderModule;
+    }
+    
+    // 2. 其次尝试从 window.VoiceRecorder 获取
     if (window.VoiceRecorder) {
-      console.log('[Native] 从window上找到VoiceRecorder');
+      console.log('[Native] 从window.VoiceRecorder获取录音插件');
       VoiceRecorderModule = window.VoiceRecorder;
       return VoiceRecorderModule;
     }
     
-    const module = await import('capacitor-voice-recorder');
-    console.log('[Native] 录音插件module keys:', Object.keys(module));
-    
-    // 兼容不同的导出方式
-    VoiceRecorderModule = module.VoiceRecorder || module.default || module;
-    console.log('[Native] 录音插件加载成功');
-    return VoiceRecorderModule;
-  } catch (e) {
-    console.error('[Native] ❌ 录音插件加载失败:', e);
-    // 🔴 降级方案：直接尝试从window.Capacitor.Plugins获取
-    if (window.Capacitor?.Plugins?.VoiceRecorder) {
-      console.log('[Native] 降级：从Capacitor.Plugins获取录音插件');
-      VoiceRecorderModule = window.Capacitor.Plugins.VoiceRecorder;
+    // 3. 最后尝试从全局查找
+    const globalVoiceRecorder = window.CapacitorVoiceRecorder || window.VoiceRecorderPlugin;
+    if (globalVoiceRecorder) {
+      console.log('[Native] 从全局对象获取录音插件');
+      VoiceRecorderModule = globalVoiceRecorder;
       return VoiceRecorderModule;
     }
+    
+    console.warn('[Native] 未找到录音插件，所有查找路径都失败');
+    return null;
+  } catch (e) {
+    console.error('[Native] ❌ 录音插件加载失败:', e);
     return null;
   }
 }
 
+/**
+ * 🔴 修复：不使用动态import
+ */
 async function loadShare() {
   if (ShareModule) return ShareModule;
+  
   try {
-    const module = await import('@capacitor/share');
-    ShareModule = module;
-    return ShareModule;
+    // 1. 优先从 Capacitor.Plugins 获取
+    if (window.Capacitor?.Plugins?.Share) {
+      console.log('[Native] 从Capacitor.Plugins获取分享插件');
+      ShareModule = window.Capacitor.Plugins.Share;
+      return ShareModule;
+    }
+    
+    // 2. 从 window.Share 获取
+    if (window.Share) {
+      console.log('[Native] 从window.Share获取分享插件');
+      ShareModule = window.Share;
+      return ShareModule;
+    }
+    
+    console.warn('[Native] 未找到分享插件');
+    return null;
   } catch (e) {
-    console.warn('[Native] Share plugin not available');
+    console.warn('[Native] Share plugin not available:', e);
     return null;
   }
 }
