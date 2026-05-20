@@ -197,8 +197,10 @@ export async function takePhoto(options = {}) {
 
 export async function startRecording() {
   console.log('[Native] ========= startRecording 被调用 ========');
+  window.alert('📻 native.js: startRecording 开始执行');
   
   if (!isNativePlatform()) {
+    window.alert('📻 native.js: 不是原生环境，尝试Web录音');
     console.log('[Native] 不是原生环境，尝试Web录音');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -207,33 +209,45 @@ export async function startRecording() {
       window._mediaRecorder.ondataavailable = (e) => window._audioChunks.push(e.data);
       window._mediaRecorder.start();
       console.log('[Native] Web录音启动成功');
+      window.alert('📻 native.js: Web录音启动成功');
       return true;
     } catch (e) {
       console.error('[Native] Web录音失败:', e);
+      window.alert('📻 native.js: Web录音失败: ' + e.message);
       throw new Error('麦克风权限被拒绝');
     }
   }
 
+  window.alert('📻 native.js: 开始原生录音流程');
   console.log('[Native] 开始原生录音流程');
   
   // ✅ 先请求权限
+  window.alert('📻 native.js: 开始请求录音权限');
   const hasPermission = await requestAudioPermission();
+  window.alert('📻 native.js: 权限请求结果: ' + hasPermission);
+  
   if (!hasPermission) {
     throw new Error('请授予录音权限后重试');
   }
 
+  window.alert('📻 native.js: 开始加载录音插件');
   const recorder = await loadVoiceRecorder();
+  window.alert('📻 native.js: 插件加载结果: ' + (recorder ? '成功' : '失败'));
+  
   if (!recorder) {
     throw new Error('录音插件不可用');
   }
 
+  window.alert('📻 native.js: 调用 recorder.startRecording()');
   console.log('[Native] 调用startRecording()');
   try {
     await recorder.startRecording();
     console.log('[Native] ✅ 录音已启动');
+    window.alert('📻 native.js: ✅ recorder.startRecording() 成功');
     return true;
   } catch (e) {
     console.error('[Native] ❌ 启动录音异常:', e);
+    window.alert('📻 native.js: ❌ 启动录音失败: ' + e.message);
     throw e;
   }
 }
