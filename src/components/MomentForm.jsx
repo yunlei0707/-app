@@ -1112,8 +1112,18 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       }
     } catch (error) {
       console.error('[MomentForm] 原生照片上传失败:', error);
-      // 降级：如果原生API失败，提示用户或使用其他方式
-      if (error.message !== '未选择图片') {
+      // 忽略用户取消选择的情况（Capacitor可能返回不同的错误信息）
+      const cancelMessages = [
+        '未选择图片',
+        'User cancelled',
+        'User cancelled photos app',
+        'userCancel',
+        'cancel',
+      ];
+      const isUserCancel = cancelMessages.some(msg => 
+        error.message?.includes(msg) || error.code?.includes(msg)
+      );
+      if (!isUserCancel) {
         alert('照片上传失败，请重试');
       }
     }
