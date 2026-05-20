@@ -431,7 +431,7 @@ export function ProfilePage(
 
   // ZIP导出（包含视频）
   // 适配新的exportAllData返回格式：支持原生文件系统导出（返回filePath）和JSZip导出（返回blob）
-  const handleExportZIP = useCallback(async (includeVideos = true) => {
+  const handleExportZIP = useCallback(async (includeVideos = false) => {
     if (isExporting) return;
     
     setIsExporting(true);

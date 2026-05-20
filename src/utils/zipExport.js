@@ -14,6 +14,9 @@ const CHUNK_SIZE = 1024 * 1024; // 1MB分块
 
 // ==================== 工具函数 ====================
 
+// Filesystem 单例缓存（P1-2 优化：避免重复加载插件）
+let _filesystemCache = null;
+
 function isNativePlatform() {
   try {
     return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
@@ -23,6 +26,11 @@ function isNativePlatform() {
 }
 
 async function loadFilesystem() {
+  // ✅ 优先返回缓存
+  if (_filesystemCache) {
+    return _filesystemCache;
+  }
+  
   try {
     // 从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Filesystem) {
@@ -41,7 +49,9 @@ async function loadFilesystem() {
         ExternalStorage: 'EXTERNAL_STORAGE'
       };
       
-      return { Filesystem, Directory };
+      // 缓存结果
+      _filesystemCache = { Filesystem, Directory };
+      return _filesystemCache;
     }
     
     console.warn('[ZIP] 未找到文件系统插件');
@@ -92,7 +102,7 @@ function blobToBase64(blob) {
  * 导出所有数据（JSON格式 + 视频文件）
  */
 export async function exportAllData(options = {}) {
-  const { includeVideos = true, onProgress = null } = options;
+  const { includeVideos = false, onProgress = null } = options;
 
   if (!isNativePlatform()) {
     throw new Error('请在APP中使用导出功能');
@@ -118,6 +128,7 @@ export async function exportAllData(options = {}) {
       v2AccountData: v2Data,
       exportTime: new Date().toISOString(),
       exportVersion: '2.0.0',
+      schemaVersion: 1,
     };
 
     if (onProgress) {

@@ -6,6 +6,9 @@ import { getVideoPath } from '../constants/storage.js';
 
 // ==================== 工具函数 ====================
 
+// Filesystem 单例缓存（P1-2 优化：避免重复加载插件）
+let _filesystemCache = null;
+
 function isAppEnvironment() {
   try {
     return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
@@ -15,6 +18,11 @@ function isAppEnvironment() {
 }
 
 async function loadFilesystem() {
+  // ✅ 优先返回缓存
+  if (_filesystemCache) {
+    return _filesystemCache;
+  }
+  
   try {
     // 从Capacitor.Plugins获取，不使用动态import
     if (window.Capacitor?.Plugins?.Filesystem) {
@@ -33,7 +41,9 @@ async function loadFilesystem() {
         ExternalStorage: 'EXTERNAL_STORAGE'
       };
       
-      return { Filesystem, Directory };
+      // 缓存结果
+      _filesystemCache = { Filesystem, Directory };
+      return _filesystemCache;
     }
     
     console.warn('[Storage] 未找到文件系统插件');
