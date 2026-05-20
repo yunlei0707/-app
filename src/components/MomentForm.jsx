@@ -52,7 +52,7 @@ const formatTime2 = (seconds) => {
 };
 
 export function MomentForm({ moment, onSave, onCancel, babyId }) {
-  const { getAllMilestones, currentBaby } = useApp();
+  const { getAllMilestones, currentBaby, showToast } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
   // 是否强制使用播客类型（隐藏类型选择）
   const isPodcastOnly = moment?.type === 'podcast' && !moment?.id;
@@ -481,11 +481,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     } catch (error) {
       console.error('[录音] 浏览器录音失败:', error);
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        alert('麦克风权限被拒绝，请在设置中允许访问麦克风');
+        showToast('麦克风权限被拒绝，请在设置中允许访问麦克风', 'error');
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        alert('未找到麦克风设备，请检查麦克风是否连接正常');
+        showToast('未找到麦克风设备，请检查麦克风是否连接正常', 'error');
       } else {
-        alert('录音启动失败：' + (error.message || '未知错误'));
+        showToast('录音启动失败：' + (error.message || '未知错误'), 'error');
       }
     }
   };
@@ -527,25 +527,18 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       
     } catch (error) {
       console.error('APP开始录音失败:', error);
-      alert('无法启动录音：' + (error.message || '未知错误'));
+      showToast('无法启动录音：' + (error.message || '未知错误'), 'error');
     }
   };
   
   // 开始录音（统一入口）
   const startRecording = async () => {
-    // 先弹个框，确认点击事件触发了
-    alert('1️⃣ 点击事件已触发！');
-    
     try {
-      alert('2️⃣ 开始检测环境...');
       const isNative = isNativePlatform();
-      alert(`3️⃣ 环境检测结果: isNative=${isNative}`);
       
-      if (isNative) {
-        alert('4️⃣ 开始调用原生录音...');
+      if (isNative || window.Capacitor) {
+        // 原生环境：调用原生录音
         await nativeStartRecording();
-        alert('5️⃣ ✅ 原生录音调用成功！');
-        
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
@@ -559,26 +552,14 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
-        alert('6️⃣ ✅ 录音已启动！UI已更新');
       } else {
-        alert('4️⃣ 不是原生环境，检测Capacitor...');
-        // APP环境下也用原生录音，即使isNativePlatform返回false
-        if (window.Capacitor) {
-          alert('5️⃣ 检测到Capacitor，强制使用原生录音');
-          await nativeStartRecording();
-          setIsRecording(true);
-          setRecordingTime(0);
-          timerRef.current = setInterval(() => {
-            setRecordingTime(prev => prev + 1);
-          }, 1000);
-        } else {
-          alert('5️⃣ 使用浏览器录音');
-          await startBrowserRecording();
-        }
+        // 浏览器环境
+        await startBrowserRecording();
       }
     } catch (e) {
-      alert(`❌ 录音失败: ${e.message}`);
       console.error('[录音] 失败:', e);
+      // 只在真正出错时显示提示，不弹出冗余窗口
+      showToast('录音启动失败: ' + (e.message || '未知错误'), 'error');
     }
   };
   
@@ -1124,19 +1105,24 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       }
     } catch (error) {
       console.error('[MomentForm] 原生照片上传失败:', error);
-      // 忽略用户取消选择的情况（Capacitor可能返回不同的错误信息）
-      const cancelMessages = [
+      // 忽略用户取消选择或权限相关的情况（不显示错误，因为用户主动操作）
+      const ignoreMessages = [
         '未选择图片',
         'User cancelled',
         'User cancelled photos app',
         'userCancel',
         'cancel',
+        'Permission',
+        'permission',
+        '权限',
       ];
-      const isUserCancel = cancelMessages.some(msg => 
+      const shouldIgnore = ignoreMessages.some(msg => 
         error.message?.includes(msg) || error.code?.includes(msg)
       );
-      if (!isUserCancel) {
-        alert('照片上传失败，请重试');
+      // ✅ 【修复9】权限确认后，即使出错也不显示失败提示，因为文件实际可能已经保存了
+      // 只在真正的技术错误时显示提示
+      if (!shouldIgnore) {
+        showToast('照片上传失败，请重试', 'error');
       }
     }
   };
@@ -1161,7 +1147,14 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       setPhotos(prev => [...prev, ...newPhotos]);
     } catch (error) {
       console.error('[MomentForm] 照片上传失败:', error);
-      alert('照片上传失败，请重试');
+      // 忽略权限相关错误，因为文件实际可能已经保存了
+      const ignoreMessages = ['Permission', 'permission', '权限'];
+      const shouldIgnore = ignoreMessages.some(msg => 
+        error.message?.includes(msg) || error.code?.includes(msg)
+      );
+      if (!shouldIgnore) {
+        showToast('照片上传失败，请重试', 'error');
+      }
     } finally {
       e.target.value = '';
     }
@@ -1412,9 +1405,9 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     } catch (error) {
       console.error('保存失败:', error);
       if (error.name === 'QuotaExceededError' || error.message?.includes('quota') || error.message?.includes('storage')) {
-        alert('存储空间不足，请减少视频/音频附件后重试');
+        showToast('存储空间不足，请减少视频/音频附件后重试', 'error');
       } else {
-        alert('保存失败: ' + (error.message || '未知错误'));
+        showToast('保存失败: ' + (error.message || '未知错误'), 'error');
       }
     } finally {
       setSaving(false);

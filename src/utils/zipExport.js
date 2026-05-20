@@ -418,6 +418,282 @@ export async function exportAllData(options = {}) {
 }
 
 /**
+ * ✅ 【修复1】从 IndexedDB 数据中提取视频文件列表
+ */
+function extractVideosFromDBData(dbData) {
+  const videoFiles = [];
+  
+  // 从 moments 数据中提取视频
+  if (dbData && dbData.moments) {
+    dbData.moments.forEach(moment => {
+      if (moment.videos && Array.isArray(moment.videos)) {
+        moment.videos.forEach(video => {
+          // 提取 OPFS 路径或 fileName
+          const filePath = video.opfsPath || video.fileName || video.url;
+          if (filePath) {
+            videoFiles.push({
+              filePath,
+              momentId: moment.id,
+              type: 'video'
+            });
+          }
+        });
+      }
+    });
+  }
+  
+  // 从 data 字段中提取（可能是嵌套结构）
+  if (dbData && dbData.data && dbData.data.moments) {
+    dbData.data.moments.forEach(moment => {
+      if (moment.videos && Array.isArray(moment.videos)) {
+        moment.videos.forEach(video => {
+          const filePath = video.opfsPath || video.fileName || video.url;
+          if (filePath) {
+            videoFiles.push({
+              filePath,
+              momentId: moment.id,
+              type: 'video'
+            });
+          }
+        });
+      }
+    });
+  }
+  
+  console.log(`[ZIP] 从IndexedDB中提取到 ${videoFiles.length} 个视频文件`);
+  return videoFiles;
+}
+
+/**
+ * ✅ 【修复2】从 v2 账号数据中提取视频文件列表（保持兼容）
+ */
+function extractVideosFromV2Data(v2AccountData) {
+  const videoFiles = [];
+  
+  if (v2AccountData && v2AccountData.timeline) {
+    v2AccountData.timeline.forEach(moment => {
+      if (moment.videos && Array.isArray(moment.videos)) {
+        moment.videos.forEach(video => {
+          const filePath = video.opfsPath || video.fileName || video.url;
+          if (filePath) {
+            videoFiles.push({
+              filePath,
+              momentId: moment.id,
+              type: 'video'
+            });
+          }
+        });
+      }
+    });
+  }
+  
+  console.log(`[ZIP] 从v2账号中提取到 ${videoFiles.length} 个视频文件`);
+  return videoFiles;
+}
+
+/**
+ * ✅ 【修复3】ZIP导出包含视频（终极版）
+ * - 串行处理，不炸内存
+ * - 每2个视频让出主线程（requestAnimationFrame）
+ * - 失败重试2次
+ * - 流式生成ZIP（streamFiles: true）
+ * - 导出路径统一为 videos/ （与导入路径匹配）
+ */
+export async function exportAllDataWithVideos(options = {}) {
+  const { onProgress = null, maxVideos = 300 } = options;
+
+  if (!isNativePlatform()) {
+    throw new Error('请在APP中使用导出功能');
+  }
+
+  try {
+    if (onProgress) {
+      onProgress({ step: 1, progress: 5, message: '正在读取数据...', stats: null });
+    }
+
+    // 读取数据库数据
+    const [idbData, v2Data] = await Promise.all([
+      exportAllDBData().catch(e => {
+        console.warn('[ZIP] 读取IndexDB失败:', e);
+        return null;
+      }),
+      exportV2AccountData(),
+    ]);
+
+    if (onProgress) {
+      onProgress({ step: 1, progress: 15, message: '数据读取完成', stats: null });
+    }
+
+    // ✅ 【修复4】从两个数据源提取视频（IndexedDB + v2）
+    const dbVideos = extractVideosFromDBData(idbData);
+    const v2Videos = extractVideosFromV2Data(v2Data);
+    const allVideoFiles = [...dbVideos, ...v2Videos];
+    
+    // 去重（按 filePath）
+    const uniqueVideoFiles = Array.from(new Map(allVideoFiles.map(v => [v.filePath, v])).values());
+    
+    console.log(`[ZIP] 总计 ${uniqueVideoFiles.length} 个视频文件（去重后）`);
+    
+    // 限制最大导出数量
+    if (uniqueVideoFiles.length > maxVideos) {
+      throw new Error(`视频数量超过限制(${maxVideos})，请分批导出`);
+    }
+
+    // 生成文件名
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const zipFileName = `baby_backup_${timestamp}.zip`;
+
+    // 加载 JSZip
+    let JSZip;
+    try {
+      JSZip = window.JSZip;
+      if (!JSZip) {
+        console.warn('[ZIP] JSZip未找到，降级为仅导出JSON');
+        return exportAllData(options);
+      }
+    } catch (e) {
+      console.warn('[ZIP] JSZip加载失败，降级为仅导出JSON');
+      return exportAllData(options);
+    }
+
+    // 创建 ZIP
+    const zip = new JSZip();
+    
+    // 写入 JSON 数据
+    const mergedData = {
+      ...(idbData?.data || {}),
+      ...(idbData || {}),
+      v2AccountData: v2Data,
+      exportTime: new Date().toISOString(),
+      exportVersion: '2.1.0',
+      schemaVersion: 1,
+      hasVideos: uniqueVideoFiles.length > 0
+    };
+    zip.file('data.json', JSON.stringify(mergedData, null, 2));
+
+    if (onProgress) {
+      onProgress({ step: 2, progress: 25, message: `准备导出 ${uniqueVideoFiles.length} 个视频...`, stats: null });
+    }
+
+    // ✅ 串行处理视频文件（防止内存爆炸）
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
+
+    let processedCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < uniqueVideoFiles.length; i++) {
+      const video = uniqueVideoFiles[i];
+      
+      for (let retry = 0; retry < 3; retry++) {  // 最多重试2次
+        try {
+          console.log(`[ZIP] 处理视频 ${i + 1}/${uniqueVideoFiles.length}: ${video.filePath}`);
+          
+          // 从 OPFS 读取视频
+          let videoData;
+          try {
+            videoData = await readVideoFromOPFS(video.filePath);
+          } catch (opfsErr) {
+            // OPFS 读取失败，尝试从 Filesystem 读取
+            try {
+              const result = await Filesystem.readFile({
+                path: video.filePath,
+                directory: Directory.Data
+              });
+              videoData = result.data;
+            } catch (fsErr) {
+              throw new Error(`视频读取失败: OPFS和Filesystem都失败`);
+            }
+          }
+          
+          if (!videoData) {
+            throw new Error('视频数据为空');
+          }
+
+          // ✅ 【修复5】统一导出路径为 videos/ （与导入路径匹配）
+          const fileName = video.filePath.split('/').pop();
+          zip.file(`videos/${fileName}`, videoData, { base64: true });
+
+          processedCount++;
+          break;  // 成功，跳出重试循环
+          
+        } catch (error) {
+          console.error(`[ZIP] 视频 ${video.filePath} 处理失败 (重试${retry}):`, error);
+          if (retry === 2) {
+            failedCount++;
+          }
+        }
+      }
+
+      // 进度更新
+      if (onProgress) {
+        const progress = 25 + Math.floor((i + 1) / uniqueVideoFiles.length * 60);
+        onProgress({ 
+          step: 2, 
+          progress, 
+          message: `正在处理视频 ${i + 1}/${uniqueVideoFiles.length}`, 
+          stats: { processed: processedCount, failed: failedCount, total: uniqueVideoFiles.length } 
+        });
+      }
+
+      // ✅ 每2个视频让出主线程（使用requestAnimationFrame更稳定）
+      if ((i + 1) % 2 === 0 && i < uniqueVideoFiles.length - 1) {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+    }
+
+    if (onProgress) {
+      onProgress({ step: 3, progress: 90, message: '正在生成ZIP文件...', stats: null });
+    }
+
+    // ✅ 流式生成ZIP（减少内存峰值）
+    const zipBlob = await zip.generateAsync({ 
+      type: 'blob', 
+      compression: 'DEFLATE',
+      compressionOptions: { level: 3 },
+      streamFiles: true
+    });
+
+    // 写入 Documents 目录
+    const zipBase64 = await blobToBase64(zipBlob);
+    await Filesystem.writeFile({
+      path: zipFileName,
+      data: zipBase64,
+      directory: Directory.Documents,
+      recursive: true,
+    });
+
+    // 获取文件URI
+    const fileUri = await Filesystem.getUri({
+      path: zipFileName,
+      directory: Directory.Documents,
+    });
+
+    // 分享
+    const Share = await loadShare();
+    if (Share) {
+      await Share.share({
+        title: '宝贝时光数据备份',
+        text: `备份时间：${new Date().toLocaleString()}\n包含：${processedCount}个视频`,
+        url: fileUri.uri,
+      });
+    }
+
+    if (onProgress) {
+      onProgress({ step: 4, progress: 100, message: `导出完成！${processedCount}个视频`, stats: { processed: processedCount, failed: failedCount } });
+    }
+
+    return { success: true, filePath: zipFileName, fileUri: fileUri.uri };
+
+  } catch (error) {
+    console.error('[ZIP] 导出失败:', error);
+    throw error;
+  }
+}
+
+/**
  * Web环境触发下载
  */
 export function triggerDownload(blob, filename) {
@@ -433,6 +709,7 @@ export function triggerDownload(blob, filename) {
 
 export default {
   exportAllData,
+  exportAllDataWithVideos,
   triggerDownload,
   isNativePlatform,
 };

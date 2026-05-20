@@ -247,6 +247,9 @@ function AppContent() {
         let savedMoment;
         if (isV2Account) {
           savedMoment = await addMomentToCurrentAccount(momentData);
+          // ✅ 【修复6】v2账号保存后也刷新 context 中的 moments
+          const updatedMoments = await getMomentsByBaby(momentData.babyId);
+          setMoments(updatedMoments);
         } else {
           savedMoment = await addMoment(momentData);
           // 普通宝宝保存成功后刷新 context 中的 moments
@@ -295,7 +298,8 @@ function AppContent() {
       
       
     } catch (error) {
-      console.error('[GrowthRecord] Save error:', error); showToast('保存失败: ' + error.message, 'error');
+      console.error('[GrowthRecord] Save error:', error); 
+      showToast('保存失败: ' + (error.message || '未知错误'), 'error');
     } finally {
       setEditingMoment(null);
       setShowMomentForm(false);

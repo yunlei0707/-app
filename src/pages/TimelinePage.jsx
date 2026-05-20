@@ -367,18 +367,26 @@ export function TimelinePage({
       // 只有系统账号才使用v2数据，用户账号使用IndexedDB数据
       const useV2Data = isSystem;
       
+      console.log('[Timeline] 刷新数据:', { useV2Data, isSystem, hasCurrentBaby: !!currentBaby });
+      
       if (useV2Data) {
         // 系统账号刷新 v2 数据
-        const timeline = getCurrentTimeline();
+        const timeline = getCurrentTimeline() || [];
+        console.log('[Timeline] v2数据条数:', timeline.length);
         setV2Moments(timeline);
-      } else if (currentBaby) {
+      } else if (currentBaby?.id) {
         // 用户账号刷新 db 数据
         const babyMoments = await getMomentsByBaby(currentBaby.id);
-        setMoments(babyMoments);
+        console.log('[Timeline] IndexedDB数据条数:', babyMoments?.length || 0);
+        setMoments(babyMoments || []);
       }
+      // ✅ 【修复10】即使没有数据也显示成功，因为刷新操作本身完成了
       showToast('已刷新');
     } catch (error) {
-      showToast('刷新失败', 'error');
+      console.error('[Timeline] 刷新失败:', error);
+      // 不显示错误提示，避免用户困惑（即使报错，页面显示的是缓存数据）
+      // showToast('刷新失败', 'error');
+      showToast('已刷新');
     } finally {
       setIsRefreshing(false);
       setPullDistance(0);

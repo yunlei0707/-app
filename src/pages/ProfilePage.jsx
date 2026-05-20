@@ -18,7 +18,7 @@ import
 import 
 { exportAllData as exportAllIDBData, importAllData, importAllDataV2, importFromZipStream, importMultipleFiles, clearAllData, PRESET_AVATARS, getAllBabies, getMomentsByBaby, getCapsulesByBaby, addMoment, deleteBaby } from '../utils/db';
 import { exportV2AccountData, importV2AccountData, isSystemAccount } from '../utils/dbV2';
-import { exportAllData, triggerDownload } from '../utils/zipExport';
+import { exportAllData, exportAllDataWithVideos, triggerDownload } from '../utils/zipExport';
 import 
 { calculateAge } from '../utils/dateUtils';
 import 
@@ -440,10 +440,11 @@ export function ProfilePage(
     setExportStats(null);
     
     try {
-      // 调用exportAllData，返回格式：
-      // - 原生导出: { filePath, filename, isNative: true, blob: null }
-      // - JSZip导出: { blob, isNative: false, filePath: null, filename: null }
-      const exportResult = await exportAllData({
+      // 调用导出函数：
+      // - includeVideos=true: 使用exportAllDataWithVideos（终极方案）
+      // - includeVideos=false: 使用exportAllData（仅JSON）
+      const exportFunction = includeVideos ? exportAllDataWithVideos : exportAllData;
+      const exportResult = await exportFunction({
         includeVideos,
         onProgress: ({ progress, message, stats }) => {
           setExportProgress(progress);
