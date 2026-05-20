@@ -6,6 +6,7 @@
 import { readVideoFromOPFS } from './opfs';
 import { exportAllData as exportAllDBData } from './db';
 import { exportV2AccountData } from './dbV2';
+import { BASE_DIR } from '../constants/storage.js';
 
 // ==================== 配置 ====================
 
@@ -126,7 +127,7 @@ export async function exportAllData(options = {}) {
     // 生成文件名
     const now = new Date();
     const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    const filePath = `BabyTime/backup_${timestamp}.json`;
+    const filePath = `${BASE_DIR}/backup_${timestamp}.json`;
 
     // 写入JSON文件
     const jsonStr = JSON.stringify(mergedData, null, 2);

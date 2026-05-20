@@ -18,30 +18,34 @@ function getCapacitor() {
 }
 
 /**
- * 获取可正常显示的图片源地址
+ * 获取可正常显示的媒体源地址（图片/视频/音频通用）
  * 统一处理 Base64、网络图片、Capacitor 本地文件路径
  * 
- * @param {string} uri - 图片 URI（可以是 base64、http 或本地文件路径）
- * @returns {string} 可在 WebView 中正常显示的图片地址
+ * ⚠️ 关键优化：只在原生环境调用 convertFileSrc，Web 端直接返回
+ * 
+ * @param {string} uri - 媒体 URI（可以是 base64、http 或本地文件路径）
+ * @returns {string} 可在 WebView 中正常显示的媒体地址
  */
 export function getImageSrc(uri) {
   if (!uri) return '';
   
-  // 1. 已经是 http/https 的网络图片直接返回
-  if (uri.startsWith('http')) {
+  // 1. 已经是可访问 URL 的直接返回
+  if (uri.startsWith('http') || 
+      uri.startsWith('data:') || 
+      uri.startsWith('blob:')) {
     return uri;
   }
   
-  // 2. Base64 编码图片直接返回（虽然方案建议避免，但做兼容处理）
-  if (uri.startsWith('data:')) {
-    return uri;
-  }
-  
-  // 3. Capacitor 本地文件路径转换（核心：必须转换才能在 WebView 中显示）
+  // 2. ⚠️ 关键：只在原生环境调用 convertFileSrc，Web 端直接用
   const Capacitor = getCapacitor();
-  return Capacitor && typeof Capacitor.convertFileSrc === 'function' 
-    ? Capacitor.convertFileSrc(uri) 
-    : uri;
+  if (Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+    if (typeof Capacitor.convertFileSrc === 'function') {
+      return Capacitor.convertFileSrc(uri);
+    }
+  }
+  
+  // 非原生环境或不支持转换，直接返回原路径
+  return uri;
 }
 
 /**

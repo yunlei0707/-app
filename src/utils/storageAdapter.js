@@ -2,6 +2,7 @@
  * ✅ 生产级：存储适配器
  * 使用标准 Capacitor Filesystem 插件
  */
+import { getVideoPath } from '../constants/storage.js';
 
 // ==================== 工具函数 ====================
 
@@ -105,7 +106,7 @@ export async function saveVideoToNative(file, onProgress = null) {
     let writeSucceeded = false;
     try {
       await Filesystem.writeFile({
-        path: `BabyTime/videos/${filename}`,
+        path: getVideoPath(filename),
         data: file,  // 直接传 Blob/File 对象
         directory: Directory.Documents,
         recursive: true,
@@ -120,7 +121,7 @@ export async function saveVideoToNative(file, onProgress = null) {
     if (!writeSucceeded) {
       const base64 = await fileToBase64(file, onProgress);
       await Filesystem.writeFile({
-        path: `BabyTime/videos/${filename}`,
+        path: getVideoPath(filename),
         data: base64,
         directory: Directory.Documents,
         recursive: true,
@@ -149,6 +150,7 @@ export async function saveVideoToNative(file, onProgress = null) {
 
 /**
  * 从原生文件系统读取视频
+ * ✅ 兼容新旧格式：新数据 Blob，旧数据 Base64
  */
 export async function readVideoFromNative(filename) {
   if (!isAppEnvironment()) {
@@ -161,13 +163,24 @@ export async function readVideoFromNative(filename) {
     const { Filesystem, Directory } = filesystem;
 
     const result = await Filesystem.readFile({
-      path: `BabyTime/videos/${filename}`,
+      path: getVideoPath(filename),
       directory: Directory.Documents,
     });
 
-    // base64转Blob
-    const response = await fetch(`data:video/mp4;base64,${result.data}`);
-    return await response.blob();
+    // ✅ 自动检测返回类型
+    if (result.data instanceof Blob) {
+      // 新格式：直接是 Blob 对象
+      console.log('[Storage] ✅ 检测到新版Blob格式数据');
+      return result.data;
+    } else if (typeof result.data === 'string') {
+      // 旧格式：Base64 字符串（兼容老数据）
+      console.log('[Storage] ⚠️ 检测到旧版Base64格式数据，兼容读取');
+      const response = await fetch(`data:video/mp4;base64,${result.data}`);
+      return await response.blob();
+    }
+
+    console.warn('[Storage] 未知数据格式:', typeof result.data);
+    return result.data;
 
   } catch (e) {
     console.error('[Storage] 读取视频失败:', filename, e);
@@ -187,7 +200,7 @@ export async function deleteVideoFromNative(filename) {
     const { Filesystem, Directory } = filesystem;
 
     await Filesystem.deleteFile({
-      path: `BabyTime/videos/${filename}`,
+      path: getVideoPath(filename),
       directory: Directory.Documents,
     });
 
