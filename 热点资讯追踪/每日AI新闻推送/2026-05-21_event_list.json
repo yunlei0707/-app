@@ -1,0 +1,39 @@
+[
+  {
+    "events": [
+      {
+        "event": "谷歌I/O 2026大会发布Gemini 3.5大模型系列，标志着全面进入智能体时代，Gemini App月活跃用户已突破9亿",
+        "event_time": "2026-05-20 02:00",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件是全球AI领域最重大的技术发布与商业化进展，属于AI大模型与技术进展核心领域，符合「每日AI新闻推送」追踪定义。",
+    "source_type": "cross_valid",
+    "support_urls": [
+      "https://m.thepaper.cn/newsDetail_forward_33202651",
+      "http://companies.caixin.com/m/2026-05-20/102445794.html",
+      "https://3w.huanqiu.com/a/1080fe/4ReJEmVCCT7"
+    ]
+  },
+  {
+    "events": [
+      {
+        "event": "外交部宣布中美两国元首会晤时就人工智能监管问题进行了建设性交流，同意开展人工智能政府间对话",
+        "event_time": "2026-05-19 15:00",
+        "relevance_level": "强相关"
+      },
+      {
+        "event": "中俄发表联合声明，双方愿促进人工智能向善普惠发展，反对将AI作为地缘政治工具",
+        "event_time": "2026-05-20 22:00",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件组涉及大国在人工智能治理领域的外交互动与政策协调，属于AI政策与国际合作领域的重大新闻，符合追踪要求。",
+    "source_type": "official",
+    "support_urls": [
+      "https://3w.huanqiu.com/a/c36dc8/4Rcwi5AUHhx",
+      "https://www.gov.cn/yaowen/liebiao/202605/content_7069789.htm",
+      "http://www.mod.gov.cn/gfbw/qwfb/yw_214049/16462439.html"
+    ]
+  }
+]

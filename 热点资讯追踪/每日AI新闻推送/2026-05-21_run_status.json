@@ -1,0 +1,36 @@
+{
+  "schema": "topic_tracking.run_status.v1",
+  "status": "DONE",
+  "result": "briefing",
+  "legal_for_delivery": true,
+  "topic": "每日AI新闻推送",
+  "run_label": "2026-05-21",
+  "brief_token": "brief_648a3581",
+  "setup_token": "setup_1d1e7399",
+  "current_step": "DONE",
+  "completed_steps": [
+    "B1",
+    "B2",
+    "B3",
+    "B4"
+  ],
+  "skipped_steps": [],
+  "empty_result": false,
+  "event_count": 3,
+  "artifacts": {
+    "event_list": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送/2026-05-21_event_list.json",
+    "briefing_md": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送/每日AI新闻推送_2026-05-21.md",
+    "summary": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送/2026-05-21_summary.json"
+  },
+  "artifact_exists": {
+    "event_list": true,
+    "briefing_md": true,
+    "summary": true
+  },
+  "tracking_dir": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送",
+  "session_dir": "/app/data/所有对话/主对话/.skills/skill_topic_tracking/sessions_v2/setup_1d1e7399/brief_648a3581",
+  "message": "verify-run 校验通过。",
+  "errors": [],
+  "created_at": "2026-05-21T10:11:03.266313",
+  "updated_at": "2026-05-21T10:17:40.812198"
+}
