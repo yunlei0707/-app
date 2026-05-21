@@ -1,8 +1,7 @@
-import JSZip from "jszip";
 /**
- * 🧠 ZIP Adapter - JSZip 隔离层
+ * 🧠 ZIP Adapter - window.JSZip 隔离层
  * 
- * 核心原则：彻底隔离 JSZip，上层永远不需要直接调用 JSZip
+ * 核心原则：彻底隔离 window.JSZip，上层永远不需要直接调用 window.JSZip
  * 只暴露两个方法：addFile（只接受 Blob）、generate（流式生成）
  * 
  * 🔥 架构级强制约束：函数签名只接受 Blob，想传 base64？IDE 直接报错！
@@ -10,14 +9,14 @@ import JSZip from "jszip";
 
 /**
  * 创建 ZIP 实例
- * 只暴露安全的方法，禁止上层直接操作 JSZip 内部对象
+ * 只暴露安全的方法，禁止上层直接操作 window.JSZip 内部对象
  */
 export function createZip() {
-  if (typeof JSZip === 'undefined') {
-    throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
+  if (typeof window.JSZip === 'undefined') {
+    throw new Error('[zipAdapter] window.JSZip 未加载，请检查依赖');
   }
 
-  const zip = new JSZip();
+  const zip = new window.JSZip();
 
   return {
     /**
@@ -52,7 +51,7 @@ export function createZip() {
           compressionOptions: { level: 3 } // 平衡速度/压缩率
         },
         (metadata) => {
-          // JSZip 内部进度回调（0-100）
+          // window.JSZip 内部进度回调（0-100）
           if (onProgress) {
             onProgress(metadata.percent);
           }
@@ -80,8 +79,8 @@ export default {
  * @returns {Object} ZIP 读取器
  */
 export async function unzip(fileBlob) {
-  if (typeof JSZip === 'undefined') {
-    throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
+  if (typeof window.JSZip === 'undefined') {
+    throw new Error('[zipAdapter] window.JSZip 未加载，请检查依赖');
   }
 
   if (!(fileBlob instanceof Blob)) {
@@ -89,7 +88,7 @@ export async function unzip(fileBlob) {
   }
 
   console.log('[zipAdapter] 开始解压 ZIP，大小:', (fileBlob.size / 1024 / 1024).toFixed(2), 'MB');
-  const zip = await JSZip.loadAsync(fileBlob);
+  const zip = await window.JSZip.loadAsync(fileBlob);
 
   return {
     /**

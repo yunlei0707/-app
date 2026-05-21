@@ -314,7 +314,7 @@ function AppContent() {
         
         // 保存成功后显示 AI 选择弹窗
         console.log('[App] 保存成功，准备显示 AI 选择弹窗, content:', momentData.content);
-        setAIChoiceContent(typeof momentData.content === 'function' ? '' : (momentData.content || '')));
+        setAIChoiceContent(typeof momentData.content === "function" ? "" : (momentData.content || ""));
         setShowAIChoice(true);
         
         // 异步触发联动（不阻塞用户操作）
