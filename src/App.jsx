@@ -281,10 +281,13 @@ function AppContent() {
           const v2Copy = createV2CopyFromV1(momentData);
           await addMomentToCurrentAccount(v2Copy);
           showToast('已保存到新版本（历史数据未修改）', 'success');
+          window.dispatchEvent(new Event('v2-moment-updated'));
         } else if (isV2Account) {
           // v2数据：直接更新
           await updateMomentInCurrentAccount(momentData.id, momentData);
           showToast('已更新');
+          // 触发事件通知 TimelinePage 刷新
+          window.dispatchEvent(new Event('v2-moment-updated'));
         } else {
           // 普通账号数据：直接更新
           await updateMoment(momentData.id, momentData);
@@ -295,6 +298,8 @@ function AppContent() {
         let savedMoment;
         if (isV2Account) {
           savedMoment = await addMomentToCurrentAccount(momentData);
+          // 触发事件通知 TimelinePage 刷新
+          window.dispatchEvent(new Event('v2-moment-updated'));
           // ✅ v2账号：只触发事件，TimelinePage会自动从localStorage刷新
           // 注意：v2数据存在localStorage，不能调用getMomentsByBaby（IndexedDB）
         } else {
