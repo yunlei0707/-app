@@ -17,15 +17,22 @@ export async function exportAllData(options = {}) {
   let videoResults = [];
   let failedVideos = [];
 
+  console.log('[Export] includeVideos:', includeVideos, 'videos count:', videos.length);
+
   if (includeVideos && videos.length > 0) {
+    console.log('[Export] 开始处理视频，共', videos.length, '个');
     for (const v of videos) {
       try {
+        console.log('[Export] 读取视频:', v.path);
         const blob = await getVideoBlob(v.path);
+        console.log('[Export] 读取成功，大小:', blob.size);
         videoResults.push({ ...v, blob });
       } catch (e) {
+        console.error('[Export] 读取视频失败:', v.path, e.message);
         failedVideos.push({ ...v, error: e.message });
       }
     }
+    console.log('[Export] 视频处理完成，成功:', videoResults.length, '失败:', failedVideos.length);
   }
 
   // 3. 创建 ZIP 并写入文件
@@ -125,13 +132,17 @@ function extractVideosFromData(data) {
 async function saveToLocal(blob, path, filename) {
   const fsModule = await loadFilesystem();
   const base64 = await blobToBase64(blob);
-  await fsModule.Filesystem.writeFile({
-    path,
+  const fullPath = `BabyTimeBackup/${filename}`;
+  
+  const result = await fsModule.Filesystem.writeFile({
+    path: fullPath,
     data: base64,
     directory: fsModule.Directory.Documents,
     recursive: true
   });
-  return path;
+  
+  // 返回 ProfilePage 期望的 fs:// 格式路径
+  return result.uri || `fs://file/BabyTimeBackup/${filename}`;
 }
 
 async function loadFilesystem() {
