@@ -409,8 +409,37 @@ export async function getMomentsOnSameDayLastYear(babyId, targetDate) {
  */
 export async function addMoment(momentData) {
   const db = await initDB();
+  
+  // ✅ 类型检查：防止函数被意外存入数据（React setState会执行函数）
+  // 这是解决 "n is a function" 错误的关键修复
+  function sanitizeValue(value) {
+    // 如果是函数，返回空字符串（不应该把函数存入数据）
+    if (typeof value === 'function') {
+      console.warn('[addMoment] 检测到函数类型值，已清理:', value);
+      return '';
+    }
+    // 如果是对象，递归清理
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const cleaned = {};
+      for (const key in value) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          cleaned[key] = sanitizeValue(value[key]);
+        }
+      }
+      return cleaned;
+    }
+    // 如果是数组，递归清理每个元素
+    if (Array.isArray(value)) {
+      return value.map(item => sanitizeValue(item));
+    }
+    return value;
+  }
+  
+  // 清理整个moment对象，确保没有函数被存入
+  const sanitizedData = sanitizeValue(momentData);
+  
   const moment = {
-    ...momentData,
+    ...sanitizedData,
     createdAt: new Date().toISOString(),
   };
   const id = await db.add('moments', moment);

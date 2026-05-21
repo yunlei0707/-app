@@ -59,9 +59,25 @@ const promisify = async (fnName, ...args) => {
       case 'readBinary':
         return await NativeAPI.readFile?.(args[0]);
       case 'share':
-        await NativeAPI.shareFile?.({ url: `data:application/octet-stream;base64,${args[0]}` });
+        // 分享文件：args[0] 是 fs:// 格式路径
+        const sharePath = args[0];
+        console.log('[jsBridge] share 文件路径:', sharePath);
+        // 使用 NativeAPI.shareContent 分享文件
+        await NativeAPI.shareContent({
+          title: '备份文件',
+          text: '宝贝时光数据备份',
+          url: sharePath
+        });
         return { success: true };
       case 'open':
+        // 打开文件：使用分享方式替代直接打开
+        const openPath = args[0];
+        console.log('[jsBridge] open 文件路径:', openPath);
+        await NativeAPI.shareContent({
+          title: '打开备份文件',
+          text: '请选择应用打开',
+          url: openPath
+        });
         return { success: true };
       default:
         console.warn(`[jsBridge] 方法 ${fnName} 暂无标准Capacitor实现`);

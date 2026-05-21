@@ -18,7 +18,7 @@ import
 import 
 { exportAllData as exportAllIDBData, importAllData, importAllDataV2, importFromZipStream, importMultipleFiles, clearAllData, PRESET_AVATARS, getAllBabies, getMomentsByBaby, getCapsulesByBaby, addMoment, deleteBaby } from '../utils/db';
 import { exportV2AccountData, importV2AccountData, isSystemAccount } from '../utils/dbV2';
-import { exportAllData, exportAllDataWithVideos, triggerDownload } from '../utils/zipExport';
+import { exportAllData, exportAllDataWithVideos, triggerDownload } from '../services/exportService.js';
 import 
 { calculateAge } from '../utils/dateUtils';
 import 
@@ -529,7 +529,7 @@ export function ProfilePage(
   }, []);
 
   // 打开备份文件
-  const handleOpenBackupFile = useCallback(() => {
+  const handleOpenBackupFile = useCallback(async () => {
     console.log('[ProfilePage] ============== 开始打开备份文件 ==============');
     console.log('[ProfilePage] 当前zipSuccessFilePath:', zipSuccessFilePath);
     console.log('[ProfilePage] 当前文件名:', zipSuccessFilename);
@@ -563,38 +563,14 @@ export function ProfilePage(
     console.log('[ProfilePage] 最终打开路径:', fullPath);
     
     try {
-      console.log('[ProfilePage] 检查jsBridge状态...');
-      console.log('[ProfilePage] window.jsBridge:', !!window.jsBridge);
-      console.log('[ProfilePage] window.jsBridge.fs:', !!window.jsBridge?.fs);
-      console.log('[ProfilePage] window.jsBridge.fs.open:', typeof window.jsBridge?.fs?.open);
-      
-      // 使用一门APP官方原生回调方式，不使用Promise封装
-      if (window.jsBridge && window.jsBridge.fs) {
-        if (typeof window.jsBridge.fs.open !== 'function') {
-          console.error('[ProfilePage] fs.open方法不存在');
-          showErrorModalFunc('打开失败', '当前APP版本不支持直接打开文件，请升级APP或在文件管理器中查看', 'error');
-          return;
-        }
-        
-        console.log('[ProfilePage] 调用fs.open方法...');
-        window.jsBridge.fs.open(fullPath, function(succ, msg) {
-          console.log('[ProfilePage] fs.open回调 - succ:', succ, ', msg:', msg);
-          if (succ) {
-            console.log('[ProfilePage] ✅ 打开文件成功');
-            showErrorModalFunc('提示', '正在打开文件...', 'success');
-          } else {
-            console.error('[ProfilePage] ❌ 打开文件失败:', msg);
-            const errorDetail = msg ? `: ${msg}` : '（原生方法返回失败）';
-            showErrorModalFunc('打开失败', `打开文件失败${errorDetail}，请在文件管理器的"下载"目录中手动打开`, 'error');
-          }
-        });
-      } else {
-        console.error('[ProfilePage] jsBridge或fs模块未初始化');
-        showErrorModalFunc('错误', 'APP原生服务未就绪，请重启APP后重试', 'error');
-      }
+      console.log('[ProfilePage] 调用 jsBridgeFS.open 方法...');
+      // 使用 Promise 封装的 jsBridgeFS
+      const { jsBridgeFS } = await import('../utils/jsBridge');
+      await jsBridgeFS.open(fullPath);
+      console.log('[ProfilePage] ✅ 打开文件成功');
+      showErrorModalFunc('提示', '正在打开文件...', 'success');
     } catch (e) {
       console.error('[ProfilePage] ❌ 打开文件异常:', e);
-      console.error('[ProfilePage] 错误堆栈:', e?.stack);
       const errorMsg = e?.message || '未知错误';
       showErrorModalFunc('打开失败', `打开文件失败: ${errorMsg}，请在文件管理器的"下载"目录中查看`, 'error');
     }
@@ -602,7 +578,7 @@ export function ProfilePage(
   }, [zipSuccessFilePath, zipSuccessFilename, showErrorModalFunc]);
 
   // 分享备份文件
-  const handleShareBackupFile = useCallback(() => {
+  const handleShareBackupFile = useCallback(async () => {
     console.log('[ProfilePage] ============== 开始分享备份文件 ==============');
     console.log('[ProfilePage] 当前zipSuccessFilePath:', zipSuccessFilePath);
     console.log('[ProfilePage] 当前文件名:', zipSuccessFilename);
@@ -636,38 +612,14 @@ export function ProfilePage(
     console.log('[ProfilePage] 最终分享路径:', fullPath);
     
     try {
-      console.log('[ProfilePage] 检查jsBridge状态...');
-      console.log('[ProfilePage] window.jsBridge:', !!window.jsBridge);
-      console.log('[ProfilePage] window.jsBridge.fs:', !!window.jsBridge?.fs);
-      console.log('[ProfilePage] window.jsBridge.fs.share:', typeof window.jsBridge?.fs?.share);
-      
-      // 使用一门APP官方原生回调方式，不使用Promise封装
-      if (window.jsBridge && window.jsBridge.fs) {
-        if (typeof window.jsBridge.fs.share !== 'function') {
-          console.error('[ProfilePage] fs.share方法不存在');
-          showErrorModalFunc('分享失败', '当前APP版本不支持直接分享，请升级APP或在文件管理器中分享', 'error');
-          return;
-        }
-        
-        console.log('[ProfilePage] 调用fs.share方法...');
-        window.jsBridge.fs.share(fullPath, function(succ, msg) {
-          console.log('[ProfilePage] fs.share回调 - succ:', succ, ', msg:', msg);
-          if (succ) {
-            console.log('[ProfilePage] ✅ 分享文件成功');
-            showErrorModalFunc('提示', '正在打开分享面板...', 'success');
-          } else {
-            console.error('[ProfilePage] ❌ 分享文件失败:', msg);
-            const errorDetail = msg ? `: ${msg}` : '（原生方法返回失败）';
-            showErrorModalFunc('分享失败', `分享文件失败${errorDetail}，请在文件管理器的"下载"目录中手动分享`, 'error');
-          }
-        });
-      } else {
-        console.error('[ProfilePage] jsBridge或fs模块未初始化');
-        showErrorModalFunc('错误', 'APP原生服务未就绪，请重启APP后重试', 'error');
-      }
+      console.log('[ProfilePage] 调用 jsBridgeFS.share 方法...');
+      // 使用 Promise 封装的 jsBridgeFS
+      const { jsBridgeFS } = await import('../utils/jsBridge');
+      await jsBridgeFS.share(fullPath);
+      console.log('[ProfilePage] ✅ 分享文件成功');
+      showErrorModalFunc('提示', '正在打开分享面板...', 'success');
     } catch (e) {
       console.error('[ProfilePage] ❌ 分享文件异常:', e);
-      console.error('[ProfilePage] 错误堆栈:', e?.stack);
       const errorMsg = e?.message || '未知错误';
       showErrorModalFunc('分享失败', `分享文件失败: ${errorMsg}，请在文件管理器的"下载"目录中分享`, 'error');
     }

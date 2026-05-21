@@ -418,9 +418,37 @@ export function addMomentToCurrentAccount(moment) {
   
   const { identityName, accountId, accountData } = current;
   
+  // ✅ 类型检查：防止函数被意外存入数据（React setState会执行函数）
+  // 这是解决 "n is a function" 错误的关键修复
+  function sanitizeValue(value) {
+    // 如果是函数，返回空字符串（不应该把函数存入数据）
+    if (typeof value === 'function') {
+      console.warn('[addMoment] 检测到函数类型值，已清理:', value);
+      return '';
+    }
+    // 如果是对象，递归清理
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const cleaned = {};
+      for (const key in value) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          cleaned[key] = sanitizeValue(value[key]);
+        }
+      }
+      return cleaned;
+    }
+    // 如果是数组，递归清理每个元素
+    if (Array.isArray(value)) {
+      return value.map(item => sanitizeValue(item));
+    }
+    return value;
+  }
+  
+  // 清理整个moment对象，确保没有函数被存入
+  const sanitizedMoment = sanitizeValue(moment);
+  
   const newMoment = {
-    ...moment,
-    id: moment.id || `moment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    ...sanitizedMoment,
+    id: sanitizedMoment.id || `moment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     createdAt: new Date().toISOString()
   };
   
