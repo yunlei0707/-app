@@ -185,7 +185,7 @@ async function readFromFilesystem(path) {
   const fs = await loadFilesystem();
   const result = await fs.Filesystem.readFile({
     path,
-    directory: fs.Directory.Data
+    directory: fs.Directory.Documents
   });
   return result.data;
 }
@@ -248,7 +248,7 @@ async function saveToFilesystem(path, blob) {
   await fs.Filesystem.writeFile({
     path,
     data: base64,
-    directory: fs.Directory.Data,
+    directory: fs.Directory.Documents,
     recursive: true
   });
   return path;
