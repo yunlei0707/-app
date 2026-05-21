@@ -309,10 +309,12 @@ function AppContent() {
           setMoments(updatedMoments);
         }
         showToast('记录已保存！🎉');
+      // 立即触发刷新，确保即使后续有错误也能显示新内容
+      window.dispatchEvent(new Event('v2-moment-updated'));
         
         // 保存成功后显示 AI 选择弹窗
         console.log('[App] 保存成功，准备显示 AI 选择弹窗, content:', momentData.content);
-        setAIChoiceContent(momentData.content || '');
+        setAIChoiceContent(typeof momentData.content === 'function' ? '' : (momentData.content || '')));
         setShowAIChoice(true);
         
         // 异步触发联动（不阻塞用户操作）
@@ -346,7 +348,6 @@ function AppContent() {
       }
       
       // 通知 TimelinePage 刷新数据
-      window.dispatchEvent(new Event('v2-moment-updated'));
       
       
     } catch (error) {
