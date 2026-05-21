@@ -162,11 +162,9 @@ export async function getVideoBlob(path) {
   }
   
   // ✅ 路径补全：如果只有文件名（没有目录前缀），加上默认路径
+  // 注意：视频和音频都在 BabyTime/videos/ 目录下
   if (!cleanPath.includes('/')) {
-    // 判断是视频还是音频
-    const isAudio = cleanPath.endsWith('.m4a') || cleanPath.endsWith('.aac') || cleanPath.endsWith('.mp3');
-    const prefix = isAudio ? 'BabyTime/audios/' : 'BabyTime/videos/';
-    cleanPath = prefix + cleanPath;
+    cleanPath = 'BabyTime/videos/' + cleanPath;
   }
   
   console.log('[StorageAdapter] 原始路径:', path, '-> 清洗后:', cleanPath);
