@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 /**
  * 🧠 ZIP Adapter - JSZip 隔离层
  * 
@@ -12,11 +13,11 @@
  * 只暴露安全的方法，禁止上层直接操作 JSZip 内部对象
  */
 export function createZip() {
-  if (typeof window.JSZip === 'undefined') {
+  if (typeof JSZip === 'undefined') {
     throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
   }
 
-  const zip = new window.JSZip();
+  const zip = new JSZip();
 
   return {
     /**
@@ -79,7 +80,7 @@ export default {
  * @returns {Object} ZIP 读取器
  */
 export async function unzip(fileBlob) {
-  if (typeof window.JSZip === 'undefined') {
+  if (typeof JSZip === 'undefined') {
     throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
   }
 
@@ -88,7 +89,7 @@ export async function unzip(fileBlob) {
   }
 
   console.log('[zipAdapter] 开始解压 ZIP，大小:', (fileBlob.size / 1024 / 1024).toFixed(2), 'MB');
-  const zip = await window.JSZip.loadAsync(fileBlob);
+  const zip = await JSZip.loadAsync(fileBlob);
 
   return {
     /**
