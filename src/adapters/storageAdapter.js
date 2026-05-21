@@ -152,13 +152,23 @@ export async function getVideoBlob(path) {
     throw error;
   }
 
+  // ✅ 路径清洗：去掉 URL 前缀，只保留相对路径
+  let cleanPath = path;
+  if (cleanPath.startsWith('http')) {
+    const urlObj = new URL(cleanPath);
+    cleanPath = urlObj.pathname;
+    // 去掉 /Documents/ 或 /Data/ 前缀
+    cleanPath = cleanPath.replace(/^\/[^\/]+\//, ''); // /Documents/xxx -> xxx
+  }
+  console.log('[StorageAdapter] 原始路径:', path, '-> 清洗后:', cleanPath);
+
   let blob = null;
 
   // 尝试 OPFS
   try {
-    blob = await readVideoFromOPFS(path);
+    blob = await readVideoFromOPFS(cleanPath);
     if (blob && blob.size > 0) {
-      console.log('[StorageAdapter] 从 OPFS 读取成功:', path);
+      console.log('[StorageAdapter] 从 OPFS 读取成功:', cleanPath);
       return blob;
     }
   } catch (e) {
@@ -167,16 +177,16 @@ export async function getVideoBlob(path) {
 
   // 尝试 Filesystem
   try {
-    const base64 = await readFromFilesystem(path);
+    const base64 = await readFromFilesystem(cleanPath);
     if (base64) {
-      console.log('[StorageAdapter] 从 Filesystem 读取成功:', path);
+      console.log('[StorageAdapter] 从 Filesystem 读取成功:', cleanPath);
       return base64ToBlob(base64);
     }
   } catch (e) {
     console.warn('[StorageAdapter] Filesystem 读取失败:', e.message);
   }
 
-  const error = new Error(`视频读取失败: ${path}`);
+  const error = new Error(`视频读取失败: ${cleanPath}`);
   console.error('[StorageAdapter]', error.message);
   throw error;
 }
