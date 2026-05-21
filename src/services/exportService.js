@@ -111,7 +111,8 @@ export async function exportAllData(options = {}) {
   dataValidation.warnings.forEach(w => console.warn('[Export]', w));
 
   const videos = extractVideosFromData(data);
-  console.log('[Export] 提取到视频数量:', videos.length);
+  const audios = extractAudiosFromData(data);
+  console.log('[Export] 提取到视频数量:', videos.length, '，音频数量:', audios.length);
 
   // 2. 处理视频（串行读取 Blob，带去重检测）
   let videoResults = [];
@@ -184,6 +185,75 @@ export async function exportAllData(options = {}) {
                 '失败:', failedVideos.length);
   }
 
+  // 2b. 处理音频（同样带去重检测）
+  let audioResults = [];
+  let failedAudios = [];
+
+  if (includeVideos && audios.length > 0) {
+    console.log('[Export] 开始处理音频，共', audios.length, '个');
+    
+    for (const a of audios) {
+      // 检查取消信号
+      if (signal?.aborted) {
+        console.log('[Export] 导出被用户取消');
+        throw new Error('导出已取消');
+      }
+      
+      let blob = null;
+      
+      // 最多重试 3 次，每次间隔 200ms
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          console.log('[Export] 读取音频:', a.path?.substring(0, 30) + '...', '第', retry + 1, '次尝试');
+          blob = await getVideoBlob(a.path); // 复用 getVideoBlob，音频也在 videos 目录
+          if (blob && blob.size > 0) {
+            console.log('[Export] 读取成功，大小:', blob.size);
+            break;
+          }
+        } catch (e) {
+          console.warn('[Export] 读取失败，重试中:', e.message);
+          if (retry < 2) {
+            await new Promise(r => setTimeout(r, 200));
+            continue;
+          }
+          console.error('[Export] 读取音频最终失败:', a.path, e.message);
+          failedAudios.push({ ...a, error: e.message });
+        }
+      }
+      
+      if (blob && blob.size > 0) {
+        // ✅ 单源数据：计算哈希，检测重复
+        const fileHash = await calculateFastHash(blob);
+        
+        if (processedHashes.has(fileHash)) {
+          // 重复音频：复用已处理的结果
+          const existing = processedHashes.get(fileHash);
+          console.log('[Export] 检测到重复音频，复用:', existing.fileName);
+          audioResults.push({ 
+            ...a, 
+            blob: existing.blob, 
+            fileName: existing.fileName,
+            isDuplicate: true,
+            originalId: existing.id
+          });
+        } else {
+          // 新音频：正常处理
+          const result = { ...a, blob, fileHash };
+          audioResults.push(result);
+          processedHashes.set(fileHash, result);
+        }
+      }
+      
+      // 让出主线程（每处理 5 个音频）
+      if (audioResults.length % 5 === 0) {
+        await new Promise(r => setTimeout(r, 10));
+      }
+    }
+    
+    console.log('[Export] 音频处理完成，成功:', audioResults.length, 
+                '失败:', failedAudios.length);
+  }
+
   // 3. 创建 ZIP 并写入文件（带去重）
   const zip = createZip();
   const fileMap = {};
@@ -201,7 +271,8 @@ export async function exportAllData(options = {}) {
         originalName: video.originalName,
         fileSize: video.blob.size,
         isDuplicate: true,
-        originalId: original.id
+        originalId: original.id,
+        mediaType: 'video'
       };
     } else {
       // 新文件，写入 ZIP
@@ -211,13 +282,42 @@ export async function exportAllData(options = {}) {
         fileName: video.fileName,
         originalName: video.originalName,
         fileSize: video.blob.size,
-        fileHash: video.fileHash
+        fileHash: video.fileHash,
+        mediaType: 'video'
+      };
+    }
+  }
+
+  // 写入音频文件（带去重，复用同一个去重 Map）
+  for (const audio of audioResults) {
+    if (uniqueHashes.has(audio.fileHash)) {
+      // 重复文件，只更新 fileMap，不重复写入 ZIP
+      duplicateSkipped++;
+      const original = [...videoResults, ...audioResults].find(a => a.fileHash === audio.fileHash);
+      fileMap[audio.id] = {
+        fileName: original.fileName,
+        originalName: audio.originalName,
+        fileSize: audio.blob.size,
+        isDuplicate: true,
+        originalId: original.id,
+        mediaType: 'audio'
+      };
+    } else {
+      // 新文件，写入 ZIP
+      uniqueHashes.add(audio.fileHash);
+      zip.addFile(`audios/${audio.fileName}`, audio.blob);
+      fileMap[audio.id] = {
+        fileName: audio.fileName,
+        originalName: audio.originalName,
+        fileSize: audio.blob.size,
+        fileHash: audio.fileHash,
+        mediaType: 'audio'
       };
     }
   }
   
   if (duplicateSkipped > 0) {
-    console.log(`[Export] ZIP 去重: 跳过 ${duplicateSkipped} 个重复视频，节省存储空间`);
+    console.log(`[Export] ZIP 去重: 跳过 ${duplicateSkipped} 个重复文件，节省存储空间`);
   }
 
   // 4. 写入 JSON 数据
@@ -226,9 +326,11 @@ export async function exportAllData(options = {}) {
   data.schemaVersion = 1;
   data.exportStats = {
     totalVideos: videos.length,
-    uniqueVideos: uniqueHashes.size,
+    totalAudios: audios.length,
+    uniqueFiles: uniqueHashes.size,
     duplicateSkipped,
     failedVideos: failedVideos.length,
+    failedAudios: failedAudios.length,
     exportTime: new Date().toISOString()
   };
 
@@ -278,9 +380,12 @@ export async function exportAllData(options = {}) {
     report: {
       duration: Date.now() - start,
       totalVideos: videos.length,
-      uniqueVideos: uniqueHashes.size,
+      totalAudios: audios.length,
+      uniqueFiles: uniqueHashes.size,
       successVideos: videoResults.length,
       failedVideos,
+      successAudios: audioResults.length,
+      failedAudios,
       duplicateSkipped,
       warnings: [...dataValidation.warnings, ...fileMapValidation.warnings]
     }
@@ -331,6 +436,33 @@ function extractVideosFromData(data) {
   if (data.moments) data.moments.forEach(addVideos);
 
   return videos;
+}
+
+function extractAudiosFromData(data) {
+  const audios = [];
+  const seen = new Set();
+
+  function addAudios(m) {
+    if (!m?.audios) return;
+    for (const a of m.audios) {
+      const path = a.opfsPath || a.filename || a.url;
+      if (!path || seen.has(path)) continue;
+      seen.add(path);
+      audios.push({
+        id: m.id || `aud_${audios.length}`,
+        path,
+        fileName: a.filename || a.opfsPath || `audio_${audios.length}.m4a`,
+        originalName: a.filename || a.name,
+        momentId: m.id
+      });
+    }
+  }
+
+  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addAudios);
+  if (data.data?.moments) data.data.moments.forEach(addAudios);
+  if (data.moments) data.moments.forEach(addAudios);
+
+  return audios;
 }
 
 async function saveToLocal(blob, path, filename) {
