@@ -160,6 +160,15 @@ export async function getVideoBlob(path) {
     // 去掉 /Documents/ 或 /Data/ 前缀
     cleanPath = cleanPath.replace(/^\/[^\/]+\//, ''); // /Documents/xxx -> xxx
   }
+  
+  // ✅ 路径补全：如果只有文件名（没有目录前缀），加上默认路径
+  if (!cleanPath.includes('/')) {
+    // 判断是视频还是音频
+    const isAudio = cleanPath.endsWith('.m4a') || cleanPath.endsWith('.aac') || cleanPath.endsWith('.mp3');
+    const prefix = isAudio ? 'BabyTime/audios/' : 'BabyTime/videos/';
+    cleanPath = prefix + cleanPath;
+  }
+  
   console.log('[StorageAdapter] 原始路径:', path, '-> 清洗后:', cleanPath);
 
   let blob = null;
