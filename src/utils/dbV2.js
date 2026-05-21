@@ -269,7 +269,10 @@ function createSystemAccount() {
       records: []
     },
     // 虚拟时光
-    virtualTime: []
+    virtualTime: [],
+    // ✅ 单源数据：媒体文件索引表（文件哈希 → 元数据）
+    // 避免重复上传相同文件，节省存储空间
+    mediaIndex: {}
   };
 }
 
@@ -301,7 +304,9 @@ function createEmptyUserAccount() {
       weight: null,
       records: []
     },
-    virtualTime: []
+    virtualTime: [],
+    // ✅ 单源数据：媒体文件索引表
+    mediaIndex: {}
   };
 }
 
@@ -405,6 +410,147 @@ export function getCurrentTimelineForSync() {
   if (!current || !current.accountData) return [];
   
   return current.accountData.timeline || [];
+}
+
+// ============================================================
+// ✅ 单源数据：媒体索引管理（避免重复上传相同文件）
+// ============================================================
+
+/**
+ * 获取当前账号的媒体索引表
+ * @returns {Object} mediaIndex - { fileHash: { path, size, mimeType, refCount, ... } }
+ */
+export function getCurrentMediaIndex() {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData) return {};
+  
+  // 确保 mediaIndex 字段存在（兼容旧数据）
+  if (!current.accountData.mediaIndex) {
+    current.accountData.mediaIndex = {};
+  }
+  
+  return current.accountData.mediaIndex;
+}
+
+/**
+ * 通过文件哈希查找已存在的媒体
+ * @param {string} fileHash - 文件哈希值
+ * @returns {Object|null} 媒体元数据或null
+ */
+export function findMediaByHash(fileHash) {
+  const mediaIndex = getCurrentMediaIndex();
+  return mediaIndex[fileHash] || null;
+}
+
+/**
+ * 注册新媒体到索引表
+ * @param {string} fileHash - 文件哈希值
+ * @param {Object} mediaInfo - 媒体元数据 { path, size, mimeType, fileName }
+ * @returns {Object} 注册后的媒体信息
+ */
+export function registerMedia(fileHash, mediaInfo) {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData) return null;
+  
+  const { identityName, accountId, accountData } = current;
+  
+  // 确保 mediaIndex 存在
+  if (!accountData.mediaIndex) {
+    accountData.mediaIndex = {};
+  }
+  
+  // 注册新媒体（如果已存在则增加引用计数）
+  const existing = accountData.mediaIndex[fileHash];
+  if (existing) {
+    existing.refCount = (existing.refCount || 0) + 1;
+    existing.lastAccessAt = new Date().toISOString();
+    console.log('[MediaIndex] 复用已有媒体，引用计数:', existing.refCount, '哈希:', fileHash);
+  } else {
+    accountData.mediaIndex[fileHash] = {
+      ...mediaInfo,
+      fileHash,
+      refCount: 1,
+      firstUploadAt: new Date().toISOString(),
+      lastAccessAt: new Date().toISOString()
+    };
+    console.log('[MediaIndex] 注册新媒体，哈希:', fileHash, '路径:', mediaInfo.path);
+  }
+  
+  // 保存到本地存储
+  updateV2AccountData(identityName, accountId, {
+    mediaIndex: accountData.mediaIndex
+  });
+  
+  return accountData.mediaIndex[fileHash];
+}
+
+/**
+ * 增加媒体引用计数
+ * @param {string} fileHash - 文件哈希值
+ * @returns {boolean} 是否成功
+ */
+export function incrementMediaRef(fileHash) {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData?.mediaIndex?.[fileHash]) {
+    return false;
+  }
+  
+  const { identityName, accountId, accountData } = current;
+  accountData.mediaIndex[fileHash].refCount += 1;
+  accountData.mediaIndex[fileHash].lastAccessAt = new Date().toISOString();
+  
+  updateV2AccountData(identityName, accountId, {
+    mediaIndex: accountData.mediaIndex
+  });
+  
+  return true;
+}
+
+/**
+ * 减少媒体引用计数（当引用计数为0时可考虑删除文件）
+ * @param {string} fileHash - 文件哈希值
+ * @returns {boolean} 是否成功
+ */
+export function decrementMediaRef(fileHash) {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData?.mediaIndex?.[fileHash]) {
+    return false;
+  }
+  
+  const { identityName, accountId, accountData } = current;
+  const media = accountData.mediaIndex[fileHash];
+  
+  media.refCount = Math.max(0, (media.refCount || 1) - 1);
+  media.lastAccessAt = new Date().toISOString();
+  
+  updateV2AccountData(identityName, accountId, {
+    mediaIndex: accountData.mediaIndex
+  });
+  
+  console.log('[MediaIndex] 减少引用，当前计数:', media.refCount, '哈希:', fileHash);
+  return true;
+}
+
+/**
+ * 从索引表中移除媒体（通常在引用计数为0时调用）
+ * @param {string} fileHash - 文件哈希值
+ * @returns {boolean} 是否成功
+ */
+export function unregisterMedia(fileHash) {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData?.mediaIndex?.[fileHash]) {
+    return false;
+  }
+  
+  const { identityName, accountId, accountData } = current;
+  delete accountData.mediaIndex[fileHash];
+  
+  updateV2AccountData(identityName, accountId, {
+    mediaIndex: accountData.mediaIndex
+  });
+  
+  console.log('[MediaIndex] 移除媒体，哈希:', fileHash);
+  return true;
 }
 
 /**
