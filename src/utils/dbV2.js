@@ -918,7 +918,7 @@ export function exportV2AccountData() {
   
   return {
     exportTime: new Date().toISOString(),
-    version: '2.0.0',
+    version: '2.1.0',
     accountType: current.accountId,
     accountData: {
       id: current.accountData?.id,
@@ -933,6 +933,8 @@ export function exportV2AccountData() {
     growth: current.accountData?.growth || { height: null, weight: null, records: [] },
     virtualTime: current.accountData?.virtualTime || [],
     virtualTimeContents: current.accountData?.virtualTimeContents || {},
+    // ✅ 单源数据：导出媒体索引表（哈希 -> 路径映射）
+    mediaIndex: current.accountData?.mediaIndex || {},
   };
 }
 
@@ -969,6 +971,8 @@ export function importV2AccountData(data, mode = 'merge') {
       growth: data.growth || { height: null, weight: null, records: [] },
       virtualTime: data.virtualTime || [],
       virtualTimeContents: data.virtualTimeContents || {},
+      // ✅ 单源数据：导入时恢复媒体索引表
+      mediaIndex: data.mediaIndex || {},
     });
   } else {
     // 合并模式：只合并 timeline
@@ -1002,6 +1006,11 @@ export function importV2AccountData(data, mode = 'merge') {
       }
     }
     
+    // ✅ 单源数据：合并媒体索引表，本地已有哈希优先级更高
+    const currentMediaIndex = current.accountData?.mediaIndex || {};
+    const importMediaIndex = data.mediaIndex || {};
+    const mergedMediaIndex = { ...importMediaIndex, ...currentMediaIndex };
+    
     updateV2AccountData(identityName, accountId, {
       timeline: mergedTimeline,
       // 虚拟时光也合并
@@ -1012,6 +1021,7 @@ export function importV2AccountData(data, mode = 'merge') {
         ),
       ],
       virtualTimeContents: mergedVTContents,
+      mediaIndex: mergedMediaIndex,
     });
   }
   
