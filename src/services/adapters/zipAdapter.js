@@ -1,7 +1,7 @@
 /**
- * 🧠 ZIP Adapter - window.JSZip 隔离层
+ * 🧠 ZIP Adapter - JSZip 隔离层
  * 
- * 核心原则：彻底隔离 window.JSZip，上层永远不需要直接调用 window.JSZip
+ * 核心原则：彻底隔离 window.JSZip，上层永远不需要直接调用 JSZip
  * 只暴露两个方法：addFile（只接受 Blob）、generate（流式生成）
  * 
  * 🔥 架构级强制约束：函数签名只接受 Blob，想传 base64？IDE 直接报错！
@@ -9,11 +9,12 @@
 
 /**
  * 创建 ZIP 实例
- * 只暴露安全的方法，禁止上层直接操作 window.JSZip 内部对象
+ * 只暴露安全的方法，禁止上层直接操作 JSZip 内部对象
+ * @returns {Object} { addFile, generate }
  */
 export function createZip() {
   if (typeof window.JSZip === 'undefined') {
-    throw new Error('[zipAdapter] window.JSZip 未加载，请检查依赖');
+    throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
   }
 
   const zip = new window.JSZip();
@@ -22,6 +23,8 @@ export function createZip() {
     /**
      * 添加文件到 ZIP
      * ⚠️ 只接受 Blob！禁止传 base64！
+     * @param {string} filePath - ZIP 内的文件路径
+     * @param {Blob} blob - 文件 Blob
      */
     addFile(filePath, blob) {
       if (!(blob instanceof Blob)) {
@@ -38,7 +41,7 @@ export function createZip() {
     /**
      * 流式生成 ZIP
      * @param {Function} onProgress - 进度回调 (0-100)
-     * @returns {Blob} ZIP Blob
+     * @returns {Promise<Blob>} ZIP Blob
      */
     async generate(onProgress = null) {
       console.log('[zipAdapter] 开始流式生成 ZIP...');
@@ -51,7 +54,7 @@ export function createZip() {
           compressionOptions: { level: 3 } // 平衡速度/压缩率
         },
         (metadata) => {
-          // window.JSZip 内部进度回调（0-100）
+          // JSZip 内部进度回调（0-100）
           if (onProgress) {
             onProgress(metadata.percent);
           }
@@ -76,11 +79,11 @@ export default {
 /**
  * 解压 ZIP 文件
  * @param {Blob} fileBlob - ZIP 文件 Blob
- * @returns {Object} ZIP 读取器
+ * @returns {Object} { getJSON, getBlob, listFiles, getRawZip }
  */
 export async function unzip(fileBlob) {
   if (typeof window.JSZip === 'undefined') {
-    throw new Error('[zipAdapter] window.JSZip 未加载，请检查依赖');
+    throw new Error('[zipAdapter] JSZip 未加载，请检查依赖');
   }
 
   if (!(fileBlob instanceof Blob)) {
@@ -93,6 +96,8 @@ export async function unzip(fileBlob) {
   return {
     /**
      * 读取 JSON 文件
+     * @param {string} path - 文件路径
+     * @returns {Promise<Object>} 解析后的 JSON
      */
     async getJSON(path) {
       const file = zip.file(path);
@@ -109,6 +114,8 @@ export async function unzip(fileBlob) {
 
     /**
      * 读取 Blob 文件
+     * @param {string} path - 文件路径
+     * @returns {Promise<Blob|null>} 文件 Blob
      */
     async getBlob(path) {
       const file = zip.file(path);
@@ -121,6 +128,7 @@ export async function unzip(fileBlob) {
 
     /**
      * 列出 ZIP 中所有文件
+     * @returns {Array<string>} 文件路径列表
      */
     listFiles() {
       return Object.keys(zip.files);
@@ -128,6 +136,7 @@ export async function unzip(fileBlob) {
 
     /**
      * 获取 ZIP 原始对象（高级用）
+     * @returns {Object} JSZip 实例
      */
     getRawZip() {
       return zip;

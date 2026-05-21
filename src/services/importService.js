@@ -1,199 +1,182 @@
 /**
  * 🧠 Import Service - 🔥唯一导入入口
  * 
- * 职责：流程编排、数据预检、进度管理、冲突处理、报告生成
- * 与 exportService 完全对称，形成 100% 闭环
+ * 职责：ZIP解压、数据预检、媒体恢复、冲突处理、进度管理
+ * 不直接操作存储、不直接操作 ZIP（全部委托下层）
  * 
- * 六步标准流程：
- * 1️⃣ ZIP 解压 → 2️⃣ 数据预检 → 3️⃣ DB 恢复 → 4️⃣ 视频恢复 → 5️⃣ 冲突处理 → 6️⃣ 生成报告
+ * 五步标准流程：
+ * 1️⃣ 解压 ZIP → 2️⃣ 读取并校验 JSON → 3️⃣ 恢复视频 → 4️⃣ 重建路径映射 → 5️⃣ 恢复数据库
  */
 
 import { unzip } from './adapters/zipAdapter.js';
 import { saveVideoBlob } from './adapters/storageAdapter.js';
-import { restoreAllData } from './restoreService.js';
-import { normalizeFileName } from './mediaService.js';
+import { restoreMoments } from './restoreService.js';
+import { importV2AccountData } from '../utils/dbV2.js';
 
 /**
- * 🔥 从 ZIP 文件导入所有数据
+ * 🔥 唯一导入入口
  * @param {Object} options
- * @param {Blob|File} options.zipFile - ZIP 文件 Blob
- * @param {boolean} options.rollbackOnError - 失败是否回滚（默认 true）
- * @param {string} options.mode - 恢复模式：'merge' | 'overwrite'
- * @param {Function} options.onProgress - 进度回调
- * @param {AbortSignal} options.signal - 取消信号
+ * @param {Blob} options.zipFile - ZIP 文件 Blob
+ * @param {string} [options.mode='merge'] - 导入模式：merge / overwrite
+ * @param {Function} [options.onProgress=null] - 进度回调 ({ step, progress, message, result })
+ * @param {AbortSignal} [options.signal=null] - 取消信号
+ * @returns {Promise<Object>} { success, totalMoments, restoredMoments, totalVideos, restoredVideos, failedVideos, duration, mode }
  */
-export async function importFromZip(options = {}) {
+export async function importAllData(options = {}) {
   const {
     zipFile,
-    rollbackOnError = true,
     mode = 'merge',
     onProgress = null,
     signal = null
   } = options;
 
   const startTime = Date.now();
-  let backupBeforeImport = null;
-
-  console.log('[importService] 开始导入流程...');
+  console.log('[importService] 开始导入流程，模式:', mode);
 
   try {
-    // ========== 1️⃣ ZIP 解压 ==========
-    if (onProgress) onProgress({ step: 'unzip', percent: 5, message: '正在解压文件...' });
+    // ========== 1️⃣ 解压 ZIP ==========
+    if (onProgress) onProgress({ 
+      step: 'unzip', 
+      progress: 10, 
+      message: '正在解压备份文件...' 
+    });
     checkAbort(signal);
-
-    if (!(zipFile instanceof Blob)) {
-      throw new Error('请上传有效的 ZIP 文件');
-    }
 
     const zip = await unzip(zipFile);
 
-    // ========== 2️⃣ 数据预检 ==========
-    if (onProgress) onProgress({ step: 'validate', percent: 15, message: '正在校验数据格式...' });
+    // ========== 2️⃣ 读取并校验 JSON ==========
+    if (onProgress) onProgress({ 
+      step: 'validate', 
+      progress: 20, 
+      message: '正在校验数据格式...' 
+    });
     checkAbort(signal);
 
     const data = await zip.getJSON('data.json');
-    const validation = validateBackupData(data);
+    const { moments, fileMap, v2AccountData } = data;
 
-    if (!validation.valid) {
-      throw new Error(`数据校验失败: ${validation.errors.join(', ')}`);
+    // 数据校验
+    if (!moments && !v2AccountData) {
+      throw new Error('备份文件中没有有效数据');
     }
 
-    console.log('[importService] 数据校验通过:', validation);
+    // 校验 schema 版本
+    if (data.schemaVersion !== 1) {
+      console.warn(`[importService] 不支持的 schema 版本: ${data.schemaVersion}，尝试兼容导入`);
+    }
 
-    // ========== 3️⃣ 恢复数据库 ==========
-    if (onProgress) onProgress({ step: 'restore_db', percent: 25, message: '正在恢复数据...' });
-    checkAbort(signal);
-
-    const dbResults = await restoreAllData(data, {
-      mode,
-      signal,
-      onProgress: (p) => {
-        const percent = 25 + Math.floor((p.current / p.total) * 15); // 25-40%
-        if (onProgress) {
-          onProgress({
-            step: 'restore_db',
-            percent,
-            message: `恢复数据: ${p.current}/${p.total}`
-          });
-        }
-      }
-    });
-
-    // ========== 4️⃣ 恢复视频文件 ==========
+    // ========== 3️⃣ 恢复视频文件 ==========
     let restoredVideos = 0;
     let failedVideos = [];
-    const fileMap = data.fileMap || {};
-    const totalVideos = Object.keys(fileMap).length;
+    const totalVideos = Object.keys(fileMap || {}).length;
 
     if (totalVideos > 0) {
-      if (onProgress) onProgress({ step: 'restore_videos', percent: 40, message: '正在恢复视频...' });
+      if (onProgress) onProgress({ 
+        step: 'restore_media', 
+        progress: 30, 
+        message: `正在恢复视频文件 0/${totalVideos}` 
+      });
 
       let processed = 0;
-
-      for (const [id, fileInfo] of Object.entries(fileMap)) {
-        checkAbort(signal);
+      for (const [id, fileInfo] of Object.entries(fileMap || {})) {
+        if (signal?.aborted) {
+          throw new Error('导入已取消');
+        }
 
         try {
           const zipPath = `videos/${fileInfo.fileName}`;
           const blob = await zip.getBlob(zipPath);
-
-          if (!blob) {
-            throw new Error('ZIP 中缺失视频文件');
+          
+          if (!blob || blob.size === 0) {
+            throw new Error('视频文件为空或缺失');
           }
 
-          // 生成本地路径并写入
-          const localPath = generateLocalPath(fileInfo.fileName);
+          // 生成本地存储路径
+          const localPath = `videos/${Date.now()}_${fileInfo.fileName}`;
           await saveVideoBlob(localPath, blob);
 
           // 更新 moments 中的视频路径
-          updateMomentVideoPath(data, id, localPath);
+          updateMomentVideoPath(moments, id, localPath);
+          // 同时更新 v2AccountData 里的视频路径
+          if (v2AccountData?.timeline) {
+            updateMomentVideoPath(v2AccountData.timeline, id, localPath);
+          }
 
           restoredVideos++;
 
         } catch (err) {
           console.warn(`[importService] 视频恢复失败: ${id}`, err.message);
-          failedVideos.push({
-            id,
-            fileName: fileInfo.fileName,
-            error: err.message
-          });
+          failedVideos.push({ id, error: err.message });
         }
 
-        // 更新进度（视频恢复占 40-90%）
         processed++;
-        const percent = 40 + Math.floor((processed / totalVideos) * 50);
         if (onProgress) {
           onProgress({
-            step: 'restore_videos',
-            percent,
-            message: `恢复视频: ${processed}/${totalVideos}`,
-            stats: {
-              total: totalVideos,
-              current: processed,
-              success: restoredVideos,
-              failed: failedVideos.length
-            }
+            step: 'restore_media',
+            progress: 30 + Math.floor((processed / totalVideos) * 50),
+            message: `正在恢复视频文件 ${processed}/${totalVideos}`
           });
         }
 
-        // 每处理 3 个视频让出主线程
-        if (processed % 3 === 0 && processed < totalVideos) {
+        // 每处理 5 个让出主线程（防止 ANR）
+        if (processed % 5 === 0 && processed < totalVideos) {
           await new Promise(resolve => setTimeout(resolve, 30));
         }
       }
     }
 
-    // ========== 5️⃣ 完成：生成报告 ==========
+    // ========== 4️⃣ 恢复数据库 ==========
+    if (onProgress) onProgress({ 
+      step: 'restore_db', 
+      progress: 85, 
+      message: '正在恢复数据...' 
+    });
+    checkAbort(signal);
+
+    let restoredMoments = 0;
+
+    // 优先恢复 v2 账号数据（无数量限制）
+    if (v2AccountData) {
+      await importV2AccountData(v2AccountData, mode);
+      restoredMoments = v2AccountData.timeline?.length || 0;
+    }
+
+    // 恢复 IndexedDB 数据（无数量限制）
+    if (moments && moments.length > 0 && !v2AccountData) {
+      const result = await restoreMoments(moments, { mode });
+      restoredMoments = result.restored || 0;
+      // 冲突信息可以通过 result.conflicts 获取，后续可用于UI展示
+    }
+
+    // ========== 5️⃣ 完成 ==========
     const duration = Date.now() - startTime;
-    const report = {
-      time: new Date().toISOString(),
+    const result = {
+      success: true,
+      totalMoments: restoredMoments,
+      restoredMoments,
+      totalVideos,
+      restoredVideos,
+      failedVideos,
       duration,
-      mode,
-      exportVersion: data.exportVersion,
-      schemaVersion: data.schemaVersion,
-      moments: {
-        total: dbResults.moments.total,
-        restored: dbResults.moments.restored,
-        skipped: dbResults.moments.skipped
-      },
-      videos: {
-        total: totalVideos,
-        restored: restoredVideos,
-        failed: failedVideos.length,
-        failedList: failedVideos
-      }
+      mode
     };
 
     if (onProgress) onProgress({
       step: 'complete',
-      percent: 100,
+      progress: 100,
       message: '导入完成！',
-      report
+      result
     });
 
-    console.log('[importService] 导入报告:', report);
-
-    return {
-      success: true,
-      report,
-      hasWarnings: failedVideos.length > 0,
-      warningCount: failedVideos.length
-    };
+    console.log('[importService] 导入完成:', result);
+    return result;
 
   } catch (error) {
-    if (error.message === '导出已取消' || error.message === '恢复已取消') {
+    if (error.message === '导入已取消') {
       console.log('[importService] 用户取消了导入');
-      throw error;
+    } else {
+      console.error('[importService] 导入失败:', error);
     }
-
-    console.error('[importService] 导入失败:', error);
-
-    // TODO: 回滚逻辑（rollbackOnError === true 时）
-    if (rollbackOnError && backupBeforeImport) {
-      console.log('[importService] 执行回滚...');
-      // await rollbackFromBackup(backupBeforeImport);
-    }
-
     throw error;
   }
 }
@@ -201,80 +184,8 @@ export async function importFromZip(options = {}) {
 // ==================== 内部辅助函数 ====================
 
 /**
- * 校验备份数据完整性
- */
-function validateBackupData(data) {
-  const errors = [];
-  const warnings = [];
-
-  // 必填字段检查
-  if (!data) {
-    errors.push('数据为空');
-    return { valid: false, errors, warnings };
-  }
-
-  if (!data.exportVersion) {
-    warnings.push('缺少 exportVersion，可能是旧版本备份');
-  }
-
-  if (!data.schemaVersion) {
-    warnings.push('缺少 schemaVersion');
-  }
-
-  // moments 检查
-  const hasMoments = (data.moments && data.moments.length > 0) ||
-                      (data.data?.moments && data.data?.moments.length > 0);
-  if (!hasMoments) {
-    warnings.push('备份中没有 moment 数据');
-  }
-
-  // fileMap 检查
-  if (!data.fileMap) {
-    warnings.push('缺少 fileMap，视频路径可能无法正确恢复');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings
-  };
-}
-
-/**
- * 生成本地存储路径
- */
-function generateLocalPath(fileName) {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 8);
-  const cleanName = normalizeFileName(fileName);
-  return `videos/${timestamp}_${random}_${cleanName}`;
-}
-
-/**
- * 更新 moment 中的视频路径（导入后使用新的本地路径）
- */
-function updateMomentVideoPath(data, videoId, newPath) {
-  const allMoments = [
-    ...(data.moments || []),
-    ...(data.data?.moments || []),
-    ...(data.v2AccountData?.timeline || [])
-  ];
-
-  for (const moment of allMoments) {
-    if (moment.videos && Array.isArray(moment.videos)) {
-      for (const video of moment.videos) {
-        if (video.id === videoId || moment.id === videoId) {
-          video.opfsPath = newPath;
-          video.filename = newPath;
-          delete video.url; // 清理旧 URL
-        }
-      }
-    }
-  }
-}
-
-/**
  * 检查取消信号
+ * @param {AbortSignal} signal - 取消信号
  */
 function checkAbort(signal) {
   if (signal?.aborted) {
@@ -282,7 +193,27 @@ function checkAbort(signal) {
   }
 }
 
+/**
+ * 更新 moment 中的视频路径
+ * @param {Array} moments - 动态列表
+ * @param {string} videoId - 视频ID
+ * @param {string} newPath - 新路径
+ */
+function updateMomentVideoPath(moments, videoId, newPath) {
+  if (!Array.isArray(moments)) return;
+
+  for (const moment of moments) {
+    if (!Array.isArray(moment.videos)) continue;
+
+    for (const video of moment.videos) {
+      if (video.id === videoId || video.filename === videoId || video.path === videoId) {
+        video.path = newPath;
+        video.opfsPath = newPath;
+      }
+    }
+  }
+}
+
 export default {
-  importFromZip,
-  validateBackupData
+  importAllData
 };

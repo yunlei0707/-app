@@ -243,7 +243,7 @@ function AppContent() {
       setEditingBaby(null);
       
     } catch (error) {
-      console.error('[GrowthRecord] Save error:', error); showToast('保存失败: ' + error.message, 'error');
+      console.error('[Moment] Save error:', error); showToast('保存失败: ' + error.message, 'error');
     }
   };
 
@@ -351,7 +351,7 @@ function AppContent() {
       
       
     } catch (error) {
-      console.error('[GrowthRecord] Save error:', error); 
+      console.error('[Moment] Save error:', error); 
       showToast('保存失败: ' + (error.message || '未知错误'), 'error');
     } finally {
       setEditingMoment(null);
@@ -380,7 +380,7 @@ function AppContent() {
       refreshCapsules(currentBaby?.id);
       
     } catch (error) {
-      console.error('[GrowthRecord] Save error:', error); showToast('保存失败: ' + error.message, 'error');
+      console.error('[Moment] Save error:', error); showToast('保存失败: ' + error.message, 'error');
     }
   };
 

@@ -1,7 +1,9 @@
 /**
- * 🧠 Storage Adapter - 统一视频读取层
+ * 🧠 Storage Adapter - 统一视频读取/写入层
  * 
- * 核心原则：永远只返回 Blob，上层永远不需要关心数据来源
+ * 核心原则：
+ * - 读取永远只返回 Blob，上层不需要关心数据来源
+ * - 写入支持 OPFS 和 Filesystem 两种模式，自动降级
  * 支持：OPFS / Capacitor Filesystem / 其他存储后端
  */
 
@@ -13,6 +15,8 @@ let _filesystemLoaded = false;
 /**
  * 统一获取视频 Blob（永远只返回 Blob）
  * 自动尝试多种存储方式，上层不需要关心来源
+ * @param {string} path - 视频路径
+ * @returns {Promise<Blob>} 视频 Blob
  */
 export async function getVideoBlob(path) {
   if (!path) {
@@ -52,6 +56,8 @@ export async function getVideoBlob(path) {
 
 /**
  * 从 Capacitor Filesystem 读取（返回 base64）
+ * @param {string} path - 文件路径
+ * @returns {Promise<string>} base64 数据
  */
 async function readFromFilesystem(path) {
   const fs = await loadFilesystem();
@@ -69,6 +75,9 @@ async function readFromFilesystem(path) {
 
 /**
  * Base64 转 Blob（内部工具函数，不对外暴露）
+ * @param {string} base64 - base64 数据
+ * @param {string} mimeType - MIME 类型
+ * @returns {Blob} Blob 对象
  */
 function base64ToBlob(base64, mimeType = 'video/mp4') {
   try {
@@ -92,6 +101,7 @@ function base64ToBlob(base64, mimeType = 'video/mp4') {
 
 /**
  * 懒加载 Capacitor Filesystem
+ * @returns {Promise<Object|null>} Filesystem 实例
  */
 async function loadFilesystem() {
   if (_filesystemLoaded) return _filesystemCache;
@@ -125,7 +135,7 @@ export default {
  * 统一保存视频 Blob（OPFS 优先，失败则 fallback 到 Filesystem）
  * @param {string} path - 存储路径
  * @param {Blob} blob - 视频 Blob
- * @returns {string} 最终写入的路径
+ * @returns {Promise<string>} 最终写入的路径
  */
 export async function saveVideoBlob(path, blob) {
   if (!(blob instanceof Blob)) {
@@ -159,6 +169,8 @@ export async function saveVideoBlob(path, blob) {
 
 /**
  * 写入 OPFS
+ * @param {string} path - 文件路径
+ * @param {Blob} blob - 数据 Blob
  */
 async function writeToOPFS(path, blob) {
   // OPFS 根目录
@@ -182,6 +194,9 @@ async function writeToOPFS(path, blob) {
 
 /**
  * 写入 Capacitor Filesystem
+ * @param {string} path - 文件路径
+ * @param {string} base64 - base64 数据
+ * @returns {Promise<string>} 最终路径
  */
 async function writeToFilesystem(path, base64) {
   const fs = await loadFilesystem();
@@ -202,6 +217,8 @@ async function writeToFilesystem(path, base64) {
 
 /**
  * Blob 转 Base64（仅用于 Filesystem 写入，内部用）
+ * @param {Blob} blob - Blob 对象
+ * @returns {Promise<string>} base64 数据
  */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {

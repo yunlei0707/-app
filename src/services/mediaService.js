@@ -9,11 +9,11 @@ import { getVideoBlob } from './adapters/storageAdapter.js';
 
 /**
  * 批量处理视频
- * @param {Array} videos - 视频列表 [{ id, path, fileName, ... }]
+ * @param {Array<VideoInfo>} videos - 视频列表
  * @param {Object} options
- * @param {Function} options.onProgress - 进度回调 ({ current, total })
- * @param {AbortSignal} options.signal - 取消信号
- * @returns {Object} { results: [{ id, fileName, blob }], failed: [{ id, error }] }
+ * @param {Function} [options.onProgress=null] - 进度回调 ({ current, total })
+ * @param {AbortSignal} [options.signal=null] - 取消信号
+ * @returns {Promise<Object>} { results: Array, failed: Array }
  */
 export async function processVideos(videos, options = {}) {
   const { onProgress = null, signal = null } = options;
@@ -22,13 +22,13 @@ export async function processVideos(videos, options = {}) {
     throw new Error('[mediaService] videos 必须是数组');
   }
 
-  console.log(`[mediaService] 开始处理 ${videos.length} 个视频...`);
+  console.log(`[mediaService] 开始处理 ${videos.length} 个视频，无数量限制...`);
 
   const results = [];
   const failed = [];
   let processed = 0;
 
-  // ✅ 串行处理，保护 IO，避免同时打开太多文件句柄
+  // ✅ 串行处理，保护 IO，避免同时打开太多文件句柄导致 ANR
   for (const video of videos) {
     // 检查取消信号
     if (signal?.aborted) {
@@ -70,7 +70,7 @@ export async function processVideos(videos, options = {}) {
       onProgress({ current: processed, total: videos.length });
     }
 
-    // 每处理 5 个让出一次主线程（防止 UI 卡死）
+    // 每处理 5 个让出一次主线程（防止 UI 卡死 / ANR）
     if (processed % 5 === 0 && processed < videos.length) {
       await new Promise(resolve => setTimeout(resolve, 30));
     }
@@ -84,6 +84,9 @@ export async function processVideos(videos, options = {}) {
  * 文件名规范化（防止 Android/iOS ZIP 解压乱码）
  * - 中文、空格、特殊字符全部转下划线
  * - 统一小写
+ * - 保留扩展名
+ * @param {string} name - 原始文件名
+ * @returns {string} 规范化后的文件名
  */
 export function normalizeFileName(name) {
   if (!name) return `video_${Date.now()}.mp4`;
@@ -95,7 +98,7 @@ export function normalizeFileName(name) {
   
   // 规范化：只保留字母、数字、下划线、点、横杠
   const normalized = baseName
-    .replace(/[^\w.-]/g, '_')
+    .replace(/[^a-zA-Z0-9_.-]/g, '_')
     .toLowerCase();
   
   // 避免空文件名
