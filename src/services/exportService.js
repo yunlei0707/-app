@@ -154,4 +154,25 @@ function blobToBase64(blob) {
   });
 }
 
-export default { exportAllData };
+// 兼容旧代码
+export function exportAllDataWithVideos(opts) {
+  return exportAllData({ ...opts, includeVideos: true });
+}
+
+// 兼容 zipExport.js 的导出
+export function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function isNativePlatform() {
+  return !!window.Capacitor;
+}
+
+export default { exportAllData, exportAllDataWithVideos, triggerDownload, isNativePlatform };
