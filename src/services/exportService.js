@@ -22,14 +22,29 @@ export async function exportAllData(options = {}) {
   if (includeVideos && videos.length > 0) {
     console.log('[Export] 开始处理视频，共', videos.length, '个');
     for (const v of videos) {
-      try {
-        console.log('[Export] 读取视频:', v.path);
-        const blob = await getVideoBlob(v.path);
-        console.log('[Export] 读取成功，大小:', blob.size);
+      let blob = null;
+      // 最多重试 3 次，每次间隔 200ms（处理视频写入异步问题）
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          console.log('[Export] 读取视频:', v.path, '，第', retry + 1, '次尝试');
+          blob = await getVideoBlob(v.path);
+          if (blob && blob.size > 0) {
+            console.log('[Export] 读取成功，大小:', blob.size);
+            break;
+          }
+        } catch (e) {
+          console.warn('[Export] 读取失败，重试中:', e.message);
+          if (retry < 2) {
+            await new Promise(r => setTimeout(r, 200));
+            continue;
+          }
+          console.error('[Export] 读取视频最终失败:', v.path, e.message);
+          failedVideos.push({ ...v, error: e.message });
+        }
+      }
+      
+      if (blob && blob.size > 0) {
         videoResults.push({ ...v, blob });
-      } catch (e) {
-        console.error('[Export] 读取视频失败:', v.path, e.message);
-        failedVideos.push({ ...v, error: e.message });
       }
     }
     console.log('[Export] 视频处理完成，成功:', videoResults.length, '失败:', failedVideos.length);
@@ -134,15 +149,20 @@ async function saveToLocal(blob, path, filename) {
   const base64 = await blobToBase64(blob);
   const fullPath = `BabyTimeBackup/${filename}`;
   
-  const result = await fsModule.Filesystem.writeFile({
+  console.log('[Export] 保存文件到:', fullPath);
+  
+  await fsModule.Filesystem.writeFile({
     path: fullPath,
     data: base64,
     directory: fsModule.Directory.Documents,
     recursive: true
   });
   
-  // 返回 ProfilePage 期望的 fs:// 格式路径
-  return result.uri || `fs://file/BabyTimeBackup/${filename}`;
+  // 强制返回 ProfilePage 期望的标准 fs:// 格式路径
+  const finalUri = `fs://file/BabyTimeBackup/${filename}`;
+  console.log('[Export] 文件已保存，返回路径:', finalUri);
+  
+  return finalUri;
 }
 
 async function loadFilesystem() {
