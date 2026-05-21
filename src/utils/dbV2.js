@@ -393,6 +393,17 @@ export function getCurrentTimeline() {
   const current = getCurrentV2Account();
   if (!current || !current.accountData) return [];
   
+  return (current.accountData.timeline || []).filter(m => !m.isDeleted);
+}
+
+/**
+ * 获取当前账号的所有动态（包括已删除的，用于同步）
+ * @returns {Array}
+ */
+export function getCurrentTimelineForSync() {
+  const current = getCurrentV2Account();
+  if (!current || !current.accountData) return [];
+  
   return current.accountData.timeline || [];
 }
 
@@ -461,10 +472,19 @@ export function deleteMomentFromCurrentAccount(momentId) {
   const { identityName, accountId, accountData } = current;
   
   const timeline = accountData.timeline || [];
-  const filteredTimeline = timeline.filter(m => m.id !== momentId);
+  const updatedTimeline = timeline.map(m => {
+    if (m.id === momentId) {
+      return {
+        ...m,
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      };
+    }
+    return m;
+  });
   
   updateV2AccountData(identityName, accountId, {
-    timeline: filteredTimeline
+    timeline: updatedTimeline
   });
   
   return true;

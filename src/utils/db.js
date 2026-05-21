@@ -367,6 +367,25 @@ export async function getAllMomentsByBaby(babyId) {
 }
 
 /**
+ * 获取某个宝宝的所有动态（包括已删除的，用于同步）
+ */
+export async function getAllMomentsByBabyForSync(babyId) {
+  const db = await initDB();
+  const moments = await db.getAllFromIndex('moments', 'babyId', babyId);
+  return moments
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+/**
+ * 获取所有宝宝的所有动态（包括已删除的，用于同步）
+ */
+export async function getAllMomentsForSync() {
+  const db = await initDB();
+  const moments = await db.getAll('moments');
+  return moments;
+}
+
+/**
  * 获取某个宝宝某个日期的动态（往年今日）
  */
 export async function getMomentsOnSameDayLastYear(babyId, targetDate) {

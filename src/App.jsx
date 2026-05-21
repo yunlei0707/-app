@@ -35,6 +35,7 @@ import { cleanupOrphanFiles } from './utils/opfs';
 import { STORAGE_CONFIG } from './config/storage';
 // P4阶段：同步工具
 import { executeSync, setupVisibilitySync, formatLastSyncTime, isSyncing } from './utils/sync';
+import { startPeriodicCleanup, stopPeriodicCleanup } from './utils/mediaCleanup';
 // P4阶段：媒体上传状态管理
 import { initMediaUpload, cleanupMediaUpload } from './utils/mediaUpload';
 
@@ -164,9 +165,11 @@ function AppContent() {
     if (!currentUser) return;
     
     initMediaUpload();
+    startPeriodicCleanup(); // 启动媒体文件定期清理
     
     return () => {
       cleanupMediaUpload();
+      stopPeriodicCleanup(); // 停止媒体文件定期清理
     };
   }, [currentUser]);
 
