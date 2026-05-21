@@ -185,7 +185,9 @@ export async function exportAllData(options = {}) {
       fileName: zipFileName, // ✅ Spec 要求：fileName 大写N
       filename: zipFileName, // 兼容旧代码：filename 小写n
       fileSize: zipBlob.size,
-      report
+      report,
+      isNative: true, // ✅ 修复：标记原生平台，供 ProfilePage 判断
+      blob: zipBlob // ✅ 兼容 Web 端，直接返回 Blob
     };
 
   } catch (error) {
