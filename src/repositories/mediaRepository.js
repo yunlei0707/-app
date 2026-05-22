@@ -201,5 +201,7 @@ export {
   normalizeMomentMedia,     // 从动态提取并分类所有媒体
   normalizeMoment,          // ✅ 全项目唯一的动态读取入口！
   validateMediaItem,        // 数据校验
+  assertMediaSchema,        // 🔥 P0.5：Schema 防线 - 单个媒体写入前强制校验
+  assertMediaArraySchema,   // 🔥 P0.5：Schema 防线 - 媒体数组写入前强制校验
   inferMediaTypeFromPath,   // 从路径推断类型
 } from '../utils/mediaSchema.js';

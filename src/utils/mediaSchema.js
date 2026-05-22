@@ -12,10 +12,29 @@
  * - ❌ 完全无法识别 → 返回 null 并打 warn 日志
  *
  * 架构原则：所有层统一调用，不要自己猜字段名
+ *
+ * 🔥 ID 稳定性保证（P0）：
+ *   优先级：existing.id → hash → path-based-id → 兜底 uuid
+ *   确保同一个媒体每次 normalize 得到相同的 id，避免导出/fileMap 错乱
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { MEDIA_TYPES, REQUIRED_FIELDS } from '../types/media.js';
+
+/**
+ * 🔥 生成稳定的媒体 ID（基于路径的简单 hash）
+ * 不依赖复杂计算，确保速度
+ */
+function generateStableId(path, seed = '') {
+  const str = path + seed;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `media_${Math.abs(hash).toString(36)}`;
+}
 
 /**
  * 将任意格式的媒体数据归一化为标准 MediaItem
@@ -26,7 +45,7 @@ import { MEDIA_TYPES, REQUIRED_FIELDS } from '../types/media.js';
 export function normalizeMediaItem(input, defaultType = 'photo') {
   // case 1: 纯字符串路径（最常见）
   if (typeof input === 'string') {
-    return createMediaItemFromPath(input, defaultType);
+    return createMediaItemFromPath(input, defaultType, {});
   }
 
   // case 2: 已经是标准/接近标准的对象
@@ -44,6 +63,7 @@ export function normalizeMediaItem(input, defaultType = 'photo') {
     const fileName = input.fileName || input.name || input.filename || path.split('/').pop() || 'unknown';
     
     return createMediaItemFromPath(path, type, {
+      id: input.id, // 🔴 P0：保留已有 id，保证稳定性
       fileName,
       mimeType: input.mimeType,
       duration: input.duration,
@@ -61,14 +81,34 @@ export function normalizeMediaItem(input, defaultType = 'photo') {
 
 /**
  * 从路径创建标准 MediaItem（内部工具）
+ * 
+ * 🔥 ID 稳定化策略：
+ *   1. existing.id - 如果输入已有 id，优先使用
+ *   2. hash - 如果有文件 hash，使用
+ *   3. path-based-id - 基于路径生成稳定 id
+ *   4. uuidv4() - 兜底，仅当以上都不可用时
+ * 
+ * 确保：同一个媒体文件每次 normalize 得到相同的 id
  */
 function createMediaItemFromPath(path, type, metadata = {}) {
   const now = Date.now();
   const defaultExt = type === 'photo' ? 'jpg' : type === 'video' ? 'mp4' : 'm4a';
   const fileName = metadata.fileName || path.split('/').pop() || `media_${now}.${defaultExt}`;
   
+  // 🔴 P0：ID 稳定化 - 优先级：existing.id → hash → path-based-id → uuid
+  let id;
+  if (metadata.id) {
+    id = metadata.id; // 最高优先级：保留已有的 id
+  } else if (metadata.hash) {
+    id = `media_${metadata.hash.slice(0, 12)}`; // 其次：基于 hash 生成
+  } else if (path && path.length > 0) {
+    id = generateStableId(path, fileName); // 再次：基于路径 + 文件名生成稳定 id
+  } else {
+    id = uuidv4(); // 兜底：仅当完全无法推断时才用随机 uuid
+  }
+  
   return {
-    id: uuidv4(),
+    id,
     type: inferMediaTypeFromPath(path) || type,
     path,
     fileName,
@@ -134,6 +174,48 @@ export function validateMediaItem(item) {
 }
 
 /**
+ * 🔥 Schema 防线 - 写入数据库前的强制校验
+ * 
+ * 🔴 P0.5：防止未来继续熵增
+ * 
+ * 不符合 MediaItem 标准的直接抛出异常，禁止写入数据库。
+ * 这是架构稳定化的最后一道防线，确保：
+ *   - 不会出现第四套、第五套媒体结构
+ *   - 所有新数据都符合统一标准
+ * 
+ * @param {Object} item - 待写入的媒体对象
+ * @throws 如果校验失败，抛出异常阻止写入
+ */
+export function assertMediaSchema(item) {
+  const result = validateMediaItem(item);
+  
+  if (!result.valid) {
+    const errorMsg = `[MediaSchema] 写入被拒绝！不符合标准结构: ${result.errors.join(', ')}`;
+    console.error(errorMsg, item);
+    throw new Error(errorMsg);
+  }
+  
+  return true;
+}
+
+/**
+ * 🔥 批量校验媒体数组 Schema
+ * 
+ * @param {Object[]} mediaArray - 待校验的媒体数组
+ * @throws 如果有任何一项校验失败，抛出异常
+ */
+export function assertMediaArraySchema(mediaArray) {
+  if (!Array.isArray(mediaArray)) {
+    const errorMsg = '[MediaSchema] 写入被拒绝！media 必须是数组';
+    console.error(errorMsg, mediaArray);
+    throw new Error(errorMsg);
+  }
+  
+  mediaArray.forEach(item => assertMediaSchema(item));
+  return true;
+}
+
+/**
  * 批量归一化媒体数组
  */
 export function normalizeMediaArray(items, defaultType = 'photo') {
@@ -156,16 +238,32 @@ export function normalizeMediaArray(items, defaultType = 'photo') {
  * - audioUrl / recording 旧字段
  * - 纯字符串路径
  * - { url } / { path } / { filename } 对象
+ * - media[] 新统一格式
+ *
+ * 🟡 P1：同时返回扁平数组和分类数组
+ *   - media: MediaItem[] - 所有媒体（推荐使用，导出/导入最方便）
+ *   - photos: MediaItem[] - 仅照片
+ *   - videos: MediaItem[] - 仅视频
+ *   - audios: MediaItem[] - 仅音频
  *
  * @param {Object} moment - 动态对象（任意版本）
- * @returns {Object} { photos: MediaItem[], videos: MediaItem[], audios: MediaItem[] }
+ * @returns {Object} { media: MediaItem[], photos: MediaItem[], videos: MediaItem[], audios: MediaItem[] }
  */
 export function normalizeMomentMedia(moment) {
-  if (!moment) return { photos: [], videos: [], audios: [] };
+  if (!moment) return { media: [], photos: [], videos: [], audios: [] };
 
-  const allMedia = [];
+  // ========== 1. 优先读取新格式 media[]（唯一标准） ==========
+  if (Array.isArray(moment.media) && moment.media.length > 0) {
+    const media = moment.media.map(item => normalizeMediaItem(item)).filter(Boolean);
+    return {
+      media,
+      photos: media.filter(m => m.type === 'photo'),
+      videos: media.filter(m => m.type === 'video'),
+      audios: media.filter(m => m.type === 'audio'),
+    };
+  }
 
-  // ========== 1. 收集所有可能的照片字段 ==========
+  // ========== 2. 否则，从所有旧格式字段中收集 ==========
   const photoSources = [
     ...(Array.isArray(moment.photos) ? moment.photos : []),
     ...(Array.isArray(moment.images) ? moment.images : []),
@@ -175,7 +273,7 @@ export function normalizeMomentMedia(moment) {
     ...(moment.image ? [moment.image] : []),
   ];
 
-  // ========== 2. 收集所有可能的视频字段 ==========
+  // ========== 3. 收集所有可能的视频字段 ==========
   const videoSources = [
     ...(Array.isArray(moment.videos) ? moment.videos : []),
     ...(Array.isArray(moment.videoList) ? moment.videoList : []),
@@ -183,7 +281,7 @@ export function normalizeMomentMedia(moment) {
     ...(moment.video ? [moment.video] : []),
   ];
 
-  // ========== 3. 收集所有可能的音频字段 ==========
+  // ========== 4. 收集所有可能的音频字段 ==========
   const audioSources = [
     ...(Array.isArray(moment.audios) ? moment.audios : []),
     ...(Array.isArray(moment.recordings) ? moment.recordings : []),
@@ -194,12 +292,12 @@ export function normalizeMomentMedia(moment) {
     ...(moment.audioUrl ? [moment.audioUrl] : []),
   ];
 
-  // ========== 4. 归一化并分类 ==========
+  // ========== 5. 归一化并分类 ==========
   const normalizedPhotos = photoSources.map(item => normalizeMediaItem(item, 'photo')).filter(Boolean);
   const normalizedVideos = videoSources.map(item => normalizeMediaItem(item, 'video')).filter(Boolean);
   const normalizedAudios = audioSources.map(item => normalizeMediaItem(item, 'audio')).filter(Boolean);
 
-  // ========== 5. 去重（同一路径只保留一个） ==========
+  // ========== 6. 去重（同一路径只保留一个） ==========
   const seenPaths = new Set();
   
   const photos = normalizedPhotos.filter(m => {
@@ -220,7 +318,11 @@ export function normalizeMomentMedia(moment) {
     return true;
   });
 
-  return { photos, videos, audios };
+  // 🟡 P1：同时返回扁平数组和分类数组
+  // 导出/导入推荐直接使用 media[]，页面渲染可用分类数组
+  const media = [...photos, ...videos, ...audios];
+  
+  return { media, photos, videos, audios };
 }
 
 /**
@@ -236,7 +338,7 @@ export function normalizeMoment(moment) {
   if (!moment) return null;
 
   // 先归一化所有媒体
-  const { photos, videos, audios } = normalizeMomentMedia(moment);
+  const { media, photos, videos, audios } = normalizeMomentMedia(moment);
 
   // 返回统一格式
   return {

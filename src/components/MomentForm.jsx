@@ -13,7 +13,7 @@ import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform } from '../repositories/mediaRepository';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema } from '../repositories/mediaRepository';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -1357,6 +1357,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         ...normalizedVideos.map(v => ({ ...v, type: 'video' })),
         ...normalizedAudios.map(a => ({ ...a, type: 'audio' })),
       ];
+
+      // 🔥 P0.5：Schema 防线 - 写入数据库前强制校验
+      // 不符合 MediaItem 标准的直接抛出异常，阻止写入
+      // 这是架构稳定化的最后一道防线，确保不会出现第四套、第五套媒体结构
+      assertMediaArraySchema(unifiedMedia);
 
       const momentData = {
         babyId: babyId,
