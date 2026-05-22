@@ -3,7 +3,7 @@
  * 视频文件的存储、读取、删除等功能
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from '@config/storage';
 
 /**
  * 检测OPFS是否可用

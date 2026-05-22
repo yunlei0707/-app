@@ -8,9 +8,9 @@ import { X, Sparkles, RefreshCw } from 'lucide-react';
 import { 
   getPredictionsByMonthAge,
   predictionTypes 
-} from '../data/babyPredictions';
-import { getCurrentBabyInfo } from '../utils/dbV2';
-import { useApp } from '../store/AppContext';
+} from '@data/babyPredictions';
+import { getCurrentBabyInfo } from '@utils/dbV2';
+import { useApp } from '@state/store/AppContext';
 
 // 根据月龄和种子随机选择
 function seededRandom(seed, max) {

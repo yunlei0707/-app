@@ -5,14 +5,14 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { X, Camera, Video, FileText, Mic, Star, Share2, Download, Sparkles, Heart, TrendingUp, BookOpen } from 'lucide-react';
-import { useApp } from '../store/AppContext';
-import { getGrowthReportStats } from '../utils/db';
+import { useApp } from '@state/store/AppContext';
+import { getGrowthReportStats } from '@utils/db';
 import { 
   getCurrentV2Account, 
   getCurrentBabyInfo,
   getCurrentTimeline,
   isSystemAccount as checkIsSystemAccount 
-} from '../utils/dbV2';
+} from '@utils/dbV2';
 import html2canvas from 'html2canvas';
 
 export function GrowthReport({ onClose }) {

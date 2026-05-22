@@ -16,7 +16,7 @@
  * 5. 详细进度回调（数据条数 + 视频数量）
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from '@config/storage';
 import { readVideoFromOPFS } from './opfs';
 import { getAudioFile } from "./audioStorage";
 import { exportAllData as exportAllIDBData } from './db';

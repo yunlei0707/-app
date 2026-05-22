@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { saveVideoToOPFS } from '../utils/opfs';
-import { formatBytes } from '../utils/storageCheck';
+import { saveVideoToOPFS } from '@utils/opfs';
+import { formatBytes } from '@utils/storageCheck';
 
 export function MigrationProgress({ moments, onComplete, onClose }) {
   const [progress, setProgress] = useState(0);

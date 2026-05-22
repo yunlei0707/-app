@@ -3,7 +3,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { getPerformanceConfig, getDeviceLevel, setCache, getCache } from '../utils/performance';
+import { getPerformanceConfig, getDeviceLevel, setCache, getCache } from '@utils/performance';
 import {
   getAllBabies,
   getBabiesByUser,
@@ -27,7 +27,7 @@ import {
   deleteBaby,
   addMoment,
   getGrowthRecordsByBaby,
-} from '../utils/db';
+} from '@utils/db';
 
 const AppContext = createContext(null);
 

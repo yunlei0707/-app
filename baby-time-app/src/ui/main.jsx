@@ -3,8 +3,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import './index.css';
-import './utils/backButton.js';
+import '@/index.css';
+import '@utils/backButton.js';
 
 // ===== 版本自动检测机制 =====
 // 每次 Vercel 部署后，version.json 会更新

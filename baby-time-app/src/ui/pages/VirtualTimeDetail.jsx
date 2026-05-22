@@ -7,9 +7,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Clock, Plus, Trash2, X, Share2, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { virtualTimeTopics } from '../data/virtualTimeData';
-import { BabyHeader } from '../components/BabyHeader';
-import { useApp } from '../store/AppContext';
+import { virtualTimeTopics } from '@data/virtualTimeData';
+import { BabyHeader } from '@ui/components/BabyHeader';
+import { useApp } from '@state/store/AppContext';
 import {
   getVirtualTimeContents,
   addVirtualTimeContent,
@@ -18,7 +18,7 @@ import {
   getCurrentBabyInfo,
   isSystemAccount as checkIsSystemAccount,
   getVirtualTimeCategories,
-} from '../utils/dbV2';
+} from '@utils/dbV2';
 
 export function VirtualTimeDetail() {
   const { topicId } = useParams();

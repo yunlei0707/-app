@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getCountdown, formatDateFull } from '../utils/dateUtils';
+import { getCountdown, formatDateFull } from '@utils/dateUtils';
 import { Gift, Lock, Unlock, Calendar, Trash2 } from 'lucide-react';
 
 export function CapsuleCard({ capsule, onUnlock, onDelete }) {

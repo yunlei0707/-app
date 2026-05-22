@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AppProvider, useApp } from './store/AppContext';
+import { AppProvider, useApp } from '@state/store/AppContext';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { TimelinePage } from './pages/TimelinePage';
@@ -24,16 +24,16 @@ import { RecycleBin } from './components/RecycleBin';
 
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
-import { addMoment, updateMoment, addCapsule, updateCapsule, addBaby, updateBaby, addGrowthRecord, updateGrowthRecord, getMomentsByBaby } from './utils/db';
-import { isSystemAccount, getCurrentBabyInfo, addMomentToCurrentAccount, updateMomentInCurrentAccount, updateCurrentBabyInfo, getCurrentGrowth, updateCurrentGrowth } from './utils/dbV2';
-import { isV1Moment, createV2CopyFromV1, isV1GrowthRecord, createV2GrowthCopyFromV1 } from './utils/dataMerger';
-import { initializeApp } from './utils/dbV2';
-import { handleRecordLink } from './utils/linkService';
+import { addMoment, updateMoment, addCapsule, updateCapsule, addBaby, updateBaby, addGrowthRecord, updateGrowthRecord, getMomentsByBaby } from '@utils/db';
+import { isSystemAccount, getCurrentBabyInfo, addMomentToCurrentAccount, updateMomentInCurrentAccount, updateCurrentBabyInfo, getCurrentGrowth, updateCurrentGrowth } from '@utils/dbV2';
+import { isV1Moment, createV2CopyFromV1, isV1GrowthRecord, createV2GrowthCopyFromV1 } from '@utils/dataMerger';
+import { initializeApp } from '@utils/dbV2';
+import { handleRecordLink } from '@utils/linkService';
 import { AIChoiceModal } from './components/AIChoiceModal';
 import { GrowthRecordForm } from './components/GrowthRecordForm';
-import { cleanupOrphanFiles } from './utils/opfs';
-import { STORAGE_CONFIG } from './config/storage';
-import { initCapacitorBridge, isCapacitorApp } from './utils/capacitorBridge';
+import { cleanupOrphanFiles } from '@utils/opfs';
+import { STORAGE_CONFIG } from '@config/storage';
+import { initCapacitorBridge, isCapacitorApp } from '@utils/capacitorBridge';
 
 // 登录保护
 function AuthGuard({ children }) {

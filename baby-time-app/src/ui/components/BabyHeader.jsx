@@ -5,9 +5,9 @@
  */
 
 import { memo, useState, useEffect } from 'react';
-import { useApp } from '../store/AppContext';
-import { calculateAge, getCountdown, getZodiacFromBirthOrDue, getConstellationFromBirthOrDue } from '../utils/dateUtils';
-import { getCurrentBabyInfo, getAvailableAccounts, switchAccount, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account } from '../utils/dbV2';
+import { useApp } from '@state/store/AppContext';
+import { calculateAge, getCountdown, getZodiacFromBirthOrDue, getConstellationFromBirthOrDue } from '@utils/dateUtils';
+import { getCurrentBabyInfo, getAvailableAccounts, switchAccount, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account } from '@utils/dbV2';
 
 export const BabyHeader = memo(function BabyHeader({ onEditBaby, isSystemAccount, showToast }) {
   const { currentBaby, setCurrentBaby } = useApp();

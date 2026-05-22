@@ -2,7 +2,7 @@
  * 存储能力检测与最佳模式选择
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from '@config/storage';
 import { isOPFSSupported } from './opfs';
 
 /**

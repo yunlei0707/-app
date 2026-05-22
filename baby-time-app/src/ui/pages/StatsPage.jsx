@@ -4,16 +4,16 @@
  */
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { useApp } from '../store/AppContext';
-import { BabyHeader } from '../components/BabyHeader';
-import { calculateAge } from '../utils/dateUtils';
-import { getMomentsByBaby, getCapsulesByBaby } from '../utils/db';
+import { useApp } from '@state/store/AppContext';
+import { BabyHeader } from '@ui/components/BabyHeader';
+import { calculateAge } from '@utils/dateUtils';
+import { getMomentsByBaby, getCapsulesByBaby } from '@utils/db';
 import { Gift, TrendingUp, Camera, Star, BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Edit3, BarChart2 } from 'lucide-react'
-import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from '../utils/dbV2';
-import { mergeGrowthRecords, shouldMergeDisplay, isV1GrowthRecord, createV2GrowthCopyFromV1 } from '../utils/dataMerger';
-import { TimeBlindBox } from '../components/TimeBlindBox';
-import { GROWTH_LABELS, GROWTH_UNITS, GROWTH_ICONS } from '../utils/growthMilestones';
-import { moodScoreMap as importedMoodScoreMap } from '../components/MomentForm';
+import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from '@utils/dbV2';
+import { mergeGrowthRecords, shouldMergeDisplay, isV1GrowthRecord, createV2GrowthCopyFromV1 } from '@utils/dataMerger';
+import { TimeBlindBox } from '@ui/components/TimeBlindBox';
+import { GROWTH_LABELS, GROWTH_UNITS, GROWTH_ICONS } from '@utils/growthMilestones';
+import { moodScoreMap as importedMoodScoreMap } from '@ui/components/MomentForm';
 
 // 心情选项配置
 const moodOptions = [
@@ -1201,7 +1201,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                       <button
                         onClick={async () => {
                           try {
-                            const { deleteGrowthRecord } = await import('../utils/db');
+                            const { deleteGrowthRecord } = await import('@utils/db');
                             await deleteGrowthRecord(deleteConfirmId);
                             await refreshGrowthRecords();
                             showToast('已删除');

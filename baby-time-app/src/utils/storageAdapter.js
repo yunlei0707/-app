@@ -4,7 +4,7 @@
  * 网页环境降级到OPFS
  */
 
-import { STORAGE_CONFIG } from '../config/storage';
+import { STORAGE_CONFIG } from '@config/storage';
 
 // 检测是否在Capacitor APP环境
 export function isAppEnvironment() {

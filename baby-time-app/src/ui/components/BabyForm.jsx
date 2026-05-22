@@ -6,7 +6,7 @@
 
 import { useState, useMemo } from 'react';
 import { X, User, Camera } from 'lucide-react';
-import { calculateZodiac, calculateConstellation } from '../utils/dateUtils';
+import { calculateZodiac, calculateConstellation } from '@utils/dateUtils';
 
 // 出生时辰选项
 const BIRTH_TIME_OPTIONS = [

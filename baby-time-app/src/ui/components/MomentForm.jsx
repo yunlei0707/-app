@@ -4,16 +4,16 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play, Pause, Navigation, Search, Upload } from 'lucide-react';
-import { useApp } from '../store/AppContext';
-import { getCurrentBabyInfo, isSystemAccount } from '../utils/dbV2';
-import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
-import { saveVideo, deleteVideo } from '../utils/storageAdapter';
-import { ImportProgressCalculator } from '../utils/progressCalculator';
-import { shouldUseFileStorage } from '../utils/storageCheck';
-import { STORAGE_CONFIG } from '../config/storage';
-import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
-import { getImageSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform } from '../utils/native';
+import { useApp } from '@state/store/AppContext';
+import { getCurrentBabyInfo, isSystemAccount } from '@utils/dbV2';
+import { isInApp, jsBridgeAudioRecorder } from '@utils/jsBridge';
+import { saveVideo, deleteVideo } from '@utils/storageAdapter';
+import { ImportProgressCalculator } from '@utils/progressCalculator';
+import { shouldUseFileStorage } from '@utils/storageCheck';
+import { STORAGE_CONFIG } from '@config/storage';
+import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '@utils/audioStorage';
+import { getImageSrc } from '@utils/image';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform } from '@utils/native';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },

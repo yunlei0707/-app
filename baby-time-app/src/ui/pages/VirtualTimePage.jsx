@@ -6,11 +6,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Share2, Mail } from 'lucide-react';
-import { virtualTimeTopics } from '../data/virtualTimeData';
-import { useApp } from '../store/AppContext';
-import { ShareCard } from '../components/ShareCard';
-import { BabyHeader } from '../components/BabyHeader';
-import { BabyLetter } from '../components/BabyLetter';
+import { virtualTimeTopics } from '@data/virtualTimeData';
+import { useApp } from '@state/store/AppContext';
+import { ShareCard } from '@ui/components/ShareCard';
+import { BabyHeader } from '@ui/components/BabyHeader';
+import { BabyLetter } from '@ui/components/BabyLetter';
 import { 
   getCurrentV2Account, 
   getCurrentBabyInfo, 
@@ -20,7 +20,7 @@ import {
   deleteVirtualTimeFromCurrentAccount,
   updateCurrentBabyInfo,
   getVirtualTimeCategories
-} from '../utils/dbV2';
+} from '@utils/dbV2';
 
 export function VirtualTimePage() {
   const navigate = useNavigate();

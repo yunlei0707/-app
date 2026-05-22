@@ -1,8 +1,8 @@
-import { createZip } from '../utils/zipAdapter.js';
-import { exportAllData as exportDBData } from '../utils/db.js';
-import { exportV2AccountData, getCurrentMediaIndex } from '../utils/dbV2.js';
-import { BASE_DIR } from '../config/storage.js';
-import { getVideoBlob, calculateFastHash } from '../utils/storageAdapter.js';
+import { createZip } from '@utils/zipAdapter.js';
+import { exportAllData as exportDBData } from '@utils/db.js';
+import { exportV2AccountData, getCurrentMediaIndex } from '@utils/dbV2.js';
+import { BASE_DIR } from '@config/storage.js';
+import { getVideoBlob, calculateFastHash } from '@utils/storageAdapter.js';
 
 // ============================================================
 // ✅ 导出校验工具函数

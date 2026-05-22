@@ -8,7 +8,7 @@ import
 import 
 { useNavigate } from 'react-router-dom';
 import 
-{ useApp } from '../store/AppContext';
+{ useApp } from '@state/store/AppContext';
 import 
 { 
   Moon, Sun, Download, Upload, Trash2, ChevronRight, Heart, LogOut, User, 
@@ -16,19 +16,19 @@ import
   HelpCircle, Shield, FileText, Info, RotateCcw
 } from 'lucide-react';
 import 
-{ exportAllData as exportAllIDBData, importAllData, importAllDataV2, importFromZipStream, importMultipleFiles, clearAllData, PRESET_AVATARS, getAllBabies, getMomentsByBaby, getCapsulesByBaby, addMoment, deleteBaby } from '../utils/db';
-import { exportV2AccountData, importV2AccountData, isSystemAccount } from '../utils/dbV2';
-import { exportAllData, triggerDownload } from '../utils/zipExport';
+{ exportAllData as exportAllIDBData, importAllData, importAllDataV2, importFromZipStream, importMultipleFiles, clearAllData, PRESET_AVATARS, getAllBabies, getMomentsByBaby, getCapsulesByBaby, addMoment, deleteBaby } from '@utils/db';
+import { exportV2AccountData, importV2AccountData, isSystemAccount } from '@utils/dbV2';
+import { exportAllData, triggerDownload } from '@utils/zipExport';
 import 
-{ calculateAge } from '../utils/dateUtils';
+{ calculateAge } from '@utils/dateUtils';
 import 
-{ BabyHeader } from '../components/BabyHeader';
+{ BabyHeader } from '@ui/components/BabyHeader';
 import 
-{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount, addMomentToCurrentAccount } from '../utils/dbV2';
-import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
-import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
-import { ImportProgressModal } from '../components/ImportProgressModal';
-import { ImportProgressCalculator } from '../utils/progressCalculator';
+{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount, addMomentToCurrentAccount } from '@utils/dbV2';
+import { isInApp, exportToFile, importFromFile } from '@utils/jsBridge';
+import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '@data/sampleTemplates';
+import { ImportProgressModal } from '@ui/components/ImportProgressModal';
+import { ImportProgressCalculator } from '@utils/progressCalculator';
 
 // 主题预设配置
 const THEME_PRESETS = [
@@ -474,7 +474,7 @@ export function ProfilePage(
         // APP环境：写入系统下载目录
         if (isInApp()) {
           try {
-            const { jsBridgeFS } = await import("../utils/jsBridge");
+            const { jsBridgeFS } = await import("@utils/jsBridge");
             finalFilePath = `fs://file/BabyTimeBackup/${finalFilename}`;
             
             // Blob转Base64写入

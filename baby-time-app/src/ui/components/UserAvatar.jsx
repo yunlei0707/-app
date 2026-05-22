@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../store/AppContext';
+import { useApp } from '@state/store/AppContext';
 import { LogOut, Settings, User } from 'lucide-react';
 
 export function UserAvatar({ compact = false }) {

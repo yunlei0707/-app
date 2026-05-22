@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef } from 'react';
-import { isSystemAccount } from "../utils/dbV2";
+import { isSystemAccount } from "@utils/dbV2";
 import { X, Image, Trash2 } from 'lucide-react';
 
 export function GrowthRecordForm({ record, onSave, onCancel, babyId }) {

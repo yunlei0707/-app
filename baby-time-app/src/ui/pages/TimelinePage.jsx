@@ -6,14 +6,14 @@
  */
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { useApp } from '../store/AppContext';
-import { BabyHeader } from '../components/BabyHeader';
-import { MomentCard } from '../components/MomentCard';
-import { PhotoViewer } from '../components/PhotoViewer';
-import { ShareCard } from '../components/ShareCard';
-import { groupByYearAndMonth } from '../utils/dateUtils';
-import { deleteMoment, getMomentsByBaby, addMoment, initDB } from '../utils/db';
-import { PredictionPage } from '../components/PredictionPage';
+import { useApp } from '@state/store/AppContext';
+import { BabyHeader } from '@ui/components/BabyHeader';
+import { MomentCard } from '@ui/components/MomentCard';
+import { PhotoViewer } from '@ui/components/PhotoViewer';
+import { ShareCard } from '@ui/components/ShareCard';
+import { groupByYearAndMonth } from '@utils/dateUtils';
+import { deleteMoment, getMomentsByBaby, addMoment, initDB } from '@utils/db';
+import { PredictionPage } from '@ui/components/PredictionPage';
 import { Plus, Sparkles, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { 
   getCurrentV2Account, 
@@ -25,8 +25,8 @@ import {
   isV1Account as checkIsV1Account,
   getCurrentBabyInfo,
   deleteLinkedContentByRecordId
-} from '../utils/dbV2';
-import { mergeMoments, shouldMergeDisplay, isV1Moment, getDataOrigin } from '../utils/dataMerger';
+} from '@utils/dbV2';
+import { mergeMoments, shouldMergeDisplay, isV1Moment, getDataOrigin } from '@utils/dataMerger';
 
 // 类型筛选选项 - 移除播客，播客功能独立到专门页面
 const typeFilters = [

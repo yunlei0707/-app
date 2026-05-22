@@ -3,11 +3,11 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useApp } from '../store/AppContext';
-import { CapsuleCard } from '../components/CapsuleCard';
-import { getMonthDays, formatMonth, getYear, getDate } from '../utils/dateUtils';
+import { useApp } from '@state/store/AppContext';
+import { CapsuleCard } from '@ui/components/CapsuleCard';
+import { getMonthDays, formatMonth, getYear, getDate } from '@utils/dateUtils';
 import { X, ChevronLeft, ChevronRight, Plus, Gift, Calendar } from 'lucide-react';
-import { deleteCapsule } from '../utils/db';
+import { deleteCapsule } from '@utils/db';
 
 export function CapsulesPage({ onClose, onAddCapsule, onEditCapsule }) {
   const { capsules, showToast, refreshCapsules } = useApp();

@@ -6,8 +6,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Edit3, Trash2, ChevronRight, X, Check, Folder, FileText, Sparkles } from 'lucide-react';
-import { BabyHeader } from '../components/BabyHeader';
-import { useApp } from '../store/AppContext';
+import { BabyHeader } from '@ui/components/BabyHeader';
+import { useApp } from '@state/store/AppContext';
 import {
   getVirtualTimeCategories,
   addVirtualTimeCategory,
@@ -18,7 +18,7 @@ import {
   deleteVirtualTimeCategoryItem,
   getCurrentBabyInfo,
   isSystemAccount as checkIsSystemAccount
-} from '../utils/dbV2';
+} from '@utils/dbV2';
 
 export function VirtualTimeCategoriesPage() {
   const navigate = useNavigate();

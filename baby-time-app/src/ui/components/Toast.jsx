@@ -2,7 +2,7 @@
  * Toast 提示组件
  */
 
-import { useApp } from '../store/AppContext';
+import { useApp } from '@state/store/AppContext';
 import { CheckCircle, XCircle, Info } from 'lucide-react';
 
 export function Toast() {

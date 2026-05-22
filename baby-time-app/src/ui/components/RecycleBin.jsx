@@ -5,9 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { X, RotateCcw, Trash2, AlertTriangle, Clock } from 'lucide-react';
-import { useApp } from '../store/AppContext';
-import { getDeletedMomentsByBaby, restoreMoment, deleteMomentPermanently, emptyRecycleBin } from '../utils/db';
-import { getCurrentV2Account, getCurrentTimeline, isSystemAccount, deleteMomentFromCurrentAccount, updateMomentInCurrentAccount, getCurrentBabyInfo, updateV2AccountData } from '../utils/dbV2';
+import { useApp } from '@state/store/AppContext';
+import { getDeletedMomentsByBaby, restoreMoment, deleteMomentPermanently, emptyRecycleBin } from '@utils/db';
+import { getCurrentV2Account, getCurrentTimeline, isSystemAccount, deleteMomentFromCurrentAccount, updateMomentInCurrentAccount, getCurrentBabyInfo, updateV2AccountData } from '@utils/dbV2';
 
 export function RecycleBin({ onClose }) {
   const { currentBaby, showToast, setMoments } = useApp();
@@ -70,7 +70,7 @@ export function RecycleBin({ onClose }) {
         await restoreMoment(momentId);
         
         // 刷新时光轴
-        const { getMomentsByBaby } = await import('../utils/db');
+        const { getMomentsByBaby } = await import('@utils/db');
         const moments = await getMomentsByBaby(currentBaby.id);
         setMoments(moments);
       } else if (hasV2Baby) {

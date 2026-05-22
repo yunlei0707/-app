@@ -7,11 +7,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, X, Mic } from 'lucide-react';
-import { useApp } from '../store/AppContext';
-import { getPodcastPlayUrl } from '../utils/audioStorage';
-import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from '../utils/dbV2';
-import { getMomentsByBaby } from '../utils/db';
-import { MomentForm } from '../components/MomentForm';
+import { useApp } from '@state/store/AppContext';
+import { getPodcastPlayUrl } from '@utils/audioStorage';
+import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from '@utils/dbV2';
+import { getMomentsByBaby } from '@utils/db';
+import { MomentForm } from '@ui/components/MomentForm';
 
 export function PodcastPage() {
   const navigate = useNavigate();
