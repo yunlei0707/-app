@@ -6,11 +6,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { formatDateFriendly, formatTime } from '../utils/dateUtils';
 import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X } from 'lucide-react';
-import { getMediaBlob, getMediaDisplaySrc } from '../repositories/mediaRepository.js';
+import { getMediaBlob, getMediaDisplaySrc, normalizeMediaItem, normalizeMomentMedia } from '../repositories/mediaRepository.js';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
 
-// 图片组件 - 支持OPFS、Base64和直接URL三种格式
+// 图片组件 - 支持所有媒体格式，自动归一化
 function LazyImage({ src, alt, className, onClick }) {
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
@@ -34,17 +34,19 @@ function LazyImage({ src, alt, className, onClick }) {
       setLoading(true);
       setError(false);
       
-      // 兼容新旧格式：字符串 或 统一媒体对象
-      let rawSrc = typeof src === 'string' ? src : (src.url || src.path || src.filename);
+      // ✅ 使用 Schema 统一工具自动归一化所有格式
+      const media = normalizeMediaItem(src, 'photo');
+      if (!media) {
+        setError(true);
+        return;
+      }
       
-      // ✅ 优先使用 getImageSrc 处理 Capacitor 文件路径
-      // 如果已经是可直接显示的格式（http、base64、转换后的路径），直接使用
-      let url = getImageSrc(rawSrc);
+      // 优先使用 getImageSrc 处理 Capacitor 文件路径
+      let url = getImageSrc(media.path);
       
-      // 如果 getImageSrc 返回空字符串或需要OPFS处理的路径，使用 getMediaDisplaySrc
-      if (!url || (typeof rawSrc === 'string' && rawSrc.startsWith('opfs:'))) {
-        url = await getMediaDisplaySrc(rawSrc);
-        // 如果是Blob URL，记录下来以便清理
+      // 如果需要OPFS处理，使用 mediaRepository 统一入口
+      if (!url || media.path.startsWith('opfs:')) {
+        url = await getMediaDisplaySrc(media.path);
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }
@@ -130,7 +132,7 @@ const milestoneTypes = {
   daily: { label: '日常', className: 'daily', emoji: '✨' },
 };
 
-// 音频子组件 - 支持原生/OPFS/Base64三种模式
+// 音频子组件 - 所有格式自动归一化处理
 function AudioItem({ audio }) {
   const [audioUrl, setAudioUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -145,24 +147,27 @@ function AudioItem({ audio }) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, [audio.url, audio.filename, audio.path, audio.opfsPath]);
+  }, [audio]);
 
   const loadAudio = async () => {
     try {
       setLoading(true);
       
-      // 兼容所有可能的字段名
-      const mediaUrl = audio.url || audio.path || audio.opfsPath || audio.filename;
+      // ✅ 使用 Schema 统一工具自动归一化所有格式
+      const media = normalizeMediaItem(audio, 'audio');
+      if (!media) {
+        return;
+      }
       
       // 1. 优先直接使用Base64 url
-      if (mediaUrl && mediaUrl.startsWith('data:')) {
-        setAudioUrl(mediaUrl);
+      if (media.path && media.path.startsWith('data:')) {
+        setAudioUrl(media.path);
         return;
       }
       
       // 2. 其他格式统一使用mediaRepository获取显示URL
-      if (mediaUrl) {
-        const url = await getMediaDisplaySrc(mediaUrl);
+      if (media.path) {
+        const url = await getMediaDisplaySrc(media.path);
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }

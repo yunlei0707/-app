@@ -7,7 +7,7 @@ import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play
 import { useApp } from '../store/AppContext';
 import { getCurrentBabyInfo, isSystemAccount } from "../repositories/stateRepository.js";
 import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
-import { saveVideo, deleteVideo } from '../repositories/mediaRepository.js';
+import { saveAudio, saveVideo, deleteVideo } from '../repositories/mediaRepository.js';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
@@ -1350,14 +1350,23 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       const normalizedVideos = videos.map(v => normalizeMedia(v, 'video'));
       const normalizedAudios = audios.map(a => normalizeMedia(a, 'audio'));
 
+      // 🔥 统一媒体格式：所有媒体合并到 media[] 数组
+      // 这是写入层的唯一标准，从今天开始所有新数据都有 media[]
+      const unifiedMedia = [
+        ...normalizedPhotos.map(p => ({ ...p, type: 'photo' })),
+        ...normalizedVideos.map(v => ({ ...v, type: 'video' })),
+        ...normalizedAudios.map(a => ({ ...a, type: 'audio' })),
+      ];
+
       const momentData = {
         babyId: babyId,
         type,
         date: new Date(date + 'T12:00:00').toISOString(), // 用中午12点避免时区偏移
         content: content.trim(),
-        photos: normalizedPhotos,  // 去掉type限制，所有媒体都保存
-        videos: normalizedVideos,  // 支持混合媒体动态
-        audios: normalizedAudios,
+        photos: normalizedPhotos,  // ✅ 保留旧字段：向后兼容，旧页面仍然能读
+        videos: normalizedVideos,  // ✅ 保留旧字段
+        audios: normalizedAudios,  // ✅ 保留旧字段
+        media: unifiedMedia,       // 🔥 新格式：所有媒体统一在这里（唯一标准）
         podcast: type === 'podcast' ? {
           title: podcastTitle,
           description: podcastDescription,

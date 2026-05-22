@@ -6,7 +6,7 @@ function exportDBData() {
 }
 import { exportV2AccountData, getCurrentMediaIndex } from "../repositories/stateRepository.js";
 import { BASE_DIR } from '../constants/storage.js';
-import { getMediaBlob, calculateMediaHash } from '../repositories/mediaRepository.js';
+import { getMediaBlob, calculateMediaHash, normalizeMomentMedia } from '../repositories/mediaRepository.js';
 
 // ============================================================
 // ✅ 导出校验工具函数
@@ -485,60 +485,65 @@ async function getAllMomentsFromDB() {
   };
 }
 
-// 通用媒体提取函数，兼容所有格式
-function extractMediaList(data, listName, type, defaultExt) {
+// ✅ 通用媒体提取函数 - 使用 Schema 统一工具处理所有格式
+function extractAllMediaFromMoments(moments) {
   const result = [];
-  const seen = new Set();
+  const seenPaths = new Set();
 
-  function addMedia(m) {
-    if (!m?.[listName] || !Array.isArray(m[listName])) return;
+  if (!Array.isArray(moments)) return [];
+
+  for (const m of moments) {
+    // ✅ 使用统一入口提取所有媒体，自动兼容所有旧格式
+    const { photos, videos, audios } = normalizeMomentMedia(m);
     
-    for (const item of m[listName]) {
-      // 兼容：字符串 或 媒体对象
-      let path = null;
-      let fileName = null;
-      
-      if (typeof item === 'string') {
-        // 旧格式：纯字符串路径
-        path = item;
-        fileName = item.split('/').pop() || `${type}_${result.length}.${defaultExt}`;
-      } else if (item && typeof item === 'object') {
-        // 新格式：统一媒体对象
-        path = item.url || item.path || item.opfsPath || item.filename || item.name;
-        fileName = item.name || item.filename || (path ? path.split('/').pop() : null) || `${type}_${result.length}.${defaultExt}`;
-      }
-      
-      if (!path || seen.has(path)) continue;
-      seen.add(path);
+    for (const media of [...photos, ...videos, ...audios]) {
+      // 去重：同一路径只导出一次
+      if (!media.path || seenPaths.has(media.path)) continue;
+      seenPaths.add(media.path);
       
       result.push({
-        id: m.id || `${type}_${result.length}`,
-        path,
-        fileName,
-        originalName: fileName,
+        id: media.id,
+        path: media.path,
+        fileName: media.fileName,
+        originalName: media.fileName,
         momentId: m.id,
-        type
+        type: media.type,
+        hash: media.hash,
+        size: media.size,
+        duration: media.duration,
       });
     }
   }
 
-  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addMedia);
-  if (data.data?.moments) data.data.moments.forEach(addMedia);
-  if (data.moments) data.moments.forEach(addMedia);
-
   return result;
 }
 
+// 保持旧接口向后兼容
+function extractPhotosFromData(data) {
+  const allMoments = [
+    ...(data.v2AccountData?.timeline || []),
+    ...(data.data?.moments || []),
+    ...(data.moments || []),
+  ];
+  return extractAllMediaFromMoments(allMoments).filter(m => m.type === 'photo');
+}
+
 function extractVideosFromData(data) {
-  return extractMediaList(data, 'videos', 'video', 'mp4');
+  const allMoments = [
+    ...(data.v2AccountData?.timeline || []),
+    ...(data.data?.moments || []),
+    ...(data.moments || []),
+  ];
+  return extractAllMediaFromMoments(allMoments).filter(m => m.type === 'video');
 }
 
 function extractAudiosFromData(data) {
-  return extractMediaList(data, 'audios', 'audio', 'm4a');
-}
-
-function extractPhotosFromData(data) {
-  return extractMediaList(data, 'photos', 'photo', 'jpg');
+  const allMoments = [
+    ...(data.v2AccountData?.timeline || []),
+    ...(data.data?.moments || []),
+    ...(data.moments || []),
+  ];
+  return extractAllMediaFromMoments(allMoments).filter(m => m.type === 'audio');
 }
 
 async function saveToLocal(blob, path, filename) {

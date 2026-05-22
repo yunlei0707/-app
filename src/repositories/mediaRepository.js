@@ -26,28 +26,44 @@ import {
 } from '../adapters/storageAdapter.js';
 import { readFileFromOPFS, getFileDisplayURL, saveVideoToOPFS, cleanupOrphanFiles } from '../utils/opfs.js';
 import { takePhoto, startRecording, stopRecording, isNativePlatform } from '../utils/native.js';
+import { saveAudioFile, deleteAudioFile } from '../utils/audioStorage.js';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * 保存媒体文件（自动去重）
+ * 保存媒体文件（自动去重）- 返回标准 MediaItem 结构
  * @param {Blob|File} blobOrFile - 媒体文件
  * @param {Object} options - 选项
- * @returns {Promise<Object>} { hash, size, path, type }
+ * @returns {Promise<Object>} 标准 MediaItem
  */
 export async function saveMedia(blobOrFile, options = {}) {
-  const { type = 'video' } = options;
+  const { type = 'video', fileName, duration, coverPath } = options;
 
   console.log('[MediaRepository] 保存媒体:', blobOrFile.name || blobOrFile.type);
 
   // 使用底层去重存储
   const result = await saveVideoBlobDedup(blobOrFile);
 
-  return {
-    hash: result.hash,
-    size: result.size,
-    path: result.path,
+  // 构建标准 MediaItem 结构
+  // 注意：hash 是可选的，不强制计算避免大文件卡顿
+  const mediaItem = {
+    id: uuidv4(),
     type: type,
+    path: result.path,
+    fileName: fileName || blobOrFile.name || `media_${Date.now()}.${type === 'photo' ? 'jpg' : type === 'video' ? 'mp4' : 'm4a'}`,
+    mimeType: blobOrFile.type || `image/${type === 'photo' ? 'jpeg' : type}`,
+    size: result.size,
+    createdAt: Date.now(),
     isDuplicate: result.isDuplicate,
+    // 可选字段
+    ...(result.hash && { hash: result.hash }),
+    ...(duration !== undefined && { duration }),
+    ...(coverPath !== undefined && { coverPath }),
+    // ✅ 向后兼容：保持旧字段名，避免 MomentForm 报错
+    filename: result.path,
+    storageType: 'filesystem',
   };
+
+  return mediaItem;
 }
 
 /**
@@ -116,30 +132,36 @@ export async function getMediaDisplaySrc(pathOrHash) {
 }
 
 /**
- * 保存图片到媒体库
- * 统一入口：图片、视频、音频都走这里
+ * 保存图片到媒体库（统一入口）
+ * @param {Blob|File} file - 图片文件
+ * @param {Object} options - 选项
+ * @returns {Promise<Object>} 标准 MediaItem
  */
-export async function saveImage(file) {
+export async function saveImage(file, options = {}) {
   console.log('[MediaRepository] 保存图片:', file.name);
-  // TODO: 统一图片存储逻辑
-  // 暂时复用视频存储逻辑
-  return await saveMedia(file, { type: 'image' });
+  return await saveMedia(file, { ...options, type: 'photo' });
 }
 
 /**
- * 保存音频到媒体库
+ * 保存音频到媒体库（统一入口）
+ * @param {Blob|File} file - 音频文件
+ * @param {Object} options - 选项
+ * @returns {Promise<Object>} 标准 MediaItem
  */
-export async function saveAudio(file) {
+export async function saveAudio(file, options = {}) {
   console.log('[MediaRepository] 保存音频:', file.name);
-  return await saveMedia(file, { type: 'audio' });
+  return await saveMedia(file, { ...options, type: 'audio' });
 }
 
 /**
- * 保存视频到媒体库
+ * 保存视频到媒体库（统一入口）
+ * @param {Blob|File} file - 视频文件
+ * @param {Object} options - 选项
+ * @returns {Promise<Object>} 标准 MediaItem
  */
-export async function saveVideo(file) {
+export async function saveVideo(file, options = {}) {
   console.log('[MediaRepository] 保存视频:', file.name);
-  return await saveMedia(file, { type: 'video' });
+  return await saveMedia(file, { ...options, type: 'video' });
 }
 
 /**
@@ -171,3 +193,13 @@ export {
   stopRecording,
   isNativePlatform,
 };
+
+// ✅ Schema 统一工具（所有模块必须从这里导入，不要直接引用 utils/mediaSchema.js）
+export {
+  normalizeMediaItem,       // 单个媒体归一化
+  normalizeMediaArray,      // 批量归一化
+  normalizeMomentMedia,     // 从动态提取并分类所有媒体
+  normalizeMoment,          // ✅ 全项目唯一的动态读取入口！
+  validateMediaItem,        // 数据校验
+  inferMediaTypeFromPath,   // 从路径推断类型
+} from '../utils/mediaSchema.js';
