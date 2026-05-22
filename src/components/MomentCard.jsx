@@ -134,13 +134,7 @@ function AudioItem({ audio }) {
   const objectUrlRef = useRef(null);
 
   useEffect(() => {
-    if (audio.url) {
-      // Base64模式：直接使用url
-      setAudioUrl(audio.url);
-    } else if (audio.filename) {
-      // 文件系统模式
-      loadAudioFromFS();
-    }
+    loadAudio();
 
     // 清理：组件卸载时释放Blob URL
     return () => {
@@ -148,15 +142,27 @@ function AudioItem({ audio }) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, [audio.url, audio.filename]);
+  }, [audio.url, audio.filename, audio.path, audio.opfsPath]);
 
-  const loadAudioFromFS = async () => {
+  const loadAudio = async () => {
     try {
       setLoading(true);
-      const blob = await getMediaBlob(audio.filename, audio.storageType);
-      const url = URL.createObjectURL(blob);
-      objectUrlRef.current = url;
-      setAudioUrl(url);
+      
+      // 1. 优先直接使用Base64 url
+      if (audio.url) {
+        setAudioUrl(audio.url);
+        return;
+      }
+      
+      // 2. 其他格式统一使用mediaRepository获取显示URL
+      const path = audio.path || audio.opfsPath || audio.filename;
+      if (path) {
+        const url = await getMediaDisplaySrc(path);
+        if (url && url.startsWith('blob:')) {
+          objectUrlRef.current = url;
+        }
+        setAudioUrl(url);
+      }
     } catch (e) {
       console.error('[MomentCard] 音频加载失败:', e);
     } finally {
@@ -213,13 +219,7 @@ function VideoItem({ video }) {
 
   // 根据视频类型加载
   useEffect(() => {
-    if (video.url) {
-      // Base64模式：直接使用url
-      setVideoUrl(video.url);
-    } else if (video.filename) {
-      // 文件系统模式：原生APP或OPFS，自动选择
-      loadVideoFromFS();
-    }
+    loadVideo();
 
     // 清理：组件卸载时释放Blob URL
     return () => {
@@ -227,15 +227,28 @@ function VideoItem({ video }) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, [video.url, video.filename]);
+  }, [video.url, video.filename, video.path, video.opfsPath]);
 
-  const loadVideoFromFS = async () => {
+  const loadVideo = async () => {
     try {
       setLoading(true);
-      const blob = await getMediaBlob(video.filename, video.storageType);
-      const url = URL.createObjectURL(blob);
-      objectUrlRef.current = url;
-      setVideoUrl(url);
+      setError(false);
+      
+      // 1. 优先直接使用Base64 url
+      if (video.url) {
+        setVideoUrl(video.url);
+        return;
+      }
+      
+      // 2. 其他格式统一使用mediaRepository获取显示URL
+      const path = video.path || video.opfsPath || video.filename;
+      if (path) {
+        const url = await getMediaDisplaySrc(path);
+        if (url && url.startsWith('blob:')) {
+          objectUrlRef.current = url;
+        }
+        setVideoUrl(url);
+      }
     } catch (e) {
       console.error('[MomentCard] 视频加载失败:', e);
       setError(true);

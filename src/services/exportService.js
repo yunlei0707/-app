@@ -115,7 +115,8 @@ export async function exportAllData(options = {}) {
 
   const videos = extractVideosFromData(data);
   const audios = extractAudiosFromData(data);
-  console.log('[Export] 提取到视频数量:', videos.length, '，音频数量:', audios.length);
+  const photos = extractPhotosFromData(data);
+  console.log('[Export] 提取到视频数量:', videos.length, '，音频数量:', audios.length, '，照片数量:', photos.length);
 
   // 2. 处理视频（串行读取 Blob，带去重检测）
   let videoResults = [];
@@ -188,7 +189,47 @@ export async function exportAllData(options = {}) {
                 '失败:', failedVideos.length);
   }
 
-  // 2b. 处理音频（同样带去重检测）
+  // 2b. 处理照片（同样带去重检测）
+  let photoResults = [];
+  let failedPhotos = [];
+  const photoHashes = new Map();
+
+  if (includeVideos && photos.length > 0) {
+    console.log('[Export] 开始处理照片，共', photos.length, '个');
+    
+    for (const p of photos) {
+      if (signal?.aborted) throw new Error('导出已取消');
+      
+      let blob = null;
+      for (let retry = 0; retry < 3; retry++) {
+        try {
+          blob = await getMediaBlob(p.path);
+          if (blob && blob.size > 0) break;
+        } catch (e) {
+          if (retry < 2) {
+            await new Promise(r => setTimeout(r, 200));
+            continue;
+          }
+          failedPhotos.push({ ...p, error: e.message });
+        }
+      }
+      
+      if (blob && blob.size > 0) {
+        const fileHash = await calculateMediaHash(blob);
+        if (photoHashes.has(fileHash)) {
+          const existing = photoHashes.get(fileHash);
+          photoResults.push({ ...p, blob: existing.blob, fileName: existing.fileName, isDuplicate: true });
+        } else {
+          const result = { ...p, blob, fileHash };
+          photoResults.push(result);
+          photoHashes.set(fileHash, result);
+        }
+      }
+    }
+    console.log('[Export] 照片处理完成，成功:', photoResults.length, '失败:', failedPhotos.length);
+  }
+
+  // 2c. 处理音频（同样带去重检测）
   let audioResults = [];
   let failedAudios = [];
 
@@ -318,6 +359,34 @@ export async function exportAllData(options = {}) {
       };
     }
   }
+
+  // 写入照片文件（带去重，复用同一个去重 Map）
+  for (const photo of photoResults) {
+    if (uniqueHashes.has(photo.fileHash)) {
+      // 重复文件，只更新 fileMap，不重复写入 ZIP
+      duplicateSkipped++;
+      const original = [...videoResults, ...audioResults, ...photoResults].find(p => p.fileHash === photo.fileHash);
+      fileMap[photo.id] = {
+        fileName: original.fileName,
+        originalName: photo.originalName,
+        fileSize: photo.blob.size,
+        isDuplicate: true,
+        originalId: original.id,
+        mediaType: 'photo'
+      };
+    } else {
+      // 新文件，写入 ZIP
+      uniqueHashes.add(photo.fileHash);
+      zip.addFile(`photos/${photo.fileName}`, photo.blob);
+      fileMap[photo.id] = {
+        fileName: photo.fileName,
+        originalName: photo.originalName,
+        fileSize: photo.blob.size,
+        fileHash: photo.fileHash,
+        mediaType: 'photo'
+      };
+    }
+  }
   
   if (duplicateSkipped > 0) {
     console.log(`[Export] ZIP 去重: 跳过 ${duplicateSkipped} 个重复文件，节省存储空间`);
@@ -330,10 +399,12 @@ export async function exportAllData(options = {}) {
   data.exportStats = {
     totalVideos: videos.length,
     totalAudios: audios.length,
+    totalPhotos: photos.length,
     uniqueFiles: uniqueHashes.size,
     duplicateSkipped,
     failedVideos: failedVideos.length,
     failedAudios: failedAudios.length,
+    failedPhotos: failedPhotos.length,
     exportTime: new Date().toISOString()
   };
 
@@ -466,6 +537,33 @@ function extractAudiosFromData(data) {
   if (data.moments) data.moments.forEach(addAudios);
 
   return audios;
+}
+
+function extractPhotosFromData(data) {
+  const photos = [];
+  const seen = new Set();
+
+  function addPhotos(m) {
+    if (!m?.photos) return;
+    for (const p of m.photos) {
+      const path = p.opfsPath || p.filename || p.url || p.path;
+      if (!path || seen.has(path)) continue;
+      seen.add(path);
+      photos.push({
+        id: m.id || `pic_${photos.length}`,
+        path,
+        fileName: p.filename || p.opfsPath || p.path || `photo_${photos.length}.jpg`,
+        originalName: p.filename || p.name,
+        momentId: m.id
+      });
+    }
+  }
+
+  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addPhotos);
+  if (data.data?.moments) data.data.moments.forEach(addPhotos);
+  if (data.moments) data.moments.forEach(addPhotos);
+
+  return photos;
 }
 
 async function saveToLocal(blob, path, filename) {
