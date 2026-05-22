@@ -1,19 +1,22 @@
 {
   "schema": "topic_tracking.run_status.v1",
-  "status": "BLOCKED",
-  "result": "validation_failed",
-  "legal_for_delivery": false,
+  "status": "DONE",
+  "result": "briefing",
+  "legal_for_delivery": true,
   "topic": "每日AI新闻推送",
   "run_label": "2026-05-22",
   "brief_token": "brief_6e71965a",
   "setup_token": "setup_1d1e7399",
-  "current_step": "B2",
+  "current_step": "DONE",
   "completed_steps": [
-    "B1"
+    "B1",
+    "B2",
+    "B3",
+    "B4"
   ],
   "skipped_steps": [],
   "empty_result": false,
-  "event_count": 4,
+  "event_count": 5,
   "artifacts": {
     "event_list": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送/2026-05-22_event_list.json",
     "briefing_md": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送/每日AI新闻推送_2026-05-22.md",
@@ -21,19 +24,13 @@
   },
   "artifact_exists": {
     "event_list": true,
-    "briefing_md": false,
-    "summary": false
+    "briefing_md": true,
+    "summary": true
   },
   "tracking_dir": "/app/data/所有对话/主对话/热点资讯追踪/每日AI新闻推送",
   "session_dir": "/app/data/所有对话/主对话/.skills/skill_topic_tracking/sessions_v2/setup_1d1e7399/brief_6e71965a",
-  "message": "event_list 校验未通过，停留在 B2。",
-  "errors": [
-    "事件组数量为 4，少于目标 5 组。请继续补搜；如确认近期确实不足，请按下方提示写入 event_list_confirmation.json。",
-    "[第3组/OpenAI被曝最快本周秘密提交IPO申请，目标估值超1万亿美元] 当前话题要求 support_urls 至少来自 3 个不同来源域名；当前只有 2 个：36kr.com, sina.com.cn。同一域名下多个链接不能凑多源，请更换为不同机构/站点的来源。",
-    "[第3组/OpenAI被曝最快本周秘密提交IPO申请，目标估值超1万亿美元] support_url 不可达或疑似软404: https://36kr.com/p/3818729301558409",
-    "[第3组/OpenAI被曝最快本周秘密提交IPO申请，目标估值超1万亿美元] support_url 不可达或疑似软404: https://36kr.com/p/3818133625701505",
-    "[第4组/阿里云宣布完成\"芯片-云-模型-推理\"全栈Agent化升级] support_url 未解析到明确分钟级发布时间，不能作为本期来源：https://developer.aliyun.com/article/1735910。请更换为页面内容或元信息中包含明确发布时间、且能直接支撑事件事实和时间的具体页面。"
-  ],
+  "message": "verify-run 校验通过。",
+  "errors": [],
   "created_at": "2026-05-22T10:11:08.137963",
-  "updated_at": "2026-05-22T10:16:09.239266"
+  "updated_at": "2026-05-22T10:22:56.391820"
 }

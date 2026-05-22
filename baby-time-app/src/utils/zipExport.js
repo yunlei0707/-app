@@ -541,7 +541,15 @@ async function exportWithNativeFS(options = {}) {
         try {
           let fileBlob;
           
-          if (videoInfo.type === 'opfs') {
+          if (videoInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(videoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP-Native] 原生视频读取失败 ${videoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (videoInfo.type === 'opfs') {
             // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(videoInfo.filename);
@@ -633,8 +641,16 @@ async function exportWithNativeFS(options = {}) {
         try {
           let fileBlob;
           
-          if (audioInfo.type === 'opfs') {
-            // 从OPFS/原生文件系统读取（复用视频读取函数，因为都在videos目录）
+          if (audioInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(audioInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP-Native] 原生音频读取失败 ${audioInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (audioInfo.type === 'opfs') {
+            // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(audioInfo.filename);
             } catch (e) {
@@ -714,8 +730,16 @@ async function exportWithNativeFS(options = {}) {
         try {
           let fileBlob;
 
-          if (photoInfo.type === 'opfs') {
-            // 从OPFS/原生文件系统读取
+          if (photoInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(photoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP-Native] 原生照片读取失败 ${photoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (photoInfo.type === 'opfs') {
+            // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(photoInfo.filename);
             } catch (e) {
@@ -899,7 +923,7 @@ function collectVideoFiles(data) {
             });
           } else {
             videos.push({
-              type: 'opfs',
+              type: video.storageType || 'native', // 使用实际的存储类型
               filename: video.filename,
               momentId: moment.id,
               outputFilename: video.filename
@@ -921,7 +945,7 @@ function collectVideoFiles(data) {
         // ✅ 修复：url是文件名/相对路径（不是Base64），作为OPFS视频收集
         else if (video.url && !video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
           videos.push({
-            type: 'opfs',
+            type: video.storageType || 'native', // 使用实际的存储类型
             filename: video.url,
             momentId: moment.id,
             outputFilename: video.url
@@ -948,7 +972,7 @@ function collectVideoFiles(data) {
             });
           } else {
             videos.push({
-              type: 'opfs',
+              type: video.storageType || 'native', // 使用实际的存储类型
               filename: video.filename,
               momentId: moment.id,
               outputFilename: video.filename
@@ -969,7 +993,7 @@ function collectVideoFiles(data) {
         // ✅ 修复：url是文件名/相对路径（不是Base64），作为OPFS视频收集
         else if (video.url && !video.url.startsWith('data:') && !processedFilenames.has(video.url)) {
           videos.push({
-            type: 'opfs',
+            type: video.storageType || 'native', // 使用实际的存储类型
             filename: video.url,
             momentId: moment.id,
             outputFilename: video.url
@@ -1010,7 +1034,7 @@ function collectAudioFiles(data) {
             });
           } else {
             audios.push({
-              type: 'opfs', // 原生存储也用opfs类型读取，因为storageAdapter统一处理
+              type: audio.storageType || 'native', // 使用实际的存储类型
               filename: audio.filename,
               momentId: moment.id,
               outputFilename: audio.filename
@@ -1032,7 +1056,7 @@ function collectAudioFiles(data) {
         // url是文件名/相对路径（不是Base64），作为OPFS/原生音频收集
         else if (audio.url && !audio.url.startsWith('data:') && !processedFilenames.has(audio.url)) {
           audios.push({
-            type: 'opfs',
+            type: audio.storageType || 'native', // 使用实际的存储类型
             filename: audio.url,
             momentId: moment.id,
             outputFilename: audio.url
@@ -1090,7 +1114,7 @@ function collectAudioFiles(data) {
         // url是文件名/相对路径（不是Base64），作为OPFS/原生音频收集
         else if (audio.url && !audio.url.startsWith('data:') && !processedFilenames.has(audio.url)) {
           audios.push({
-            type: 'opfs',
+            type: audio.storageType || 'native', // 使用实际的存储类型
             filename: audio.url,
             momentId: moment.id,
             outputFilename: audio.url
@@ -1145,7 +1169,7 @@ function collectPhotoFiles(data) {
             });
           } else {
             photos.push({
-              type: 'opfs', // 原生存储也用opfs类型读取
+              type: 'native', // 默认原生存储
               filename: photo,
               momentId: moment.id,
               outputFilename: photo.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
@@ -1167,7 +1191,7 @@ function collectPhotoFiles(data) {
               });
             } else {
               photos.push({
-                type: 'opfs',
+                type: photo.storageType || 'native', // 使用实际的存储类型
                 filename: photo.filename,
                 momentId: moment.id,
                 outputFilename: photo.name || photo.filename.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
@@ -1189,7 +1213,7 @@ function collectPhotoFiles(data) {
           // url是文件名/相对路径（不是Base64）
           else if (photo.url && !photo.url.startsWith('data:') && !processedFilenames.has(photo.url)) {
             photos.push({
-              type: 'opfs',
+              type: photo.storageType || 'native', // 使用实际的存储类型
               filename: photo.url,
               momentId: moment.id,
               outputFilename: photo.name || photo.url.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
@@ -1388,7 +1412,15 @@ async function exportWithJSZip(options) {
         async (videoInfo) => {
           let fileBlob;
           
-          if (videoInfo.type === 'opfs') {
+          if (videoInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(videoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP] 原生视频读取失败 ${videoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (videoInfo.type === 'opfs') {
             // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(videoInfo.filename);
@@ -1477,8 +1509,16 @@ async function exportWithJSZip(options) {
         async (audioInfo) => {
           let fileBlob;
           
-          if (audioInfo.type === 'opfs') {
-            // 从OPFS/原生文件系统读取（复用视频读取函数，因为都在videos目录）
+          if (audioInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(audioInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP] 原生音频读取失败 ${audioInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (audioInfo.type === 'opfs') {
+            // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(audioInfo.filename);
             } catch (e) {
@@ -1554,8 +1594,16 @@ async function exportWithJSZip(options) {
         async (photoInfo) => {
           let fileBlob;
 
-          if (photoInfo.type === 'opfs') {
-            // 从OPFS/原生文件系统读取（复用视频读取函数，因为都是文件读取）
+          if (photoInfo.type === 'native') {
+            // 从原生文件系统读取
+            try {
+              fileBlob = await readVideoFromNative(photoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP] 原生照片读取失败 ${photoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (photoInfo.type === 'opfs') {
+            // 从OPFS读取
             try {
               fileBlob = await readVideoFromOPFS(photoInfo.filename);
             } catch (e) {
