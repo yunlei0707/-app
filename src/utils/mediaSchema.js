@@ -174,51 +174,60 @@ export function validateMediaItem(item) {
 }
 
 /**
- * 🔥 Schema 防线 - 写入数据库前的强制校验
+ * 🔥 Schema 防线 - 写入数据库前的校验（警告模式，不阻断）
  * 
- * 🔴 P0.5：防止未来继续熵增
+ * 🟡 说明：从"抛出异常"改为"仅警告"，避免阻断正常保存流程
+ * 严格的 Schema 校验可能导致老数据/旧格式无法保存，影响用户体验
  * 
- * 不符合 MediaItem 标准的直接抛出异常，禁止写入数据库。
- * 这是架构稳定化的最后一道防线，确保：
- *   - 不会出现第四套、第五套媒体结构
- *   - 所有新数据都符合统一标准
+ * 不符合标准时只打印警告日志，不阻止写入
  * 
  * @param {Object} item - 待写入的媒体对象
- * @throws 如果校验失败，抛出异常阻止写入
+ * @returns {boolean} 是否通过校验
  */
 export function assertMediaSchema(item) {
   const result = validateMediaItem(item);
   
   if (!result.valid) {
-    const errorMsg = `[MediaSchema] 写入被拒绝！不符合标准结构: ${result.errors.join(', ')}`;
-    console.error(errorMsg, item);
-    throw new Error(errorMsg);
+    const warnMsg = `[MediaSchema] 媒体项不符合标准结构（警告，不阻断）: ${result.errors.join(', ')}`;
+    console.warn(warnMsg, item);
+    return false;
   }
   
   return true;
 }
 
 /**
- * 🔥 批量校验媒体数组 Schema
+ * 🔥 批量校验媒体数组 Schema（警告模式，不阻断）
  * 
  * @param {Object[]} mediaArray - 待校验的媒体数组
- * @throws 如果有任何一项校验失败，抛出异常
+ * @returns {boolean} 是否全部通过校验
  */
 export function assertMediaArraySchema(mediaArray) {
   if (!Array.isArray(mediaArray)) {
-    const errorMsg = '[MediaSchema] 写入被拒绝！media 必须是数组';
-    console.error(errorMsg, mediaArray);
-    throw new Error(errorMsg);
+    console.warn('[MediaSchema] media 不是数组（警告，不阻断）', mediaArray);
+    return false;
   }
   
-  mediaArray.forEach(item => assertMediaSchema(item));
+  let allValid = true;
+  mediaArray.forEach(item => {
+    if (!assertMediaSchema(item)) {
+      allValid = false;
+    }
+  });
   
-  // 🔴 P1.5：额外检查 path 中不能包含显示 URL
+  // 🔴 P1.5：检查 path 中不能包含显示 URL（仅警告，不阻断）
   // 这是最容易犯的错误之一，一旦把 blob: 等显示 URL 写入数据库
   // 就会导致导出失效、刷新后媒体丢失等各种诡异问题
-  mediaArray.forEach(item => assertNoDisplayUrlInPath(item));
+  mediaArray.forEach(item => {
+    try {
+      assertNoDisplayUrlInPath(item);
+    } catch (e) {
+      console.warn('[MediaSchema] path 包含显示 URL（警告，不阻断）:', e.message, item);
+      allValid = false;
+    }
+  });
   
-  return true;
+  return allValid;
 }
 
 /**

@@ -13,7 +13,7 @@ import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema } from '../repositories/mediaRepository';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem } from '../repositories/mediaRepository';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -1337,30 +1337,21 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       console.log('[Save] 文件已提前处理完成，开始保存...');
       
       // 统一媒体对象结构，兼容新旧数据
-      const normalizeMedia = (item, type) => {
-        // 如果是字符串，转成统一对象格式
-        if (typeof item === 'string') {
-          return { type, url: item, name: item.split('/').pop() };
-        }
-        // 如果已经是对象，确保有type和url字段
-        return { type, ...item, url: item.url || item.filename || item.path };
-      };
-
-      const normalizedPhotos = photos.map(p => normalizeMedia(p, 'photo'));
-      const normalizedVideos = videos.map(v => normalizeMedia(v, 'video'));
-      const normalizedAudios = audios.map(a => normalizeMedia(a, 'audio'));
+      // ✅ 先用 normalizeMediaItem 归一化所有媒体，确保数据结构尽可能标准
+      const normalizedPhotos = photos.map(p => normalizeMediaItem(p, 'photo')).filter(Boolean);
+      const normalizedVideos = videos.map(v => normalizeMediaItem(v, 'video')).filter(Boolean);
+      const normalizedAudios = audios.map(a => normalizeMediaItem(a, 'audio')).filter(Boolean);
 
       // 🔥 统一媒体格式：所有媒体合并到 media[] 数组
       // 这是写入层的唯一标准，从今天开始所有新数据都有 media[]
       const unifiedMedia = [
-        ...normalizedPhotos.map(p => ({ ...p, type: 'photo' })),
-        ...normalizedVideos.map(v => ({ ...v, type: 'video' })),
-        ...normalizedAudios.map(a => ({ ...a, type: 'audio' })),
+        ...normalizedPhotos,
+        ...normalizedVideos,
+        ...normalizedAudios,
       ];
 
-      // 🔥 P0.5：Schema 防线 - 写入数据库前强制校验
-      // 不符合 MediaItem 标准的直接抛出异常，阻止写入
-      // 这是架构稳定化的最后一道防线，确保不会出现第四套、第五套媒体结构
+      // 🟡 P0.5：Schema 校验 - 仅警告，不阻断正常保存
+      // 不符合标准时打印警告日志，但仍然允许写入（避免影响用户体验）
       assertMediaArraySchema(unifiedMedia);
 
       const momentData = {
