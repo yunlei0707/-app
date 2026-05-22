@@ -1076,6 +1076,9 @@ function getStats(data) {
     indexeddbAudios: indexeddbAudios.length,
     audios
   };
+}
+
+async function exportWithJSZip(options) {
   const {
     includeVideos = true,
     concurrency = STORAGE_CONFIG.MAX_CONCURRENT_READ,
@@ -1292,7 +1295,7 @@ function getStats(data) {
             // 从IndexedDB读取
             try {
               fileBlob = await getAudioFile(audioInfo.fileId);
-        message: `导出完成! 共 ${stats.v2Timeline || stats.oldMoments} 条数据, ${includeVideos ? stats.totalVideos : 0} 个视频, ${includeVideos ? stats.totalAudios : 0} 个音频`,
+            } catch (e) {
               console.warn(`[ZIP] IndexedDB音频读取失败 ${audioInfo.fileId}:`, e);
               throw e;
             }
