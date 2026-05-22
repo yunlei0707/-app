@@ -1,0 +1,66 @@
+[
+  {
+    "events": [
+      {
+        "event": "Qwen3.7-Max登陆阿里云百炼平台，正式对外开放API调用服务",
+        "event_time": "2026-05-22 09:15",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件组是围绕「每日AI新闻推送」的AI大模型商业化进展，Qwen3.7-Max正式对外开放API服务标志着国产旗舰大模型进入实际应用阶段，符合用户对AI大模型与技术进展的关注偏好。",
+    "source_type": "cross_valid",
+    "support_urls": [
+      "https://www.stcn.com/article/detail/3921732.html",
+      "https://www.cointime.ai/flash-news/alibaba-cloud-bairen-launches-qwen3-27610",
+      "https://runable.blog/posts/alibaba-s-proprietary-qwen3-7-max-can-run-for-35-hours-auton"
+    ]
+  },
+  {
+    "events": [
+      {
+        "event": "全国首个面向家庭场景的通用机器人\"拾光S1\"在武汉发布",
+        "event_time": "2026-05-21 08:28",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件组是围绕「每日AI新闻推送」的具身智能与家庭机器人领域的产品落地进展，标志着人形机器人正式从工业科研场景迈向民用家庭场景，符合用户对AI技术产品化落地的关注偏好。",
+    "source_type": "official",
+    "support_urls": [
+      "https://www.wuhan.gov.cn/sy/whyw/202605/t20260521_2766942.shtml",
+      "http://www.cnr.cn/hubei/hydt/20260521/t20260521_527629461.shtml",
+      "http://www.stdaily.com/web/gdxw/2026-05/21/content_520170.html"
+    ]
+  },
+  {
+    "events": [
+      {
+        "event": "OpenAI被曝最快本周秘密提交IPO申请，目标估值超1万亿美元",
+        "event_time": "2026-05-21 21:08",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件组是围绕「每日AI新闻推送」的AI公司商业与融资动态，OpenAI作为全球AI行业龙头企业的IPO进程将深刻影响全球AI产业格局，符合用户对AI商业动态的关注偏好。",
+    "source_type": "cross_valid",
+    "support_urls": [
+      "https://finance.sina.com.cn/stock/hkstock/ggscyd/2026-05-21/doc-inhysnxi8110447.shtml",
+      "https://36kr.com/p/3818729301558409",
+      "https://36kr.com/p/3818133625701505"
+    ]
+  },
+  {
+    "events": [
+      {
+        "event": "阿里云宣布完成\"芯片-云-模型-推理\"全栈Agent化升级",
+        "event_time": "2026-05-21 07:49",
+        "relevance_level": "强相关"
+      }
+    ],
+    "relevance_with_topic": "该事件组是围绕「每日AI新闻推送」的云计算与AI基础设施进展，阿里云全栈Agent化升级代表国内云厂商首次围绕Agent进行全栈产品布局，符合用户对AI技术与产品进展的关注偏好。",
+    "source_type": "cross_valid",
+    "support_urls": [
+      "https://www.stcn.com/article/detail/3919158.html",
+      "https://developer.aliyun.com/article/1735910",
+      "https://m.sohu.com/a/1025411767_120988576/"
+    ]
+  }
+]
