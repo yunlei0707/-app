@@ -1732,7 +1732,7 @@ export async function importFromZip(zipFile, onProgress = null) {
 
     if (onProgress) onProgress(30, '数据解析完成');
 
-    // 2. 读取视频文件（暂时只返回，后续可恢复到OPFS）
+    // 2. 读取视频文件
     const videosFolder = zip.folder('videos');
     const videoFiles = [];
     
@@ -1753,7 +1753,59 @@ export async function importFromZip(zipFile, onProgress = null) {
         }
         processed++;
         if (onProgress) {
-          onProgress(30 + Math.floor((processed / total) * 60), `读取视频: ${processed}/${total}`);
+          onProgress(30 + Math.floor((processed / total) * 20), `读取视频: ${processed}/${total}`);
+        }
+      }
+    }
+
+    // 3. 读取音频文件
+    const audiosFolder = zip.folder('audios');
+    const audioFiles = [];
+    
+    if (audiosFolder) {
+      const fileNames = Object.keys(audiosFolder.files).filter(
+        (name) => !audiosFolder.files[name].dir
+      );
+
+      let processed = 0;
+      const total = fileNames.length;
+
+      for (const filename of fileNames) {
+        try {
+          const fileData = await audiosFolder.file(filename).async('blob');
+          audioFiles.push({ filename, file: fileData });
+        } catch (e) {
+          console.warn(`[ZIP] 读取音频文件失败 ${filename}:`, e);
+        }
+        processed++;
+        if (onProgress) {
+          onProgress(50 + Math.floor((processed / total) * 20), `读取音频: ${processed}/${total}`);
+        }
+      }
+    }
+
+    // 4. 读取照片文件
+    const photosFolder = zip.folder('photos');
+    const photoFiles = [];
+    
+    if (photosFolder) {
+      const fileNames = Object.keys(photosFolder.files).filter(
+        (name) => !photosFolder.files[name].dir
+      );
+
+      let processed = 0;
+      const total = fileNames.length;
+
+      for (const filename of fileNames) {
+        try {
+          const fileData = await photosFolder.file(filename).async('blob');
+          photoFiles.push({ filename, file: fileData });
+        } catch (e) {
+          console.warn(`[ZIP] 读取照片文件失败 ${filename}:`, e);
+        }
+        processed++;
+        if (onProgress) {
+          onProgress(70 + Math.floor((processed / total) * 25), `读取照片: ${processed}/${total}`);
         }
       }
     }
@@ -1762,7 +1814,9 @@ export async function importFromZip(zipFile, onProgress = null) {
 
     return {
       data,
-      videoFiles
+      videoFiles,
+      audioFiles,
+      photoFiles
     };
 
   } catch (error) {
