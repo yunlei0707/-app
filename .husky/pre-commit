@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo ""
+echo "🛡️  运行 pre-commit 检查..."
+echo ""
+
+# 运行架构分层检测
+node scripts/check-architecture.cjs
+
+# 保存退出码
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo ""
+  echo "❌ pre-commit 检测未通过，请修复后再提交"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "✅ pre-commit 检测通过！"
+echo ""
+exit 0
