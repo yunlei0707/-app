@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
+          # cache: 'pnpm' # 等第一次生成pnpm-lock.yaml后再开启
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
