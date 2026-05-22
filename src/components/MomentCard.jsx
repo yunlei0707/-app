@@ -9,7 +9,7 @@ import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X 
 import { readFileFromOPFS, getFileDisplayURL } from '../utils/opfs';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { readVideo } from '../utils/storageAdapter';
+import { readVideo } from '../adapters/storageAdapter.js';
 
 // 图片组件 - 支持OPFS、Base64和直接URL三种格式
 function LazyImage({ src, alt, className, onClick }) {

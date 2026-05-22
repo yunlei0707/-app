@@ -291,10 +291,159 @@ async function loadFilesystem() {
   return { Filesystem, Directory };
 }
 
+// ============================================================
+// ✅ 工具函数 & 原生文件系统操作（从旧版复制过来）
+// ============================================================
+
+export function generateUniqueFilename(originalName) {
+  const ext = originalName.split('.').pop() || 'mp4';
+  const uuid = crypto.randomUUID();
+  return `${uuid}.${ext}`;
+}
+
+function fileToBase64(file, onProgress = null) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      if (onProgress) onProgress(100);
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    if (onProgress) {
+      reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+    reader.readAsDataURL(file);
+  });
+}
+
+function isAppEnvironment() {
+  return window.Capacitor?.getPlatform() !== 'web';
+}
+
+export async function saveVideoToNative(file, onProgress = null) {
+  if (!isAppEnvironment()) throw new Error('请在APP中使用此功能');
+  try {
+    const filename = generateUniqueFilename(file.name);
+    const filesystem = await loadFilesystem();
+    if (!filesystem) throw new Error('文件系统不可用');
+    const { Filesystem, Directory } = filesystem;
+    
+    let writeSucceeded = false;
+    try {
+      await Filesystem.writeFile({
+        path: `videos/${filename}`,
+        data: file,
+        directory: Directory.Documents,
+        recursive: true,
+      });
+      writeSucceeded = true;
+    } catch (blobError) {
+      const base64 = await fileToBase64(file, onProgress);
+      await Filesystem.writeFile({
+        path: `videos/${filename}`,
+        data: base64,
+        directory: Directory.Documents,
+        recursive: true,
+      });
+      writeSucceeded = true;
+    }
+    
+    if (onProgress) onProgress(100);
+    return { success: true, filename, path: `videos/${filename}` };
+  } catch (error) {
+    console.error('[Storage] 保存失败:', error);
+    throw error;
+  }
+}
+
+export async function readVideoFromNative(filename) {
+  if (!isAppEnvironment()) return null;
+  try {
+    const filesystem = await loadFilesystem();
+    if (!filesystem) return null;
+    const { Filesystem, Directory } = filesystem;
+    
+    const result = await Filesystem.readFile({
+      path: `videos/${filename}`,
+      directory: Directory.Documents,
+    });
+    
+    if (result.data instanceof Blob) {
+      return result.data;
+    }
+    return base64ToBlob(result.data, 'video/mp4');
+  } catch (error) {
+    console.warn('[Storage] 读取失败:', error.message);
+    return null;
+  }
+}
+
+export async function deleteVideoFromNative(filename) {
+  if (!isAppEnvironment()) return false;
+  try {
+    const filesystem = await loadFilesystem();
+    if (!filesystem) return false;
+    const { Filesystem, Directory } = filesystem;
+    
+    await Filesystem.deleteFile({
+      path: `videos/${filename}`,
+      directory: Directory.Documents,
+    });
+    return true;
+  } catch (error) {
+    console.warn('[Storage] 删除失败:', error.message);
+    return false;
+  }
+}
+
+// OPFS 删除视频
+async function deleteVideoFromOPFS(hash) {
+  try {
+    const root = await navigator.storage.getDirectory();
+    const mediaDir = await root.getDirectoryHandle('media', { create: true });
+    await mediaDir.removeEntry(hash);
+    return true;
+  } catch (error) {
+    console.warn('[OPFS] 删除失败:', error.message);
+    return false;
+  }
+}
+
+export async function deleteVideoBlob(hash) {
+  if (isAppEnvironment()) {
+    return await deleteVideoFromNative(hash);
+  } else {
+    return await deleteVideoFromOPFS(hash);
+  }
+}
+
+// ============================================================
+// ✅ 兼容层：对外保持和旧版一致的 API 命名
+// ============================================================
+export const readVideo = getVideoBlob;        // 旧版 readVideo → 新版 getVideoBlob
+export const saveVideo = saveVideoBlobDedup;  // 旧版 saveVideo → 新版带去重
+export const getVideo = getVideoBlob;         // 别名兼容
+export const deleteVideo = deleteVideoBlob;   // 删除功能
+
 export default { 
   getVideoBlob, 
   saveVideoBlob, 
   saveVideoBlobDedup,
   calculateFileHash,
-  calculateFastHash
+  calculateFastHash,
+  // 兼容旧版 API
+  readVideo,
+  saveVideo,
+  getVideo,
+  deleteVideo,
+  saveVideoToNative,
+  readVideoFromNative,
+  deleteVideoFromNative,
+  generateUniqueFilename
 };

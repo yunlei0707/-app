@@ -7,7 +7,7 @@ import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play
 import { useApp } from '../store/AppContext';
 import { getCurrentBabyInfo, isSystemAccount } from '../utils/dbV2';
 import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
-import { saveVideo, deleteVideo } from '../utils/storageAdapter';
+import { saveVideo, deleteVideo } from '../adapters/storageAdapter.js';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
