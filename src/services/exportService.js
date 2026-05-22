@@ -485,85 +485,60 @@ async function getAllMomentsFromDB() {
   };
 }
 
-function extractVideosFromData(data) {
-  const videos = [];
+// 通用媒体提取函数，兼容所有格式
+function extractMediaList(data, listName, type, defaultExt) {
+  const result = [];
   const seen = new Set();
 
-  function addVideos(m) {
-    if (!m?.videos) return;
-    for (const v of m.videos) {
-      const path = v.opfsPath || v.filename || v.url;
+  function addMedia(m) {
+    if (!m?.[listName] || !Array.isArray(m[listName])) return;
+    
+    for (const item of m[listName]) {
+      // 兼容：字符串 或 媒体对象
+      let path = null;
+      let fileName = null;
+      
+      if (typeof item === 'string') {
+        // 旧格式：纯字符串路径
+        path = item;
+        fileName = item.split('/').pop() || `${type}_${result.length}.${defaultExt}`;
+      } else if (item && typeof item === 'object') {
+        // 新格式：统一媒体对象
+        path = item.url || item.path || item.opfsPath || item.filename || item.name;
+        fileName = item.name || item.filename || (path ? path.split('/').pop() : null) || `${type}_${result.length}.${defaultExt}`;
+      }
+      
       if (!path || seen.has(path)) continue;
       seen.add(path);
-      videos.push({
-        id: m.id || `vid_${videos.length}`,
+      
+      result.push({
+        id: m.id || `${type}_${result.length}`,
         path,
-        fileName: v.filename || v.opfsPath || `video_${videos.length}.mp4`,
-        originalName: v.filename,
-        momentId: m.id
+        fileName,
+        originalName: fileName,
+        momentId: m.id,
+        type
       });
     }
   }
 
-  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addVideos);
-  if (data.data?.moments) data.data.moments.forEach(addVideos);
-  if (data.moments) data.moments.forEach(addVideos);
+  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addMedia);
+  if (data.data?.moments) data.data.moments.forEach(addMedia);
+  if (data.moments) data.moments.forEach(addMedia);
 
-  return videos;
+  return result;
+}
+
+function extractVideosFromData(data) {
+  return extractMediaList(data, 'videos', 'video', 'mp4');
 }
 
 function extractAudiosFromData(data) {
-  const audios = [];
-  const seen = new Set();
-
-  function addAudios(m) {
-    if (!m?.audios) return;
-    for (const a of m.audios) {
-      const path = a.opfsPath || a.filename || a.url;
-      if (!path || seen.has(path)) continue;
-      seen.add(path);
-      audios.push({
-        id: m.id || `aud_${audios.length}`,
-        path,
-        fileName: a.filename || a.opfsPath || `audio_${audios.length}.m4a`,
-        originalName: a.filename || a.name,
-        momentId: m.id
-      });
-    }
-  }
-
-  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addAudios);
-  if (data.data?.moments) data.data.moments.forEach(addAudios);
-  if (data.moments) data.moments.forEach(addAudios);
-
-  return audios;
+  return extractMediaList(data, 'audios', 'audio', 'm4a');
 }
 
 function extractPhotosFromData(data) {
-  const photos = [];
-  const seen = new Set();
-
-  function addPhotos(m) {
-    if (!m?.photos) return;
-    for (const p of m.photos) {
-      const path = p.opfsPath || p.filename || p.url || p.path;
-      if (!path || seen.has(path)) continue;
-      seen.add(path);
-      photos.push({
-        id: m.id || `pic_${photos.length}`,
-        path,
-        fileName: p.filename || p.opfsPath || p.path || `photo_${photos.length}.jpg`,
-        originalName: p.filename || p.name,
-        momentId: m.id
-      });
-    }
-  }
-
-  if (data.v2AccountData?.timeline) data.v2AccountData.timeline.forEach(addPhotos);
-  if (data.data?.moments) data.data.moments.forEach(addPhotos);
-  if (data.moments) data.moments.forEach(addPhotos);
-
-  return photos;
+  return extractMediaList(data, 'photos', 'photo', 'jpg');
 }
 
 async function saveToLocal(blob, path, filename) {

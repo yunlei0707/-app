@@ -34,13 +34,16 @@ function LazyImage({ src, alt, className, onClick }) {
       setLoading(true);
       setError(false);
       
+      // 兼容新旧格式：字符串 或 统一媒体对象
+      let rawSrc = typeof src === 'string' ? src : (src.url || src.path || src.filename);
+      
       // ✅ 优先使用 getImageSrc 处理 Capacitor 文件路径
       // 如果已经是可直接显示的格式（http、base64、转换后的路径），直接使用
-      let url = getImageSrc(src);
+      let url = getImageSrc(rawSrc);
       
       // 如果 getImageSrc 返回空字符串或需要OPFS处理的路径，使用 getMediaDisplaySrc
-      if (!url || (typeof src === 'string' && src.startsWith('opfs:')) || (typeof src === 'object' && src.handle)) {
-        url = await getMediaDisplaySrc(src);
+      if (!url || (typeof rawSrc === 'string' && rawSrc.startsWith('opfs:'))) {
+        url = await getMediaDisplaySrc(rawSrc);
         // 如果是Blob URL，记录下来以便清理
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
@@ -148,16 +151,18 @@ function AudioItem({ audio }) {
     try {
       setLoading(true);
       
+      // 兼容所有可能的字段名
+      const mediaUrl = audio.url || audio.path || audio.opfsPath || audio.filename;
+      
       // 1. 优先直接使用Base64 url
-      if (audio.url) {
-        setAudioUrl(audio.url);
+      if (mediaUrl && mediaUrl.startsWith('data:')) {
+        setAudioUrl(mediaUrl);
         return;
       }
       
       // 2. 其他格式统一使用mediaRepository获取显示URL
-      const path = audio.path || audio.opfsPath || audio.filename;
-      if (path) {
-        const url = await getMediaDisplaySrc(path);
+      if (mediaUrl) {
+        const url = await getMediaDisplaySrc(mediaUrl);
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }
@@ -234,16 +239,18 @@ function VideoItem({ video }) {
       setLoading(true);
       setError(false);
       
+      // 兼容所有可能的字段名
+      const mediaUrl = video.url || video.path || video.opfsPath || video.filename;
+      
       // 1. 优先直接使用Base64 url
-      if (video.url) {
-        setVideoUrl(video.url);
+      if (mediaUrl && mediaUrl.startsWith('data:')) {
+        setVideoUrl(mediaUrl);
         return;
       }
       
       // 2. 其他格式统一使用mediaRepository获取显示URL
-      const path = video.path || video.opfsPath || video.filename;
-      if (path) {
-        const url = await getMediaDisplaySrc(path);
+      if (mediaUrl) {
+        const url = await getMediaDisplaySrc(mediaUrl);
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }

@@ -1336,14 +1336,28 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       // 避免了File对象在等待保存时失效的问题
       console.log('[Save] 文件已提前处理完成，开始保存...');
       
+      // 统一媒体对象结构，兼容新旧数据
+      const normalizeMedia = (item, type) => {
+        // 如果是字符串，转成统一对象格式
+        if (typeof item === 'string') {
+          return { type, url: item, name: item.split('/').pop() };
+        }
+        // 如果已经是对象，确保有type和url字段
+        return { type, ...item, url: item.url || item.filename || item.path };
+      };
+
+      const normalizedPhotos = photos.map(p => normalizeMedia(p, 'photo'));
+      const normalizedVideos = videos.map(v => normalizeMedia(v, 'video'));
+      const normalizedAudios = audios.map(a => normalizeMedia(a, 'audio'));
+
       const momentData = {
         babyId: babyId,
         type,
         date: new Date(date + 'T12:00:00').toISOString(), // 用中午12点避免时区偏移
         content: content.trim(),
-        photos: type === 'photo' ? photos : [],
-        videos: type === 'video' ? videos : [],
-        audios: type === 'audio' ? audios : [],
+        photos: normalizedPhotos,  // 去掉type限制，所有媒体都保存
+        videos: normalizedVideos,  // 支持混合媒体动态
+        audios: normalizedAudios,
         podcast: type === 'podcast' ? {
           title: podcastTitle,
           description: podcastDescription,
