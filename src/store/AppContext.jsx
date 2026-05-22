@@ -12,7 +12,7 @@ import {
   updateSettings,
   checkAndInitSampleData,
   getCapsulesByBaby,
-  getSettings as getSettingsFromDB,
+  getSettings,
   getCustomMilestones,
   getCustomMoods,
   applyThemePreset,
@@ -27,7 +27,10 @@ import {
   deleteBaby,
   addMoment,
   getGrowthRecordsByBaby,
-} from '../utils/db';
+} from '../repositories/stateRepository';
+
+// 别名兼容（避免重命名）
+const getSettingsFromDB = getSettings;
 
 const AppContext = createContext(null);
 

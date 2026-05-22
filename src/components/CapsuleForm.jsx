@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { isSystemAccount } from "../utils/dbV2";
+import { isSystemAccount } from "../repositories/stateRepository.js";
 import { X, Image, Gift, AlertCircle } from 'lucide-react';
 
 export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {

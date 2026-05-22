@@ -6,10 +6,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { formatDateFriendly, formatTime } from '../utils/dateUtils';
 import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X } from 'lucide-react';
-import { readFileFromOPFS, getFileDisplayURL } from '../utils/opfs';
+import { getMediaBlob, getMediaDisplaySrc } from '../repositories/mediaRepository.js';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { readVideo } from '../adapters/storageAdapter.js';
 
 // 图片组件 - 支持OPFS、Base64和直接URL三种格式
 function LazyImage({ src, alt, className, onClick }) {
@@ -39,9 +38,9 @@ function LazyImage({ src, alt, className, onClick }) {
       // 如果已经是可直接显示的格式（http、base64、转换后的路径），直接使用
       let url = getImageSrc(src);
       
-      // 如果 getImageSrc 返回空字符串或需要OPFS处理的路径，使用 getFileDisplayURL
+      // 如果 getImageSrc 返回空字符串或需要OPFS处理的路径，使用 getMediaDisplaySrc
       if (!url || (typeof src === 'string' && src.startsWith('opfs:')) || (typeof src === 'object' && src.handle)) {
-        url = await getFileDisplayURL(src);
+        url = await getMediaDisplaySrc(src);
         // 如果是Blob URL，记录下来以便清理
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
@@ -154,7 +153,7 @@ function AudioItem({ audio }) {
   const loadAudioFromFS = async () => {
     try {
       setLoading(true);
-      const blob = await readVideo(audio.filename, audio.storageType);
+      const blob = await getMediaBlob(audio.filename, audio.storageType);
       const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;
       setAudioUrl(url);
@@ -233,7 +232,7 @@ function VideoItem({ video }) {
   const loadVideoFromFS = async () => {
     try {
       setLoading(true);
-      const blob = await readVideo(video.filename, video.storageType);
+      const blob = await getMediaBlob(video.filename, video.storageType);
       const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;
       setVideoUrl(url);
@@ -346,7 +345,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
       console.log('[MomentCard] 开始调用 getPodcastPlayUrl...');
       // 🔴 APP 环境下用 Base64，因为 Blob URL 在 APP WebView 中不可靠
       const useBase64 = true;
-      const playUrl = await getPodcastPlayUrl(moment.podcast.audio, readFileFromOPFS, useBase64);
+      const playUrl = await getPodcastPlayUrl(moment.podcast.audio, getMediaBlob, useBase64);
       
       console.log('[MomentCard] getPodcastPlayUrl 返回结果:', playUrl ? playUrl.substring(0, 50) + '...' : 'null');
       console.log('[MomentCard] URL 类型:', playUrl ? (playUrl.startsWith('blob:') ? 'Blob URL' : playUrl.startsWith('data:') ? 'Base64 URL' : '其他 URL') : '无');

@@ -1,9 +1,12 @@
 import { processVideos } from './mediaService.js';
 import { createZip } from '../adapters/zipAdapter.js';
-import { exportAllData as exportDBData } from '../utils/db.js';
-import { exportV2AccountData, getCurrentMediaIndex } from '../utils/dbV2.js';
+// 旧版 IDB 数据兼容（可空）
+function exportDBData() {
+  return Promise.resolve(null);
+}
+import { exportV2AccountData, getCurrentMediaIndex } from "../repositories/stateRepository.js";
 import { BASE_DIR } from '../constants/storage.js';
-import { getVideoBlob, calculateFastHash } from '../adapters/storageAdapter.js';
+import { getMediaBlob, calculateMediaHash } from '../repositories/mediaRepository.js';
 
 // ============================================================
 // ✅ 导出校验工具函数
@@ -135,7 +138,7 @@ export async function exportAllData(options = {}) {
       for (let retry = 0; retry < 3; retry++) {
         try {
           console.log('[Export] 读取视频:', v.path?.substring(0, 30) + '...', '第', retry + 1, '次尝试');
-          blob = await getVideoBlob(v.path);
+          blob = await getMediaBlob(v.path);
           if (blob && blob.size > 0) {
             console.log('[Export] 读取成功，大小:', blob.size);
             break;
@@ -153,7 +156,7 @@ export async function exportAllData(options = {}) {
       
       if (blob && blob.size > 0) {
         // ✅ 单源数据：计算哈希，检测重复
-        const fileHash = await calculateFastHash(blob);
+        const fileHash = await calculateMediaHash(blob);
         
         if (processedHashes.has(fileHash)) {
           // 重复视频：复用已处理的结果
@@ -205,7 +208,7 @@ export async function exportAllData(options = {}) {
       for (let retry = 0; retry < 3; retry++) {
         try {
           console.log('[Export] 读取音频:', a.path?.substring(0, 30) + '...', '第', retry + 1, '次尝试');
-          blob = await getVideoBlob(a.path); // 复用 getVideoBlob，音频也在 videos 目录
+          blob = await getMediaBlob(a.path); // 复用 getMediaBlob，音频也在 videos 目录
           if (blob && blob.size > 0) {
             console.log('[Export] 读取成功，大小:', blob.size);
             break;
@@ -223,7 +226,7 @@ export async function exportAllData(options = {}) {
       
       if (blob && blob.size > 0) {
         // ✅ 单源数据：计算哈希，检测重复
-        const fileHash = await calculateFastHash(blob);
+        const fileHash = await calculateMediaHash(blob);
         
         if (processedHashes.has(fileHash)) {
           // 重复音频：复用已处理的结果

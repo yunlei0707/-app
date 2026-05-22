@@ -16,15 +16,32 @@ import
   HelpCircle, Shield, FileText, Info, RotateCcw
 } from 'lucide-react';
 import 
-{ exportAllData as exportAllIDBData, importAllData, importAllDataV2, importFromZipStream, importMultipleFiles, clearAllData, PRESET_AVATARS, getAllBabies, getMomentsByBaby, getCapsulesByBaby, addMoment, deleteBaby } from '../utils/db';
-import { exportV2AccountData, importV2AccountData, isSystemAccount } from '../utils/dbV2';
+{ 
+  // V1 数据兼容
+  exportAllData as exportAllIDBData, 
+  importAllData, 
+  importAllDataV2, 
+  importFromZipStream, 
+  importMultipleFiles, 
+  clearAllData, 
+  PRESET_AVATARS, 
+  getAllBabies, 
+  getMomentsByBaby, 
+  getCapsulesByBaby, 
+  addMoment, 
+  deleteBaby,
+  // V2 数据
+  exportV2AccountData, 
+  importV2AccountData, 
+  isSystemAccount,
+} from '../repositories/stateRepository';
 import { exportAllData, exportAllDataWithVideos, triggerDownload } from '../services/exportService.js';
 import 
 { calculateAge } from '../utils/dateUtils';
 import 
 { BabyHeader } from '../components/BabyHeader';
 import 
-{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount, addMomentToCurrentAccount } from '../utils/dbV2';
+{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount, addMomentToCurrentAccount } from '../repositories/stateRepository';
 import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
 import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';

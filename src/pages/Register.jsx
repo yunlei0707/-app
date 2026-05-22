@@ -7,7 +7,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Heart, User, Lock, Eye, EyeOff, Baby, Check, X, Image, Shield } from 'lucide-react';
-import { registerUser, updateSecurityQuestion, PRESET_AVATARS } from '../utils/db';
+import { registerUser, updateSecurityQuestion, PRESET_AVATARS } from '../repositories/stateRepository';
 
 export function RegisterPage({ onRegister }) {
   const navigate = useNavigate();

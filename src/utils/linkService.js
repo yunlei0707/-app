@@ -8,7 +8,7 @@
  */
 
 import { matchLinkRule, generateLinkedContent } from './linkRules';
-import { getCurrentBabyInfo, addVirtualTimeToCurrentAccount } from './dbV2';
+import { getCurrentBabyInfo, addVirtualTimeToCurrentAccount } from "../repositories/stateRepository.js";
 
 /**
  * 分类标题到 ID 的映射（用于联动时设置正确的分类）

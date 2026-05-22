@@ -5,7 +5,7 @@
  * 不直接操作存储（调用 storageAdapter），不直接操作 ZIP（调用 zipAdapter）
  */
 
-import { getVideoBlob } from '../adapters/storageAdapter.js';
+import { getMediaBlob } from '../repositories/mediaRepository.js';
 
 /**
  * 批量处理视频

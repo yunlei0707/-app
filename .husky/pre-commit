@@ -8,6 +8,9 @@ echo ""
 # 运行架构分层检测
 node scripts/check-architecture.cjs
 
+# 运行全功能架构审计
+npm run check:arch
+
 # 保存退出码
 RESULT=$?
 

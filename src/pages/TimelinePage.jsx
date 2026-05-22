@@ -12,7 +12,6 @@ import { MomentCard } from '../components/MomentCard';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { ShareCard } from '../components/ShareCard';
 import { groupByYearAndMonth } from '../utils/dateUtils';
-import { deleteMoment, getMomentsByBaby, addMoment, initDB } from '../utils/db';
 // ✅ 引入 Zustand 状态管理用于分页加载
 import { useMomentStore } from '../store/momentStore';
 import { PredictionPage } from '../components/PredictionPage';
@@ -26,8 +25,13 @@ import {
   isSystemAccount as checkIsSystemAccount,
   isV1Account as checkIsV1Account,
   getCurrentBabyInfo,
-  deleteLinkedContentByRecordId
-} from '../utils/dbV2';
+  deleteLinkedContentByRecordId,
+  // V1 兼容函数 - 后续逐步迁移到 V2
+  deleteMoment, 
+  getMomentsByBaby, 
+  addMoment, 
+  initDB
+} from "../repositories/stateRepository.js";
 import { mergeMoments, shouldMergeDisplay, isV1Moment, getDataOrigin } from '../utils/dataMerger';
 
 // 类型筛选选项 - 移除播客，播客功能独立到专门页面

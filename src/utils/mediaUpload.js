@@ -3,7 +3,7 @@
  * 功能：记录上传状态、失败自动重试、手动重传
  */
 
-import { saveVideo, getVideo, deleteVideo } from '../adapters/storageAdapter.js';
+import { saveMedia, getMediaBlob, deleteMedia } from '../repositories/mediaRepository.js';
 import { STORAGE_CONFIG } from '../config/storage';
 
 // ========== 上传状态常量 ==========

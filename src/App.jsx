@@ -24,14 +24,26 @@ import { RecycleBin } from './components/RecycleBin';
 
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
-import { addMoment, updateMoment, addCapsule, updateCapsule, addBaby, updateBaby, addGrowthRecord, updateGrowthRecord, getMomentsByBaby } from './utils/db';
-import { isSystemAccount, getCurrentBabyInfo, addMomentToCurrentAccount, updateMomentInCurrentAccount, updateCurrentBabyInfo, getCurrentGrowth, updateCurrentGrowth } from './utils/dbV2';
+// 数据访问统一走 stateRepository
+import {
+  isSystemAccount,
+  getCurrentBabyInfo,
+  addMomentToCurrentAccount,
+  updateMomentInCurrentAccount,
+  updateCurrentBabyInfo,
+  getCurrentGrowth,
+  updateCurrentGrowth,
+  getMomentsByBaby,
+  initializeApp
+} from './repositories/stateRepository.js';
 import { isV1Moment, createV2CopyFromV1, isV1GrowthRecord, createV2GrowthCopyFromV1 } from './utils/dataMerger';
-import { initializeApp } from './utils/dbV2';
+
+// V1 兼容函数，从统一入口导入
+import { addMoment, updateMoment, addCapsule, updateCapsule, addBaby, updateBaby, addGrowthRecord, updateGrowthRecord } from './repositories/stateRepository';
 import { handleRecordLink } from './utils/linkService';
 import { AIChoiceModal } from './components/AIChoiceModal';
 import { GrowthRecordForm } from './components/GrowthRecordForm';
-import { cleanupOrphanFiles } from './utils/opfs';
+import { cleanupOrphanFiles } from './repositories/mediaRepository';
 import { STORAGE_CONFIG } from './config/storage';
 // P4阶段：同步工具
 import { executeSync, setupVisibilitySync, formatLastSyncTime, isSyncing } from './utils/sync';

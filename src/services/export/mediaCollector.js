@@ -20,7 +20,7 @@ export async function collectMomentMedia(moment) {
         try {
           const photoPath = typeof photo === 'string' ? photo : photo.path;
           if (photoPath) {
-            const blob = await mediaRepository.readFile(photoPath);
+            const blob = await mediaRepository.getMediaBlob(photoPath);
             if (blob) {
               mediaFiles.push({
                 type: 'photo',
@@ -42,7 +42,7 @@ export async function collectMomentMedia(moment) {
         try {
           const videoPath = typeof video === 'string' ? video : video.path;
           if (videoPath) {
-            const blob = await mediaRepository.readFile(videoPath);
+            const blob = await mediaRepository.getMediaBlob(videoPath);
             if (blob) {
               mediaFiles.push({
                 type: 'video',
@@ -64,7 +64,7 @@ export async function collectMomentMedia(moment) {
         try {
           const audioPath = typeof audio === 'string' ? audio : audio.path;
           if (audioPath) {
-            const blob = await mediaRepository.readFile(audioPath);
+            const blob = await mediaRepository.getMediaBlob(audioPath);
             if (blob) {
               mediaFiles.push({
                 type: 'audio',
@@ -144,7 +144,7 @@ export async function collectAllMediaForExport({ babies, moments, capsules }) {
     for (const baby of babies) {
       if (baby.avatar) {
         try {
-          const blob = await mediaRepository.readFile(baby.avatar);
+          const blob = await mediaRepository.getMediaBlob(baby.avatar);
           if (blob) {
             results.mediaFiles.push({
               type: 'avatar',

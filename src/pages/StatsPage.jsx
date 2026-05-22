@@ -7,9 +7,9 @@ import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import { BabyHeader } from '../components/BabyHeader';
 import { calculateAge } from '../utils/dateUtils';
-import { getMomentsByBaby, getCapsulesByBaby } from '../utils/db';
+import { getMomentsByBaby, getCapsulesByBaby } from '../repositories/stateRepository';
 import { Gift, TrendingUp, Camera, Star, BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Edit3, BarChart2 } from 'lucide-react'
-import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from '../utils/dbV2';
+import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from "../repositories/stateRepository.js";
 import { mergeGrowthRecords, shouldMergeDisplay, isV1GrowthRecord, createV2GrowthCopyFromV1 } from '../utils/dataMerger';
 import { TimeBlindBox } from '../components/TimeBlindBox';
 import { GROWTH_LABELS, GROWTH_UNITS, GROWTH_ICONS } from '../utils/growthMilestones';

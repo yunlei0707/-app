@@ -4,7 +4,7 @@
  */
 
 import { getAllBabies, getAllMomentsByBabyForSync, addMoment, updateMoment, deleteMoment } from './db';
-import { getCurrentV2Account, getCurrentBabyInfo, addMomentToCurrentAccount } from './dbV2';
+import { getCurrentV2Account, getCurrentBabyInfo, addMomentToCurrentAccount } from "../repositories/stateRepository.js";
 import { detectConflicts, addConflict, getUnresolvedConflictCount } from './conflictResolver';
 
 // ========== 同步状态常量 ==========

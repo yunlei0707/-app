@@ -18,7 +18,7 @@ import {
   deleteVirtualTimeCategoryItem,
   getCurrentBabyInfo,
   isSystemAccount as checkIsSystemAccount
-} from '../utils/dbV2';
+} from "../repositories/stateRepository.js";
 
 export function VirtualTimeCategoriesPage() {
   const navigate = useNavigate();

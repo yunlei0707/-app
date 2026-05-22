@@ -1,4 +1,4 @@
-import { addMoment, updateMoment, getMomentById } from '../utils/db.js';
+import { addMomentToCurrentAccount, updateMomentInCurrentAccount } from "../repositories/stateRepository.js";
 
 export async function restoreMoments(moments, options = { mode: 'merge' }) {
   const { mode } = options;

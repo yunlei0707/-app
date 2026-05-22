@@ -7,7 +7,7 @@ import { useApp } from '../store/AppContext';
 import { CapsuleCard } from '../components/CapsuleCard';
 import { getMonthDays, formatMonth, getYear, getDate } from '../utils/dateUtils';
 import { X, ChevronLeft, ChevronRight, Plus, Gift, Calendar } from 'lucide-react';
-import { deleteCapsule } from '../utils/db';
+import { deleteCapsule } from '../repositories/stateRepository';
 
 export function CapsulesPage({ onClose, onAddCapsule, onEditCapsule }) {
   const { capsules, showToast, refreshCapsules } = useApp();

@@ -20,7 +20,7 @@ import {
   deleteVirtualTimeFromCurrentAccount,
   updateCurrentBabyInfo,
   getVirtualTimeCategories
-} from '../utils/dbV2';
+} from "../repositories/stateRepository.js";
 
 export function VirtualTimePage() {
   const navigate = useNavigate();

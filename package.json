@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "husky install",
-    "lint:arch": "node scripts/check-architecture.cjs",
+    "lint:arch": "node scripts/check-architecture.js",
+    "check:arch": "node scripts/audit.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

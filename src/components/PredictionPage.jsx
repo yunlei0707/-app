@@ -9,7 +9,7 @@ import {
   getPredictionsByMonthAge,
   predictionTypes 
 } from '../data/babyPredictions';
-import { getCurrentBabyInfo } from '../utils/dbV2';
+import { getCurrentBabyInfo } from "../repositories/stateRepository.js";
 import { useApp } from '../store/AppContext';
 
 // 根据月龄和种子随机选择

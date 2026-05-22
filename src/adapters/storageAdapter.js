@@ -4,7 +4,7 @@
  * 新增：文件哈希计算、去重检测、引用计数、容错机制
  */
 
-import { findMediaByHash, registerMedia } from '../utils/dbV2';
+import { findMediaByHash, registerMedia } from '../repositories/stateRepository.js';
 
 let _fsCache = null, _fsLoaded = false;
 

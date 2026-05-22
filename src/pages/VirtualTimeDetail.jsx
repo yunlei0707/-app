@@ -18,7 +18,7 @@ import {
   getCurrentBabyInfo,
   isSystemAccount as checkIsSystemAccount,
   getVirtualTimeCategories,
-} from '../utils/dbV2';
+} from "../repositories/stateRepository.js";
 
 export function VirtualTimeDetail() {
   const { topicId } = useParams();

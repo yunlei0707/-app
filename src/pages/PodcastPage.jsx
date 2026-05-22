@@ -9,8 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { Play, X, Mic } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
-import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from '../utils/dbV2';
-import { getMomentsByBaby } from '../utils/db';
+import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from "../repositories/stateRepository.js";
+import { getMomentsByBaby } from '../repositories/stateRepository';
 import { MomentForm } from '../components/MomentForm';
 
 export function PodcastPage() {

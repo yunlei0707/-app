@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { User } from 'lucide-react';
-import { getCurrentV2Account } from '../utils/dbV2';
+import { getCurrentV2Account } from "../repositories/stateRepository.js";
 
 // 获取当前用户的头像和名称
 function useCurrentUser() {

@@ -4,7 +4,7 @@
  */
 
 import { getAllMomentsForSync } from './db';
-import { getCurrentV2Account } from './dbV2';
+import { getCurrentV2Account } from "../repositories/stateRepository.js";
 
 // ========== 清理配置 ==========
 const CONFIG = {
