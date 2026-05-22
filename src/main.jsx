@@ -1,5 +1,10 @@
 /** * 宝贝时光 - 应用入口 * 记录宝宝成长点滴的移动端单页应用 */
 import React from 'react';
+import { setupErrorGuard } from '@core/safe';
+
+// 🛡️ 第一个执行：启动全局错误防护
+// 任何后续代码出错，都会被安全捕获，不会让整个应用白屏
+setupErrorGuard();
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
