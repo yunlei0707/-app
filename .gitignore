@@ -108,6 +108,29 @@ node_modules/
 .npm/
 .global-npm/
 
+# 构建缓存
+.vite/
+.cache/
+.temp/
+
+# pnpm
+pnpm-lock.yaml
+.pnpm-debug.log
+
+# 打包产物
+dist/
+build/
+www/
+
+# 本地环境文件
+.env.local
+.env.*.local
+
+# Capacitor构建产物
+android/
+ios/
+capacitor.config.ts.local
+
 # Build artifacts
 dist/
 build/

@@ -31,10 +31,33 @@ export default defineConfig({
     port: 5173
   },
   build: {
+    // 启用增量构建缓存
+    cacheDir: '.vite/cache',
+    // 代码分割，把大依赖拆成单独的chunk
     rollupOptions: {
       // 注意：不要把Capacitor插件设为external！
       // 它们的JavaScript部分必须被打包进bundle
       // 原生部分由Capacitor CLI在构建APK时处理
-    }
+      output: {
+        manualChunks: {
+          // 把React相关拆成单独chunk
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // 把UI相关拆成单独chunk
+          'ui-vendor': ['lucide-react'],
+          // 工具库单独打包
+          'utils-vendor': ['date-fns', 'idb'],
+          // 图表单独打包
+          'charts-vendor': ['echarts']
+        }
+      }
+    },
+    // 关闭sourcemap减少构建时间（需要调试时再打开）
+    sourcemap: false,
+    // 增加chunk大小警告阈值，避免过小的chunk
+    chunkSizeWarningLimit: 1000
+  },
+  // 开发服务器缓存优化
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'lucide-react', 'date-fns', 'idb', 'echarts']
   }
 })
