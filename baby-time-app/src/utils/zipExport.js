@@ -692,12 +692,85 @@ async function exportWithNativeFS(options = {}) {
           stats: { ...stats, processedAudios, successAudios, failedAudios }
         });
       }
+    }
+
+    // ========== 步骤2c: 流式读取并写入照片文件（原生导出） ==========
+    if (includeVideos && stats.totalPhotos > 0) {
+      if (onProgress) {
+        onProgress({
+          step: 2,
+          progress: 90,
+          message: `开始处理 ${stats.totalPhotos} 个照片文件 (${stats.opfsPhotos}个OPFS/原生, ${stats.base64Photos}个Base64)...`,
+          stats
+        });
+      }
+
+      let processedPhotos = 0;
+      let successPhotos = 0;
+      let failedPhotos = 0;
+
+      // 逐个处理所有照片（避免并发太高导致内存溢出）
+      for (const photoInfo of stats.photos) {
+        try {
+          let fileBlob;
+
+          if (photoInfo.type === 'opfs') {
+            // 从OPFS/原生文件系统读取
+            try {
+              fileBlob = await readVideoFromOPFS(photoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP-Native] OPFS照片读取失败 ${photoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (photoInfo.type === 'base64') {
+            // Base64转File
+            fileBlob = base64ToFile(photoInfo.data, photoInfo.outputFilename);
+          }
+
+          // 写入ZIP
+          if (fileBlob) {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const uint8array = new Uint8Array(arrayBuffer);
+            await zipBuilder.addFile(`photos/${photoInfo.outputFilename}`, uint8array);
+            successPhotos++;
+          }
+
+          processedPhotos++;
+
+          // 报告进度（照片处理占90%-95%）
+          if (onProgress) {
+            const photoProgress = 90 + Math.floor((processedPhotos / stats.totalPhotos) * 5);
+            onProgress({
+              step: 2,
+              progress: photoProgress,
+              message: `照片处理中: ${processedPhotos}/${stats.totalPhotos} (${successPhotos}成功, ${failedPhotos}失败)`,
+              stats: { ...stats, processedPhotos, successPhotos, failedPhotos }
+            });
+          }
+
+          triggerGC(); // 每个照片处理完主动GC
+
+        } catch (e) {
+          failedPhotos++;
+          processedPhotos++;
+          console.warn(`[ZIP-Native] 照片处理失败 ${photoInfo.filename}:`, e);
+        }
+      }
+
+      if (onProgress) {
+        onProgress({
+          step: 2,
+          progress: 95,
+          message: `照片处理完成: ${successPhotos}/${stats.totalPhotos} 成功写入`,
+          stats: { ...stats, processedPhotos, successPhotos, failedPhotos }
+        });
+      }
     } else if (!includeVideos) {
       // 已经在视频处理中报告过了
-    } else if (stats.totalAudios > 0) {
-      // 有音频但被跳过
+    } else if (stats.totalPhotos > 0) {
+      // 有照片但被跳过
     } else {
-      // 没有音频文件
+      // 没有照片文件
     }
     // ========== 步骤3: 完成ZIP文件构建 ==========
     if (onProgress) {
@@ -715,7 +788,7 @@ async function exportWithNativeFS(options = {}) {
       onProgress({
         step: 3,
         progress: 100,
-        message: `导出完成! 共 ${stats.v2Timeline || stats.oldMoments} 条数据, ${includeVideos ? stats.totalVideos : 0} 个视频, ${includeVideos ? stats.totalAudios : 0} 个音频`,
+        message: `导出完成! 共 ${stats.v2Timeline || stats.oldMoments} 条数据, ${includeVideos ? stats.totalVideos : 0} 个视频, ${includeVideos ? stats.totalAudios : 0} 个音频, ${includeVideos ? stats.totalPhotos : 0} 个照片`,
         stats
       });
     }
@@ -1045,6 +1118,121 @@ function collectAudioFiles(data) {
  * @param {Object} data 导出数据
  * @returns {Object} 统计信息
  */
+
+/**
+ * 收集所有照片文件
+ * @param {Object} data 导出数据
+ * @returns {Array} 照片文件列表
+ */
+function collectPhotoFiles(data) {
+  const photos = [];
+  const processedFilenames = new Set(); // 避免重复处理同一文件
+
+  // 收集v2 timeline中的照片
+  const timeline = data.v2AccountData?.timeline || [];
+  for (const moment of timeline) {
+    if (moment.photos && Array.isArray(moment.photos)) {
+      for (const photo of moment.photos) {
+        // 字符串类型的照片（可能是文件URI或Base64）
+        if (typeof photo === 'string' && !processedFilenames.has(photo)) {
+          if (photo.startsWith('data:')) {
+            photos.push({
+              type: 'base64',
+              filename: photo,
+              data: photo,
+              momentId: moment.id,
+              outputFilename: `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+          } else {
+            photos.push({
+              type: 'opfs', // 原生存储也用opfs类型读取
+              filename: photo,
+              momentId: moment.id,
+              outputFilename: photo.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+          }
+          processedFilenames.add(photo);
+        }
+        // 对象类型的照片（有filename或url字段）
+        else if (typeof photo === 'object' && photo !== null) {
+          // 有filename字段（OPFS/原生存储）
+          if (photo.filename && !processedFilenames.has(photo.filename)) {
+            if (photo.filename.startsWith('data:')) {
+              photos.push({
+                type: 'base64',
+                filename: photo.filename,
+                data: photo.filename,
+                momentId: moment.id,
+                outputFilename: photo.name || `${moment.id || 'photo'}_${Date.now()}.jpg`
+              });
+            } else {
+              photos.push({
+                type: 'opfs',
+                filename: photo.filename,
+                momentId: moment.id,
+                outputFilename: photo.name || photo.filename.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
+              });
+            }
+            processedFilenames.add(photo.filename);
+          }
+          // 有url字段且是Base64
+          if (photo.url && photo.url.startsWith('data:') && !processedFilenames.has(photo.url)) {
+            photos.push({
+              type: 'base64',
+              filename: photo.url,
+              data: photo.url,
+              momentId: moment.id,
+              outputFilename: photo.name || `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+            processedFilenames.add(photo.url);
+          }
+          // url是文件名/相对路径（不是Base64）
+          else if (photo.url && !photo.url.startsWith('data:') && !processedFilenames.has(photo.url)) {
+            photos.push({
+              type: 'opfs',
+              filename: photo.url,
+              momentId: moment.id,
+              outputFilename: photo.name || photo.url.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+            processedFilenames.add(photo.url);
+          }
+        }
+      }
+    }
+  }
+
+  // 收集旧版moments中的照片
+  const moments = data.moments || [];
+  for (const moment of moments) {
+    if (moment.photos && Array.isArray(moment.photos)) {
+      for (const photo of moment.photos) {
+        if (typeof photo === 'string' && !processedFilenames.has(photo)) {
+          if (photo.startsWith('data:')) {
+            photos.push({
+              type: 'base64',
+              filename: photo,
+              data: photo,
+              momentId: moment.id,
+              outputFilename: `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+          } else {
+            photos.push({
+              type: 'opfs',
+              filename: photo,
+              momentId: moment.id,
+              outputFilename: photo.split('/').pop() || `${moment.id || 'photo'}_${Date.now()}.jpg`
+            });
+          }
+          processedFilenames.add(photo);
+        }
+      }
+    }
+  }
+
+  return photos;
+}
+
+
 function getStats(data) {
   const v2Timeline = data.v2AccountData?.timeline || [];
   const v2HasTimeline = v2Timeline.length > 0;
@@ -1060,6 +1248,11 @@ function getStats(data) {
   const opfsAudios = audios.filter(a => a.type === "opfs");
   const base64Audios = audios.filter(a => a.type === "base64");
   const indexeddbAudios = audios.filter(a => a.type === "indexeddb");
+
+  const photos = collectPhotoFiles(data);
+  const opfsPhotos = photos.filter(p => p.type === "opfs");
+  const base64Photos = photos.filter(p => p.type === "base64");
+
   return {
     v2Timeline: v2Timeline.length,
     v2HasTimeline,
@@ -1074,7 +1267,11 @@ function getStats(data) {
     opfsAudios: opfsAudios.length,
     base64Audios: base64Audios.length,
     indexeddbAudios: indexeddbAudios.length,
-    audios
+    audios,
+    totalPhotos: photos.length,
+    opfsPhotos: opfsPhotos.length,
+    base64Photos: base64Photos.length,
+    photos
   };
 }
 
@@ -1331,6 +1528,75 @@ async function exportWithJSZip(options) {
           progress: 90,
           message: `音频处理完成: ${successAudios}/${stats.totalAudios} 成功写入`,
           stats: { ...stats, processedAudios, successAudios, failedAudios }
+        });
+      }
+    }
+
+    // ========== 步骤2c: 流式读取并写入照片文件 ==========
+    if (includeVideos && stats.totalPhotos > 0) {
+      if (onProgress) {
+        onProgress({
+          step: 2,
+          progress: 90,
+          message: `开始处理 ${stats.totalPhotos} 个照片文件 (${stats.opfsPhotos}个OPFS/原生, ${stats.base64Photos}个Base64)...`,
+          stats
+        });
+      }
+
+      const photosFolder = zip.folder('photos');
+      let processedPhotos = 0;
+      let successPhotos = 0;
+      let failedPhotos = 0;
+
+      // 并发处理所有照片
+      const { errors } = await withConcurrency(
+        stats.photos,
+        async (photoInfo) => {
+          let fileBlob;
+
+          if (photoInfo.type === 'opfs') {
+            // 从OPFS/原生文件系统读取（复用视频读取函数，因为都是文件读取）
+            try {
+              fileBlob = await readVideoFromOPFS(photoInfo.filename);
+            } catch (e) {
+              console.warn(`[ZIP] OPFS照片读取失败 ${photoInfo.filename}:`, e);
+              throw e;
+            }
+          } else if (photoInfo.type === 'base64') {
+            // Base64转File
+            fileBlob = base64ToFile(photoInfo.data, photoInfo.outputFilename);
+          }
+
+          // 写入ZIP
+          if (fileBlob) {
+            photosFolder.file(photoInfo.outputFilename, fileBlob);
+            successPhotos++;
+          }
+
+          processedPhotos++;
+
+          // 报告进度（照片处理占90%-95%）
+          if (onProgress) {
+            const photoProgress = 90 + Math.floor((processedPhotos / stats.totalPhotos) * 5);
+            onProgress({
+              step: 2,
+              progress: photoProgress,
+              message: `照片处理中: ${processedPhotos}/${stats.totalPhotos} (${successPhotos}成功, ${failedPhotos}失败)`,
+              stats: { ...stats, processedPhotos, successPhotos, failedPhotos }
+            });
+          }
+        },
+        concurrency
+      );
+
+      failedPhotos = errors.length;
+
+      if (onProgress) {
+        onProgress({
+          step: 2,
+          progress: 95,
+          message: `照片处理完成: ${successPhotos}/${stats.totalPhotos} 成功写入`,
+          stats: { ...stats, processedPhotos, successPhotos, failedPhotos }
         });
       }
     }
