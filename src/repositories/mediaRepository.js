@@ -203,5 +203,6 @@ export {
   validateMediaItem,        // 数据校验
   assertMediaSchema,        // 🔥 P0.5：Schema 防线 - 单个媒体写入前强制校验
   assertMediaArraySchema,   // 🔥 P0.5：Schema 防线 - 媒体数组写入前强制校验
+  assertNoDisplayUrlInPath, // 🔴 P1.5：绝对禁止把显示 URL 写入 path
   inferMediaTypeFromPath,   // 从路径推断类型
 } from '../utils/mediaSchema.js';

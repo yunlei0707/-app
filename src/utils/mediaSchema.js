@@ -212,6 +212,50 @@ export function assertMediaArraySchema(mediaArray) {
   }
   
   mediaArray.forEach(item => assertMediaSchema(item));
+  
+  // 🔴 P1.5：额外检查 path 中不能包含显示 URL
+  // 这是最容易犯的错误之一，一旦把 blob: 等显示 URL 写入数据库
+  // 就会导致导出失效、刷新后媒体丢失等各种诡异问题
+  mediaArray.forEach(item => assertNoDisplayUrlInPath(item));
+  
+  return true;
+}
+
+/**
+ * 🔴 P1.5：绝对禁止把显示 URL 写入存储路径
+ * 
+ * 这是媒体系统最容易犯的错误之一：
+ *   - blob: 是浏览器临时 URL，刷新就失效
+ *   - _capacitor_file_ 是 Capacitor 临时 URL
+ *   - http/https 是网络 URL
+ *   
+ * 这些都不能作为 path 写入数据库！
+ * 
+ * path 只能是：沙箱内真实的文件系统路径
+ * 
+ * @param {Object} mediaItem - 待检查的媒体项
+ * @throws 如果 path 包含显示 URL，抛出异常阻止写入
+ */
+export function assertNoDisplayUrlInPath(mediaItem) {
+  if (!mediaItem || !mediaItem.path) return;
+  
+  const path = String(mediaItem.path);
+  const forbiddenPrefixes = [
+    'blob:',           // 浏览器 Blob URL
+    '_capacitor_file_', // Capacitor 临时 URL
+    'http://',         // HTTP URL
+    'https://',        // HTTPS URL
+    'content://',      // Android Content URL
+  ];
+  
+  for (const prefix of forbiddenPrefixes) {
+    if (path.startsWith(prefix) || path.includes(prefix)) {
+      const errorMsg = `[MediaSchema] 写入被拒绝！path 不能是显示 URL，必须是真实文件路径: ${path}`;
+      console.error(errorMsg, mediaItem);
+      throw new Error(errorMsg);
+    }
+  }
+  
   return true;
 }
 
