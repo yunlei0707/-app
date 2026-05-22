@@ -28,6 +28,9 @@ jobs:
           node-version: '22'
           # cache: 'pnpm' # 等第一次生成pnpm-lock.yaml后再开启
 
+      - name: Configure pnpm registry
+        run: pnpm config set registry https://registry.npmjs.org
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
