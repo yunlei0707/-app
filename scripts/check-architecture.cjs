@@ -112,12 +112,15 @@ function checkFile(filePath, baseDir) {
     const alias = importPath.split('/')[0];
     
     if (alias === '@ui') importLayer = 'ui';
+    else if (alias === '@components') importLayer = 'ui';
+    else if (alias === '@pages') importLayer = 'ui';
     else if (alias === '@state') importLayer = 'state';
+    else if (alias === '@store') importLayer = 'state';
     else if (alias === '@services') importLayer = 'services';
     else if (alias === '@repositories') importLayer = 'repositories';
     else if (alias === '@core') importLayer = 'core';
     else if (alias === '@utils') importLayer = 'utils';
-    else if (alias === '@config' || alias === '@data') continue; // 任何人都可以访问
+    else if (['@config', '@data', '@assets', '@hooks'].includes(alias)) continue; // 通用层任何人都可以访问
     else continue; // 其他 alias 跳过
     
     // 检查是否越层

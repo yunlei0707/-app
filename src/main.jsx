@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import './index.css';
 import './utils/backButton.js';
 
