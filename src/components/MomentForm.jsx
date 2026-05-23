@@ -5,6 +5,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play, Pause, Navigation, Search } from 'lucide-react';
 import { useApp } from '../store/AppContext';
+import { savePhoto, saveVideo, saveAudio, dataURLToBlob } from '../utils/mediaPersistence';
+import { normalizeMediaArray, MediaType, assertMediaArraySchema } from '../utils/mediaSchema';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心' },
@@ -30,9 +32,15 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const { getAllMilestones } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
   const [content, setContent] = useState(moment?.content || '');
-  const [photos, setPhotos] = useState(moment?.photos || []);
-  const [videos, setVideos] = useState(moment?.videos || []); // [{url, cover, name, size}]
-  const [audios, setAudios] = useState(moment?.audios || []); // [{url, duration, waveform}]
+  // 存储待持久化的媒体对象（File/Blob + 预览DataURL）
+  // { file, previewUrl, name, size, duration, coverUrl }
+  const [photos, setPhotos] = useState([]);
+  const [videos, setVideos] = useState([]);
+  const [audios, setAudios] = useState([]);
+  // 历史数据兼容：从moment加载时先保留原始数据，保存时统一处理
+  const [legacyPhotos, setLegacyPhotos] = useState(moment?.photos || []);
+  const [legacyVideos, setLegacyVideos] = useState(moment?.videos || []);
+  const [legacyAudios, setLegacyAudios] = useState(moment?.audios || []);
   const [mood, setMood] = useState(moment?.mood || '');
   const [weather, setWeather] = useState(moment?.weather || '');
   const [location, setLocation] = useState(moment?.location || '');
@@ -245,10 +253,14 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const reader = new FileReader();
         reader.onload = () => {
+          // 存储Blob对象和预览信息，保存时再持久化
           const audioData = {
-            url: reader.result,
+            blob: audioBlob,
+            previewUrl: reader.result,
             duration: recordingTime,
-            waveform: [...audioWaveform]
+            waveform: [...audioWaveform],
+            type: 'audio/webm',
+            size: audioBlob.size,
           };
           setAudios(prev => [...prev, audioData]);
         };
@@ -451,7 +463,15 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setPhotos(prev => [...prev, event.target.result]);
+        // 存储File对象和预览URL，保存时再持久化
+        const photoData = {
+          file,
+          previewUrl: event.target.result,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        };
+        setPhotos(prev => [...prev, photoData]);
       };
       reader.readAsDataURL(file);
     });
@@ -462,7 +482,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     const file = e.target.files[0];
     if (!file) return;
     
-    // 先将视频文件转为DataURL存储
+    // 先生成预览URL
     const videoReader = new FileReader();
     videoReader.onload = (event) => {
       const videoDataURL = event.target.result;
@@ -484,22 +504,27 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const coverImage = canvas.toDataURL('image/jpeg', 0.8);
           
+          // 存储File对象和预览信息，保存时再持久化
           const videoData = {
-            url: videoDataURL, // 存储实际视频数据
-            cover: coverImage,
+            file,
+            previewUrl: videoDataURL,
+            coverUrl: coverImage,
             name: file.name,
             size: file.size,
-            duration: video.duration
+            duration: video.duration,
+            type: file.type,
           };
           
           setVideos(prev => [...prev, videoData]);
         } catch (err) {
           // 如果生成失败，使用默认占位
           setVideos(prev => [...prev, {
-            url: videoDataURL,
-            cover: null,
+            file,
+            previewUrl: videoDataURL,
+            coverUrl: null,
             name: file.name,
-            size: file.size
+            size: file.size,
+            type: file.type,
           }]);
         }
       };
@@ -507,10 +532,12 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       video.onerror = () => {
         // 即使封面失败，也保存视频
         setVideos(prev => [...prev, {
-          url: videoDataURL,
-          cover: null,
+          file,
+          previewUrl: videoDataURL,
+          coverUrl: null,
           name: file.name,
-          size: file.size
+          size: file.size,
+          type: file.type,
         }]);
       };
     };
@@ -531,7 +558,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   };
 
   const handleSubmit = async () => {
-    if (!content.trim() && photos.length === 0 && videos.length === 0 && audios.length === 0) {
+    if (!content.trim() && photos.length === 0 && videos.length === 0 && audios.length === 0 &&
+        legacyPhotos.length === 0 && legacyVideos.length === 0 && legacyAudios.length === 0) {
       alert('请添加内容、照片、视频或语音');
       return;
     }
@@ -541,30 +569,105 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       return;
     }
     
-    const momentData = {
-      babyId: babyId,
-      type,
-      date: new Date(date).toISOString(),
-      content: content.trim(),
-      photos: type === 'photo' ? photos : [],
-      videos: type === 'video' ? videos : [],
-      audios: type === 'audio' ? audios : [],
-      mood,
-      weather,
-      location,
-      locationCoords,
-      milestone,
-      milestoneLabel: milestone ? milestoneLabel : '',
-      milestoneEmoji: milestone ? milestoneEmoji : '',
-    };
-    
     setSaving(true);
     
     try {
+      // P0.6: 保存前先持久化所有媒体
+      console.log('[MomentForm] 开始持久化媒体...');
+      
+      // 持久化照片
+      const persistedPhotos = await Promise.all(
+        photos.map(async (photo) => {
+          try {
+            if (photo.file) {
+              return await savePhoto(photo.file);
+            }
+            // 兼容旧格式
+            return photo;
+          } catch (err) {
+            console.error('[MomentForm] 照片持久化失败:', err);
+            return photo;
+          }
+        })
+      );
+      
+      // 持久化视频
+      const persistedVideos = await Promise.all(
+        videos.map(async (video) => {
+          try {
+            if (video.file) {
+              const options = { duration: video.duration };
+              if (video.coverUrl) {
+                options.coverBlob = dataURLToBlob(video.coverUrl);
+              }
+              return await saveVideo(video.file, options);
+            }
+            return video;
+          } catch (err) {
+            console.error('[MomentForm] 视频持久化失败:', err);
+            return video;
+          }
+        })
+      );
+      
+      // 持久化音频
+      const persistedAudios = await Promise.all(
+        audios.map(async (audio) => {
+          try {
+            if (audio.blob) {
+              return await saveAudio(audio.blob, { duration: audio.duration });
+            }
+            return audio;
+          } catch (err) {
+            console.error('[MomentForm] 音频持久化失败:', err);
+            return audio;
+          }
+        })
+      );
+      
+      // 兼容历史数据：归一化旧格式媒体
+      const normalizedLegacyPhotos = normalizeMediaArray(legacyPhotos, MediaType.PHOTO);
+      const normalizedLegacyVideos = normalizeMediaArray(legacyVideos, MediaType.VIDEO);
+      const normalizedLegacyAudios = normalizeMediaArray(legacyAudios, MediaType.AUDIO);
+      
+      // 合并新媒体和历史媒体
+      const finalPhotos = type === 'photo' ? [...persistedPhotos, ...normalizedLegacyPhotos] : [];
+      const finalVideos = type === 'video' ? [...persistedVideos, ...normalizedLegacyVideos] : [];
+      const finalAudios = type === 'audio' ? [...persistedAudios, ...normalizedLegacyAudios] : [];
+      
+      // Schema校验（警告模式，不阻断）
+      assertMediaArraySchema(finalPhotos, 'photos');
+      assertMediaArraySchema(finalVideos, 'videos');
+      assertMediaArraySchema(finalAudios, 'audios');
+      
+      console.log('[MomentForm] 媒体持久化完成:', {
+        photos: finalPhotos.length,
+        videos: finalVideos.length,
+        audios: finalAudios.length,
+      });
+      
+      const momentData = {
+        babyId: babyId,
+        type,
+        date: new Date(date).toISOString(),
+        content: content.trim(),
+        photos: finalPhotos,
+        videos: finalVideos,
+        audios: finalAudios,
+        mood,
+        weather,
+        location,
+        locationCoords,
+        milestone,
+        milestoneLabel: milestone ? milestoneLabel : '',
+        milestoneEmoji: milestone ? milestoneEmoji : '',
+      };
+      
       if (typeof onSave === 'function') {
         await onSave(momentData);
       }
     } catch (error) {
+      console.error('[MomentForm] 保存失败:', error);
       alert('保存失败: ' + error.message);
     } finally {
       setSaving(false);

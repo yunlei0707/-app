@@ -2,9 +2,75 @@
  * 动态卡片组件
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { formatDateFriendly, formatTime } from '../utils/dateUtils';
+import { getDisplayUrl } from '../utils/mediaPersistence';
 import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Play, Pause, Mic } from 'lucide-react';
+
+/**
+ * 获取媒体显示URL（兼容新旧格式）
+ */
+function getMediaDisplayUrl(media, fallbackKey = 'previewUrl') {
+  if (!media) return '';
+  
+  // 情况1：纯字符串（旧格式DataURL）
+  if (typeof media === 'string') {
+    return media;
+  }
+  
+  // 情况2：新格式，有持久化path
+  if (media.path) {
+    // 返回path，调用方需要异步获取显示URL
+    // 这里简化处理：如果path是可显示URL就直接用
+    if (media.path.startsWith('http') || media.path.startsWith('data:') || media.path.startsWith('blob:')) {
+      return media.path;
+    }
+    // 否则可能需要异步获取，但图片标签src不支持Promise
+    // 实际使用时应该通过useEffect获取并缓存
+    console.warn('[MomentCard] 媒体path需要异步获取显示URL:', media.path);
+  }
+  
+  // 情况3：预览URL（未持久化的新格式）
+  if (media[fallbackKey]) {
+    return media[fallbackKey];
+  }
+  
+  // 情况4：旧格式对象的url字段
+  if (media.url) {
+    return media.url;
+  }
+  
+  // 兜底：尝试所有可能的key
+  if (media.previewUrl) return media.previewUrl;
+  if (media.dataURL) return media.dataURL;
+  
+  console.warn('[MomentCard] 无法识别的媒体格式:', media);
+  return '';
+}
+
+/**
+ * 获取音频URL（兼容新旧格式）
+ */
+function getAudioUrl(audio) {
+  return getMediaDisplayUrl(audio, 'previewUrl');
+}
+
+/**
+ * 获取视频封面URL（兼容新旧格式）
+ */
+function getVideoCover(video) {
+  if (!video) return '';
+  if (typeof video === 'string') return '';
+  
+  // 新格式封面
+  if (video.coverPath) return video.coverPath;
+  if (video.coverUrl) return video.coverUrl;
+  
+  // 旧格式封面
+  if (video.cover) return video.cover;
+  
+  return '';
+}
 
 // 格式化时间
 const formatTime2 = (seconds) => {
@@ -71,7 +137,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick }) {
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      audioRef.current = new Audio(moment.audios[index].url);
+      audioRef.current = new Audio(getAudioUrl(moment.audios[index]));
       audioRef.current.onended = () => setPlayingIndex(null);
       audioRef.current.play();
       setPlayingIndex(index);
@@ -142,8 +208,8 @@ export function MomentCard({ moment, onEdit, onDelete, onClick }) {
               className="relative rounded-xl overflow-hidden bg-gray-800 aspect-video"
             >
               <video
-                src={video.url}
-                poster={video.cover}
+                src={getMediaDisplayUrl(video, 'previewUrl')}
+                poster={getVideoCover(video)}
                 controls
                 className="w-full h-full object-cover"
                 playsInline
@@ -224,7 +290,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick }) {
               } ${moment.photos.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''}`}
             >
               <img
-                src={photo}
+                src={getMediaDisplayUrl(photo, 'previewUrl')}
                 alt={`照片 ${index + 1}`}
                 className="w-full h-full object-cover"
                 loading="lazy"

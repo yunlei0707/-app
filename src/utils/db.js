@@ -4,6 +4,7 @@
  */
 
 import { openDB } from 'idb';
+import { sanitizeMomentMediaBeforeSave } from './mediaSchema';
 
 const DB_NAME = 'BabyTimeDB';
 const DB_VERSION = 4; // 版本升级以支持访客打卡功能
@@ -166,8 +167,12 @@ export async function getMomentsOnSameDayLastYear(babyId, targetDate) {
  */
 export async function addMoment(momentData) {
   const db = await initDB();
+  
+  // 【重要】前置拦截：检查并清理临时URL
+  const sanitizedData = sanitizeMomentMediaBeforeSave(momentData);
+  
   const moment = {
-    ...momentData,
+    ...sanitizedData,
     createdAt: new Date().toISOString(),
   };
   const id = await db.add('moments', moment);

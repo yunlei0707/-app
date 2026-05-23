@@ -6,6 +6,35 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
+/**
+ * 获取照片显示URL（兼容新旧格式）
+ */
+function getPhotoUrl(photo) {
+  if (!photo) return '';
+  
+  // 情况1：纯字符串（旧格式DataURL）
+  if (typeof photo === 'string') {
+    return photo;
+  }
+  
+  // 情况2：新格式，有持久化path
+  if (photo.path) {
+    if (photo.path.startsWith('http') || photo.path.startsWith('data:') || photo.path.startsWith('blob:')) {
+      return photo.path;
+    }
+    console.warn('[PhotoViewer] 媒体path需要异步获取显示URL:', photo.path);
+  }
+  
+  // 情况3：预览URL
+  if (photo.previewUrl) return photo.previewUrl;
+  
+  // 情况4：旧格式对象的url字段
+  if (photo.url) return photo.url;
+  
+  console.warn('[PhotoViewer] 无法识别的媒体格式:', photo);
+  return '';
+}
+
 export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   
@@ -231,7 +260,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(photos[currentIndex]);
+      const response = await fetch(getPhotoUrl(photos[currentIndex]));
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -310,7 +339,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={photos[currentIndex]}
+          src={getPhotoUrl(photos[currentIndex])}
           alt={`照片 ${currentIndex + 1}`}
           className="max-w-full max-h-full object-contain"
           style={{
