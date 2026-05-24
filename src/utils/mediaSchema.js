@@ -70,6 +70,7 @@ export function normalizeMediaItem(input, defaultType = 'photo') {
       size: input.size,
       hash: input.hash,
       coverPath: input.coverPath || input.cover,
+      thumbnailPath: input.thumbnailPath,
       waveform: input.waveform,
       createdAt: input.createdAt,
     });
@@ -118,6 +119,7 @@ function createMediaItemFromPath(path, type, metadata = {}) {
     // 可选字段 - 不存在就不填
     ...(metadata.duration !== undefined && { duration: metadata.duration }),
     ...(metadata.coverPath !== undefined && { coverPath: metadata.coverPath }),
+    ...(metadata.thumbnailPath !== undefined && { thumbnailPath: metadata.thumbnailPath }),
     ...(metadata.waveform !== undefined && { waveform: metadata.waveform }),
     ...(metadata.hash !== undefined && { hash: metadata.hash }),
   };

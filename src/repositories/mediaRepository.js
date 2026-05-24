@@ -17,6 +17,7 @@
 import {
   saveVideoBlobDedup,
   saveVideoBlob,
+  deleteMediaPath,
   getVideoBlob,
   readVideoFromNative,
   saveVideoToNative,
@@ -54,6 +55,11 @@ export async function saveMedia(blobOrFile, options = {}) {
 
   // 构建标准 MediaItem 结构
   // 注意：hash 是可选的，不强制计算避免大文件卡顿
+  let thumbnailPath = null;
+  if (type === 'photo') {
+    thumbnailPath = await createAndSavePhotoThumbnail(blobOrFile, result.path);
+  }
+
   const mediaItem = {
     id: result.fileHash ? `media_${result.fileHash.slice(0, 12)}` : uuidv4(),
     type: type,
@@ -67,6 +73,7 @@ export async function saveMedia(blobOrFile, options = {}) {
     ...(result.fileHash && { hash: result.fileHash }),
     ...(duration !== undefined && { duration }),
     ...(coverPath !== undefined && { coverPath }),
+    ...(thumbnailPath !== undefined && thumbnailPath && { thumbnailPath }),
     // ✅ 向后兼容：保持旧字段名，避免 MomentForm 报错
     filename: result.path,
     storageType: 'filesystem',
@@ -80,6 +87,49 @@ export async function saveMediaBlobAtPath(path, blob) {
     throw new Error('saveMediaBlobAtPath requires a path and Blob');
   }
   return await saveVideoBlob(path, blob);
+}
+
+export async function deleteMediaFile(path) {
+  return await deleteMediaPath(path);
+}
+
+async function createAndSavePhotoThumbnail(file, originalPath) {
+  if (typeof document === 'undefined' || !file?.type?.startsWith?.('image/')) return null;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = objectUrl;
+    });
+
+    const maxSide = 480;
+    const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const thumbnailBlob = await new Promise(resolve => {
+      canvas.toBlob(blob => resolve(blob), 'image/webp', 0.78);
+    });
+    if (!thumbnailBlob) return null;
+
+    const baseName = originalPath.split('/').pop().replace(/\.[^.]+$/, '');
+    const thumbPath = `BabyTime/thumbs/${baseName}.webp`;
+    await saveVideoBlob(thumbPath, thumbnailBlob);
+    return thumbPath;
+  } catch (e) {
+    console.warn('[MediaRepository] thumbnail failed:', e.message);
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function defaultMimeType(type) {

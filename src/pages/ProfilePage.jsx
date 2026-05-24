@@ -47,7 +47,7 @@ import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
 import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
-import { saveMediaBlobAtPath } from '../repositories/mediaRepository.js';
+import { deleteMediaFile, saveMediaBlobAtPath } from '../repositories/mediaRepository.js';
 
 // 主题预设配置
 const THEME_PRESETS = [
@@ -120,7 +120,10 @@ async function importZipMediaFiles(zipContent, data, { onProgress, onMessage, on
 
     try {
       const blob = await zipFile.async('blob');
+      const tempPath = `BabyTime/import_tmp/${Date.now()}_${archiveName}`;
+      await saveMediaBlobAtPath(tempPath, blob);
       await saveMediaBlobAtPath(media.path, blob);
+      await deleteMediaFile(tempPath);
       imported++;
       const percent = Math.round((imported / mediaItems.length) * 100);
       onProgress?.(percent);

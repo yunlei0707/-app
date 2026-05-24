@@ -52,11 +52,15 @@ function LazyImage({ src, alt, className, onClick }) {
       }
       
       // 优先使用 getImageSrc 处理 Capacitor 文件路径
-      let url = shouldLoadMediaBlob(media.path) ? '' : getImageSrc(media.path);
+      const displayPath = media.thumbnailPath || media.path;
+      let url = shouldLoadMediaBlob(displayPath) ? '' : getImageSrc(displayPath);
       
       // 如果需要OPFS处理，使用 mediaRepository 统一入口
       if (!url) {
-        url = await getMediaDisplaySrc(media.path);
+        url = await getMediaDisplaySrc(displayPath);
+        if (!url && displayPath !== media.path) {
+          url = await getMediaDisplaySrc(media.path);
+        }
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }

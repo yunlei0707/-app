@@ -201,6 +201,18 @@ export async function getVideoBlob(path) {
   
   console.log('[StorageAdapter] 原始路径:', path, '-> 清洗后:', cleanPath);
 
+  if (isAppEnvironment()) {
+    try {
+      const base64 = await readFromFilesystem(cleanPath);
+      if (base64) {
+        console.log('[StorageAdapter] 从 Filesystem 读取成功:', cleanPath);
+        return base64ToBlob(base64, mimeFromPath(cleanPath));
+      }
+    } catch (e) {
+      console.warn('[StorageAdapter] Filesystem 读取失败，降级到 OPFS:', e.message);
+    }
+  }
+
   let blob = null;
 
   // 尝试 OPFS
@@ -248,6 +260,25 @@ function base64ToBlob(base64, mime = 'video/mp4') {
   return new Blob([arr], { type: mime });
 }
 
+function mimeFromPath(path = '') {
+  const ext = String(path).split('.').pop()?.toLowerCase();
+  const map = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    mp4: 'video/mp4',
+    mov: 'video/quicktime',
+    webm: 'video/webm',
+    mp3: 'audio/mpeg',
+    m4a: 'audio/mp4',
+    wav: 'audio/wav',
+    ogg: 'audio/ogg',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
 async function readVideoFromOPFS(path) {
   if (!navigator.storage?.getDirectory) throw new Error('OPFS 不支持');
   const root = await navigator.storage.getDirectory();
@@ -263,6 +294,16 @@ async function readVideoFromOPFS(path) {
 }
 
 export async function saveVideoBlob(path, blob) {
+  if (isAppEnvironment()) {
+    try {
+      const result = await saveToFilesystem(path, blob);
+      console.log('[StorageAdapter] 保存到 Filesystem 成功:', path);
+      return result;
+    } catch (e) {
+      console.warn('[StorageAdapter] Filesystem 保存失败，降级到 OPFS:', e.message);
+    }
+  }
+
   try {
     const result = await saveToOPFS(path, blob);
     console.log('[StorageAdapter] 保存到 OPFS 成功:', path);
@@ -437,6 +478,40 @@ export async function deleteVideoBlob(hash) {
   }
 }
 
+export async function deleteMediaPath(path) {
+  if (!path) return false;
+  const cleanPath = path
+    .replace(/^fs:\/\/file\//, '')
+    .replace(/^file:\/+/, '');
+  let deleted = false;
+
+  try {
+    await Filesystem.deleteFile({
+      path: cleanPath,
+      directory: Directory.Documents,
+    });
+    deleted = true;
+  } catch (e) {
+    console.warn('[StorageAdapter] Filesystem delete skipped:', e.message);
+  }
+
+  try {
+    if (navigator.storage?.getDirectory) {
+      const root = await navigator.storage.getDirectory();
+      const parts = cleanPath.split('/').filter(Boolean);
+      const filename = parts.pop();
+      let dir = root;
+      for (const p of parts) dir = await dir.getDirectoryHandle(p);
+      await dir.removeEntry(filename);
+      deleted = true;
+    }
+  } catch (e) {
+    console.warn('[StorageAdapter] OPFS delete skipped:', e.message);
+  }
+
+  return deleted;
+}
+
 // ============================================================
 // ✅ 兼容层：对外保持和旧版一致的 API 命名
 // ============================================================
@@ -449,6 +524,7 @@ export default {
   getVideoBlob, 
   saveVideoBlob, 
   saveVideoBlobDedup,
+  deleteMediaPath,
   calculateFileHash,
   calculateFastHash,
   // 兼容旧版 API
