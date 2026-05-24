@@ -130,6 +130,18 @@ export function VirtualTimeDetail() {
   }, [topicId, showToast, loadContents]);
   
   // 生成分享图片
+  const escapeHtml = (value = '') => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const sanitizeFilenamePart = (value = '') => String(value)
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(0, 40) || '未命名';
+
   const handleShareContent = useCallback(async (item) => {
     setSharingItem(item);
     setIsSharing(true);
@@ -147,7 +159,7 @@ export function VirtualTimeDetail() {
           const imgStyle = images.length === 1
             ? 'width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px;'
             : 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;';
-          return `<img src="${img}" style="${imgStyle}" crossorigin="anonymous" />`;
+          return `<img src="${escapeHtml(img)}" style="${imgStyle}" crossorigin="anonymous" />`;
         }).join('');
         
         imagesHtml = `<div style="${gridStyle}">${imgItems}</div>`;
@@ -167,10 +179,10 @@ export function VirtualTimeDetail() {
       
       const content = `
         <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
-          <div style="font-size: 48px;">${item.emoji || '📝'}</div>
+          <div style="font-size: 48px;">${escapeHtml(item.emoji || '📝')}</div>
           <div>
-            <div style="font-size: 14px; opacity: 0.9;">未来宝宝 · ${topic.title}</div>
-            <div style="font-size: 20px; font-weight: bold; margin-top: 4px;">${item.title}</div>
+            <div style="font-size: 14px; opacity: 0.9;">未来宝宝 · ${escapeHtml(topic.title)}</div>
+            <div style="font-size: 20px; font-weight: bold; margin-top: 4px;">${escapeHtml(item.title)}</div>
           </div>
         </div>
         ${imagesHtml}
@@ -183,11 +195,11 @@ export function VirtualTimeDetail() {
           line-height: 1.6;
           margin-bottom: 16px;
         ">
-          ${item.content}
+          ${escapeHtml(item.content)}
         </div>
         ` : ''}
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; opacity: 0.9;">
-          <span>📅 ${item.date || new Date().toLocaleDateString('zh-CN')}</span>
+          <span>📅 ${escapeHtml(item.date || new Date().toLocaleDateString('zh-CN'))}</span>
           <span>👶 宝贝时光</span>
         </div>
       `;
@@ -209,7 +221,7 @@ export function VirtualTimeDetail() {
       
       // 转换为图片并下载
       const link = document.createElement('a');
-      link.download = `宝贝时光_${topic.title}_${item.title}_${Date.now()}.png`;
+      link.download = `宝贝时光_${sanitizeFilenamePart(topic.title)}_${sanitizeFilenamePart(item.title)}_${Date.now()}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
       

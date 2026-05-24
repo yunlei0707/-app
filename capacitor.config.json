@@ -1,0 +1,14 @@
+{
+  "appId": "com.babytime.app",
+  "appName": "\u5b9d\u8d1d\u65f6\u5149",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "path": ".",
+    "buildOptions": {
+      "signingType": "apksigner"
+    }
+  }
+}

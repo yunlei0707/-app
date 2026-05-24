@@ -126,7 +126,6 @@ www/
 .env.*.local
 
 # Capacitor构建产物
-android/
 ios/
 capacitor.config.ts.local
 
@@ -135,6 +134,7 @@ dist/
 build/
 *.zip
 *.md
+!docs/**/*.md
 *.html
 MEMORY.md
 SECRET.md
@@ -168,7 +168,6 @@ risk-driver-dashboard/
 browser/
 apks/
 imgs/
-app/
 
 # Other artifacts
 *.apk

@@ -36,53 +36,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test
+        run: pnpm test
+
       - name: Build frontend
         run: pnpm run build
 
-      - name: Create www directory
-        run: |
-          mkdir -p www
-          cp -r dist/* www/
-
-      - name: Ensure Capacitor dependencies
-        run: |
-          pnpm add @capacitor/cli @capacitor/core @capacitor/android -D
-          pnpm add @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar
-
-      - name: Clean generated config
-        run: rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
-
-      - name: Init Capacitor
-        run: npx cap init "宝贝时光" com.babytime.app --web-dir dist
-
-      - name: Add Android
-        run: |
-          mkdir -p /tmp/android_configs
-          if [ -d android/app/src/main/ ]; then
-            cp -r android/app/src/main/* /tmp/android_configs/
-            echo "Saved Android main configs to temp directory"
-          fi
-          rm -rf android
-          npx cap add android
-
-      - name: Apply custom Android configs
-        run: |
-          if [ -f /tmp/android_configs/AndroidManifest.xml ]; then
-            cp -f /tmp/android_configs/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-            echo "Applied custom AndroidManifest.xml"
-          fi
-          if [ -f /tmp/android_configs/res/xml/file_paths.xml ]; then
-            mkdir -p android/app/src/main/res/xml
-            cp -f /tmp/android_configs/res/xml/file_paths.xml android/app/src/main/res/xml/file_paths.xml
-            echo "Applied custom file_paths.xml"
-          fi
-
-      - name: Sync Android
-        run: npx cap sync android
+      - name: Sync Capacitor Android
+        run: pnpm exec cap sync android
 
       - name: Build APK
         run: |
-          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -90,4 +54,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk

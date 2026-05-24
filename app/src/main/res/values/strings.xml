@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">宝贝时光</string>
-    <string name="title_activity_main">宝贝时光</string>
+    <string name="app_name">&#23453;&#36125;&#26102;&#20809;</string>
+    <string name="title_activity_main">&#23453;&#36125;&#26102;&#20809;</string>
     <string name="package_name">com.babytime.app</string>
     <string name="custom_url_scheme">com.babytime.app</string>
 </resources>
