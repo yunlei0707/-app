@@ -221,6 +221,73 @@ export function AppProvider({ children }) {
     init();
   }, [showToast, refreshCapsules]);
 
+  const setTheme = useCallback(async (preset, customColor = null) => {
+    const nextPreset = preset || 'pink';
+    const nextColor = nextPreset === 'custom' ? customColor : null;
+
+    setThemePreset(nextPreset);
+    setCustomThemeColor(nextColor);
+    if (nextPreset === 'custom' && nextColor) {
+      applyCustomTheme(nextColor);
+    } else {
+      applyThemePreset(nextPreset);
+    }
+
+    await updateSettings('themePreset', nextPreset);
+    await updateSettings('customThemeColor', nextColor);
+  }, []);
+
+  const toggleTheme = useCallback(async () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setThemeState(nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+    await updateSettings('theme', nextTheme);
+  }, [theme]);
+
+  const addMilestone = useCallback(async (milestone) => {
+    const item = {
+      id: milestone.id || `custom_${Date.now()}`,
+      ...milestone,
+    };
+    const milestones = await addCustomMilestone(item);
+    setCustomMilestones(milestones);
+    return item;
+  }, []);
+
+  const updateMilestone = useCallback(async (id, updates) => {
+    const milestones = await updateCustomMilestone(id, updates);
+    setCustomMilestones(milestones);
+    return milestones;
+  }, []);
+
+  const deleteMilestone = useCallback(async (id) => {
+    const milestones = await deleteCustomMilestone(id);
+    setCustomMilestones(milestones);
+    return milestones;
+  }, []);
+
+  const addMood = useCallback(async (mood) => {
+    const item = {
+      id: mood.id || `custom_${Date.now()}`,
+      ...mood,
+    };
+    const moods = await addCustomMood(item);
+    setCustomMoods(moods);
+    return item;
+  }, []);
+
+  const updateMood = useCallback(async (id, updates) => {
+    const moods = await updateCustomMood(id, updates);
+    setCustomMoods(moods);
+    return moods;
+  }, []);
+
+  const deleteMood = useCallback(async (id) => {
+    const moods = await deleteCustomMood(id);
+    setCustomMoods(moods);
+    return moods;
+  }, []);
+
   // Context value
   const value = {
     // 状态
@@ -252,6 +319,14 @@ export function AppProvider({ children }) {
     
     // 方法
     showToast,
+    setTheme,
+    toggleTheme,
+    addMilestone,
+    updateMilestone,
+    deleteMilestone,
+    addMood,
+    updateMood,
+    deleteMood,
     getAllMilestones,
     getAllMoods,
     refreshCapsules,

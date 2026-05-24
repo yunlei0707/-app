@@ -1334,16 +1334,6 @@ export function ProfilePage(
                   </div>
                 </button>
 
-                {/* 未来宝宝标签自定义 */}
-                <button
-                  onClick={() => navigate('/virtual-time-categories')}
-                  className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  <span className="text-sm text-gray-400">✨</span>
-                  <div className="flex-1 text-left">
-                    <span className="font-medium text-sm dark:text-white">未来宝宝标签自定义</span>
-                  </div>
-                </button>
               </div>
             )}
           </div>
@@ -1906,7 +1896,7 @@ export function ProfilePage(
 {colorInputRef}
                 type="color"
                 value=
-{customThemeColor}
+{customThemeColor || '#EC4899'}
                 onChange=
 {(e) => setTheme('custom', e.target.value)}
                 className="w-10 h-10 rounded-lg cursor-pointer"
