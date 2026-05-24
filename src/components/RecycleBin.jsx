@@ -8,6 +8,7 @@ import { X, RotateCcw, Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getDeletedMomentsByBaby, restoreMoment, deleteMomentPermanently, emptyRecycleBin } from '../repositories/stateRepository';
 import { getCurrentV2Account, getCurrentTimeline, isSystemAccount, deleteMomentFromCurrentAccount, updateMomentInCurrentAccount, getCurrentBabyInfo, updateV2AccountData } from "../repositories/stateRepository.js";
+import { deleteUnreferencedMomentMedia } from '../repositories/mediaRepository.js';
 
 export function RecycleBin({ onClose }) {
   const { currentBaby, showToast, setMoments } = useApp();
@@ -128,7 +129,9 @@ export function RecycleBin({ onClose }) {
       if (hasV2Baby) {
         const account = getCurrentV2Account();
         if (account?.accountData?.timeline) {
+          const targetMoment = account.accountData.timeline.find(m => m.id === momentId);
           const timeline = account.accountData.timeline.filter(m => m.id !== momentId);
+          await deleteUnreferencedMomentMedia(targetMoment, timeline);
           updateV2AccountData(account.identityName, account.accountId, { timeline });
           window.dispatchEvent(new Event('v2-moment-updated'));
         }
@@ -164,7 +167,11 @@ export function RecycleBin({ onClose }) {
       if (hasV2Baby) {
         const account = getCurrentV2Account();
         if (account?.accountData?.timeline) {
+          const deleted = account.accountData.timeline.filter(m => m.isDeleted);
           const timeline = account.accountData.timeline.filter(m => !m.isDeleted);
+          for (const moment of deleted) {
+            await deleteUnreferencedMomentMedia(moment, timeline);
+          }
           updateV2AccountData(account.identityName, account.accountId, { timeline });
           window.dispatchEvent(new Event('v2-moment-updated'));
         }

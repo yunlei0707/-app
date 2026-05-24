@@ -1,13 +1,7 @@
 /**
- * 🛡️ Schema Validator - Repository 层统一数据结构校验
- *
- * 解决："脏数据写进存储，整个 app 白屏"的问题
- *
- * 核心原则：在写入存储层之前，必须过校验这一关
- * 坏数据绝对不能进到存储层
+ * Schema Validator - Repository layer data structure validation.
  */
 
-// ===== Moment Schema =====
 const MOMENT_SCHEMA = {
   required: ['id', 'babyId', 'date'],
   types: {
@@ -33,7 +27,6 @@ const MOMENT_SCHEMA = {
   }
 };
 
-// ===== Baby Schema =====
 const BABY_SCHEMA = {
   required: ['id', 'name'],
   types: {
@@ -50,7 +43,6 @@ const BABY_SCHEMA = {
   }
 };
 
-// ===== Capsule Schema =====
 const CAPSULE_SCHEMA = {
   required: ['id', 'title'],
   types: {
@@ -67,13 +59,11 @@ const CAPSULE_SCHEMA = {
   }
 };
 
-// ===== 校验核心 =====
-
 function validateAgainstSchema(data, schema, typeName) {
   const errors = [];
-  const sanitized = { ...data };
+  const source = data && typeof data === 'object' ? data : {};
+  const sanitized = { ...source };
 
-  // 检查是否有 function（数据污染）
   for (const [key, value] of Object.entries(sanitized)) {
     if (typeof value === 'function') {
       errors.push(`字段 ${key} 包含 function，禁止写入`);
@@ -81,49 +71,40 @@ function validateAgainstSchema(data, schema, typeName) {
     }
   }
 
-  // 必填字段检查
-  if (schema.required) {
-    for (const field of schema.required) {
-      if (data[field] === undefined || data[field] === null) {
-        errors.push(`缺少必填字段: ${field}`);
-      }
+  for (const field of schema.required || []) {
+    if (source[field] === undefined || source[field] === null) {
+      errors.push(`缺少必填字段: ${field}`);
     }
   }
 
-  // 类型检查 + 补默认值
-  if (schema.types) {
-    for (const [field, allowedTypes] of Object.entries(schema.types)) {
-      const value = data[field];
-      const types = Array.isArray(allowedTypes) ? allowedTypes : [allowedTypes];
+  for (const [field, allowedTypes] of Object.entries(schema.types || {})) {
+    const value = source[field];
+    const types = Array.isArray(allowedTypes) ? allowedTypes : [allowedTypes];
 
-      if (value !== undefined && value !== null) {
-        const actualType = Array.isArray(value) ? 'array' : typeof value;
-        if (!types.includes(actualType)) {
-          errors.push(`字段 ${field} 类型错误: 期望 ${types.join('/')}, 实际 ${actualType}`);
-        }
-      } else if (schema.defaults && schema.defaults[field] !== undefined) {
-        sanitized[field] = schema.defaults[field];
+    if (value !== undefined && value !== null) {
+      const actualType = Array.isArray(value) ? 'array' : typeof value;
+      if (!types.includes(actualType)) {
+        errors.push(`字段 ${field} 类型错误，期望 ${types.join('/')}，实际是 ${actualType}`);
       }
+    } else if (schema.defaults && schema.defaults[field] !== undefined) {
+      sanitized[field] = schema.defaults[field];
     }
   }
 
-  // 自动加时间戳
-  if (!sanitized.createdAt) {
-    sanitized.createdAt = Date.now();
-  }
-  if (!sanitized.updatedAt) {
-    sanitized.updatedAt = Date.now();
-  }
+  if (!sanitized.createdAt) sanitized.createdAt = Date.now();
+  if (!sanitized.updatedAt) sanitized.updatedAt = Date.now();
 
   if (errors.length > 0) {
     console.error(`[Schema] ${typeName} 校验失败:`, errors);
-    return { valid: false, errors, sanitizedData: sanitized };
   }
 
-  return { valid: true, errors: [], sanitizedData: sanitized };
+  return {
+    valid: errors.length === 0,
+    errors,
+    sanitizedData: sanitized,
+    data: sanitized
+  };
 }
-
-// ===== 对外接口 =====
 
 export function validateMoment(momentData) {
   return validateAgainstSchema(momentData, MOMENT_SCHEMA, 'Moment');
@@ -137,26 +118,37 @@ export function validateCapsule(capsuleData) {
   return validateAgainstSchema(capsuleData, CAPSULE_SCHEMA, 'Capsule');
 }
 
-/**
- * Repository 层写入前必须调用这个
- */
-export function validateBeforeWrite(data, type) {
+export function validate(data, type) {
   const validators = {
-    'moment': validateMoment,
-    'baby': validateBaby,
-    'capsule': validateCapsule
+    moment: validateMoment,
+    baby: validateBaby,
+    capsule: validateCapsule
   };
 
   const validator = validators[type];
   if (!validator) {
-    console.warn(`[Schema] 未知数据类型: ${type}, 跳过校验`);
-    return { valid: true, errors: [], sanitizedData: data };
+    return {
+      valid: false,
+      errors: [`不支持的类型: ${type}`],
+      sanitizedData: data,
+      data
+    };
   }
 
   return validator(data);
 }
 
+export function validateBeforeWrite(data, type) {
+  const result = validate(data, type);
+  if (!result.valid && result.errors[0]?.startsWith('不支持的类型')) {
+    console.warn(`[Schema] 未知数据类型: ${type}, 跳过校验`);
+    return { valid: true, errors: [], sanitizedData: data, data };
+  }
+  return result;
+}
+
 export const schemaValidator = {
+  validate,
   validateMoment,
   validateBaby,
   validateCapsule,

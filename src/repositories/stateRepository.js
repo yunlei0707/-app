@@ -106,8 +106,13 @@ export function getAvailableAccounts() {
   return dbV2.getAvailableAccounts();
 }
 
-export function updateV2AccountData(data) {
-  return dbV2.updateV2AccountData(data);
+export function updateV2AccountData(identityName, accountId, data) {
+  if (arguments.length === 1) {
+    const current = dbV2.getCurrentV2Account();
+    if (!current) return false;
+    return dbV2.updateV2AccountData(current.identityName, current.accountId, identityName);
+  }
+  return dbV2.updateV2AccountData(identityName, accountId, data);
 }
 
 /**

@@ -16,6 +16,7 @@ import { groupByYearAndMonth } from '../utils/dateUtils';
 import { useMomentStore } from '../store/momentStore';
 import { PredictionPage } from '../components/PredictionPage';
 import { Plus, Sparkles, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
+import { deleteUnreferencedMomentMedia } from '../repositories/mediaRepository.js';
 import { 
   getCurrentV2Account, 
   getCurrentTimeline, 
@@ -623,7 +624,9 @@ export function TimelinePage({
       // v2 用户数据：永久删除
       const account = getCurrentV2Account();
       if (account?.accountData?.timeline) {
+        const targetMoment = account.accountData.timeline.find(m => m.id === momentId);
         const timeline = account.accountData.timeline.filter(m => m.id !== momentId);
+        await deleteUnreferencedMomentMedia(targetMoment, timeline);
         updateV2AccountData(account.identityName, account.accountId, { timeline });
       } else {
         deleteMomentFromCurrentAccount(momentId);

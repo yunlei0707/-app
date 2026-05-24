@@ -140,6 +140,7 @@ describe('LRUCache', () => {
     });
 
     it('支持 null 和 false 作为 value', () => {
+      cache = new LRUCache({ maxSize: 4 });
       cache.set('key1', null);
       cache.set('key2', false);
       cache.set('key3', 0);

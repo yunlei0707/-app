@@ -1,12 +1,14 @@
 name: Build APK
+
 on:
   push:
-    branches: [ main, capacitor ]
+    branches: [main, capacitor]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -14,8 +16,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
+          distribution: temurin
+          cache: gradle
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -26,7 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm' # 利用pnpm-lock.yaml缓存，安装时间从5min→10s
+          cache: pnpm
 
       - name: Configure pnpm registry
         run: pnpm config set registry https://registry.npmjs.org
@@ -40,14 +42,14 @@ jobs:
       - name: Create www directory
         run: |
           mkdir -p www
-          cp -r dist/* www/ 2>/dev/null || true
+          cp -r dist/* www/
 
-      - name: Install Capacitor
+      - name: Ensure Capacitor dependencies
         run: |
           pnpm add @capacitor/cli @capacitor/core @capacitor/android -D
           pnpm add @capacitor/camera @capacitor/filesystem @capacitor/share @capacitor/status-bar
 
-      - name: Clean old config
+      - name: Clean generated config
         run: rm -f capacitor.config.js capacitor.config.ts capacitor.config.json
 
       - name: Init Capacitor
@@ -55,27 +57,24 @@ jobs:
 
       - name: Add Android
         run: |
-          # 先保存我们的配置文件
           mkdir -p /tmp/android_configs
           if [ -d android/app/src/main/ ]; then
             cp -r android/app/src/main/* /tmp/android_configs/
-            echo "保存配置文件到临时目录"
+            echo "Saved Android main configs to temp directory"
           fi
-          # 删除旧目录重新生成
           rm -rf android
           npx cap add android
 
       - name: Apply custom Android configs
         run: |
-          # 把我们的权限配置文件覆盖到新生成的 android 目录
           if [ -f /tmp/android_configs/AndroidManifest.xml ]; then
             cp -f /tmp/android_configs/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-            echo "已应用自定义 AndroidManifest.xml"
+            echo "Applied custom AndroidManifest.xml"
           fi
           if [ -f /tmp/android_configs/res/xml/file_paths.xml ]; then
             mkdir -p android/app/src/main/res/xml
             cp -f /tmp/android_configs/res/xml/file_paths.xml android/app/src/main/res/xml/file_paths.xml
-            echo "已应用自定义 file_paths.xml"
+            echo "Applied custom file_paths.xml"
           fi
 
       - name: Sync Android

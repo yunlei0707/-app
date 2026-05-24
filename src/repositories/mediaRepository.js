@@ -29,6 +29,7 @@ import {
 import { readFileFromOPFS, getFileDisplayURL, saveVideoToOPFS, cleanupOrphanFiles } from '../utils/opfs.js';
 import { takePhoto, startRecording, stopRecording, isNativePlatform } from '../utils/native.js';
 import { saveAudioFile, deleteAudioFile } from '../utils/audioStorage.js';
+import { normalizeMomentMedia } from '../utils/mediaSchema.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -91,6 +92,45 @@ export async function saveMediaBlobAtPath(path, blob) {
 
 export async function deleteMediaFile(path) {
   return await deleteMediaPath(path);
+}
+
+function collectMomentMediaPaths(moment) {
+  const paths = new Set();
+  const { media } = normalizeMomentMedia(moment);
+  media.forEach(item => {
+    if (item?.path) paths.add(item.path);
+    if (item?.thumbnailPath) paths.add(item.thumbnailPath);
+    if (item?.coverPath) paths.add(item.coverPath);
+  });
+  return paths;
+}
+
+export async function deleteUnreferencedMomentMedia(moment, remainingMoments = []) {
+  if (!moment) return { attempted: 0, deleted: 0, failed: 0 };
+
+  const candidatePaths = collectMomentMediaPaths(moment);
+  if (candidatePaths.size === 0) return { attempted: 0, deleted: 0, failed: 0 };
+
+  const referencedPaths = new Set();
+  remainingMoments.forEach(item => {
+    collectMomentMediaPaths(item).forEach(path => referencedPaths.add(path));
+  });
+
+  let deleted = 0;
+  let failed = 0;
+  const unreferencedPaths = [...candidatePaths].filter(path => !referencedPaths.has(path));
+
+  for (const path of unreferencedPaths) {
+    try {
+      const ok = await deleteMediaPath(path);
+      if (ok) deleted++;
+    } catch (e) {
+      failed++;
+      console.warn('[MediaRepository] delete unreferenced media failed:', path, e.message);
+    }
+  }
+
+  return { attempted: unreferencedPaths.length, deleted, failed };
 }
 
 async function createAndSavePhotoThumbnail(file, originalPath) {

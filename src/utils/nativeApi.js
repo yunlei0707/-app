@@ -40,6 +40,7 @@ export function convertFileSrc(filePath) {
 let Camera = null;
 let Filesystem = null;
 let CameraSource = null;
+let Directory = null;
 
 async function loadCameraPlugin() {
   if (!isNativePlatform()) return null;
@@ -61,11 +62,86 @@ async function loadFilesystemPlugin() {
   try {
     const module = await import('@capacitor/filesystem');
     Filesystem = module.Filesystem;
+    Directory = module.Directory;
     return Filesystem;
   } catch (e) {
     console.warn('[Native] 文件系统插件加载失败:', e);
     return null;
   }
+}
+
+function normalizeDocumentPath(path = '') {
+  return String(path)
+    .replace(/^fs:\/\/file\//, '')
+    .replace(/^file:\/+/, '')
+    .replace(/^\/+/, '');
+}
+
+export async function mkdir(path) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) throw new Error('文件系统插件不可用');
+  await filesystem.mkdir({
+    path: normalizeDocumentPath(path),
+    directory: Directory.Documents,
+    recursive: true,
+  });
+  return true;
+}
+
+export async function writeFile(path, data) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) throw new Error('文件系统插件不可用');
+  await filesystem.writeFile({
+    path: normalizeDocumentPath(path),
+    data,
+    directory: Directory.Documents,
+    recursive: true,
+  });
+  return true;
+}
+
+export async function readFile(path) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) throw new Error('文件系统插件不可用');
+  const result = await filesystem.readFile({
+    path: normalizeDocumentPath(path),
+    directory: Directory.Documents,
+  });
+  return result.data;
+}
+
+export async function deleteFile(path) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) throw new Error('文件系统插件不可用');
+  await filesystem.deleteFile({
+    path: normalizeDocumentPath(path),
+    directory: Directory.Documents,
+  });
+  return true;
+}
+
+export async function fileExists(path) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) return false;
+  try {
+    await filesystem.stat({
+      path: normalizeDocumentPath(path),
+      directory: Directory.Documents,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function listFiles(path) {
+  const filesystem = await loadFilesystemPlugin();
+  if (!filesystem) throw new Error('文件系统插件不可用');
+  const result = await filesystem.readdir({
+    path: normalizeDocumentPath(path),
+    directory: Directory.Documents,
+  });
+  return result.files || [];
 }
 
 /**
@@ -323,6 +399,12 @@ export default {
   isNativePlatform,
   convertFileSrc,
   takePhoto,
+  mkdir,
+  writeFile,
+  readFile,
+  deleteFile,
+  fileExists,
+  listFiles,
   requestAudioPermission,
   startRecording,
   stopRecording,
