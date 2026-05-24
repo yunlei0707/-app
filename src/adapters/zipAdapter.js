@@ -1,11 +1,13 @@
+import JSZip from 'jszip';
+
 /**
  * 🧠 ZIP Adapter - window.JSZip 隔离层
  * 只接收 Blob，流式生成，隔离上层
  */
 
 export function createZip() {
-  if (!window.JSZip) throw new Error('[zipAdapter] window.JSZip 未加载');
-  const zip = new window.JSZip();
+  const ZipCtor = window.JSZip || JSZip;
+  const zip = new ZipCtor();
 
   return {
     addFile(path, blob) {
@@ -32,10 +34,10 @@ export function createZip() {
 }
 
 export async function unzip(fileBlob) {
-  if (!window.JSZip) throw new Error('[zipAdapter] window.JSZip 未加载');
   if (!(fileBlob instanceof Blob)) throw new Error('unzip 只接收 Blob');
 
-  const zip = await window.JSZip.loadAsync(fileBlob);
+  const ZipCtor = window.JSZip || JSZip;
+  const zip = await ZipCtor.loadAsync(fileBlob);
 
   return {
     async getJSON(path) {

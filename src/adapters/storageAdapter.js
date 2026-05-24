@@ -4,6 +4,8 @@
  * 新增：文件哈希计算、去重检测、引用计数、容错机制
  */
 
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 import { findMediaByHash, registerMedia } from '../repositories/stateRepository.js';
 
 let _fsCache = null, _fsLoaded = false;
@@ -86,7 +88,8 @@ export async function calculateFastHash(blob) {
  * @returns {Promise<Object>} { path: string, isNew: boolean, fileHash: string }
  */
 export async function saveVideoBlobDedup(blob, preferredPath, options = {}) {
-  const { mimeType = 'video/mp4', fileName } = options;
+  const { mimeType = blob.type || 'application/octet-stream', fileName } = options;
+  const safePath = preferredPath || buildMediaPath(blob, options);
   
   console.log('[StorageAdapter] 开始去重保存，文件大小:', blob.size);
   
@@ -94,18 +97,19 @@ export async function saveVideoBlobDedup(blob, preferredPath, options = {}) {
   const fileHash = await calculateFastHash(blob);
   
   // 2. 检查是否已存在
-  const existingMedia = findMediaByHash(fileHash);
+  const existingMedia = await findMediaByHash(fileHash);
   
   if (existingMedia) {
     // 文件已存在，直接复用
     console.log('[StorageAdapter] 文件已存在，复用路径:', existingMedia.path);
     
     // 增加引用计数
-    registerMedia(fileHash, existingMedia);
+    await registerMedia(fileHash, existingMedia);
     
     return {
       path: existingMedia.path,
       isNew: false,
+      isDuplicate: true,
       fileHash,
       size: existingMedia.size,
       mimeType: existingMedia.mimeType
@@ -113,17 +117,17 @@ export async function saveVideoBlobDedup(blob, preferredPath, options = {}) {
   }
   
   // 3. 新文件，实际写入存储
-  console.log('[StorageAdapter] 新文件，开始写入:', preferredPath);
+  console.log('[StorageAdapter] 新文件，开始写入:', safePath);
   
   try {
-    const finalPath = await saveVideoBlob(preferredPath, blob);
+    const finalPath = await saveVideoBlob(safePath, blob);
     
     // 4. 注册到媒体索引
-    registerMedia(fileHash, {
+    await registerMedia(fileHash, {
       path: finalPath,
       size: blob.size,
       mimeType,
-      fileName: fileName || preferredPath.split('/').pop()
+      fileName: fileName || safePath.split('/').pop()
     });
     
     console.log('[StorageAdapter] 文件写入完成:', finalPath);
@@ -131,6 +135,7 @@ export async function saveVideoBlobDedup(blob, preferredPath, options = {}) {
     return {
       path: finalPath,
       isNew: true,
+      isDuplicate: false,
       fileHash,
       size: blob.size,
       mimeType
@@ -139,6 +144,28 @@ export async function saveVideoBlobDedup(blob, preferredPath, options = {}) {
     console.error('[StorageAdapter] 文件写入失败:', error);
     throw new Error(`文件保存失败: ${error.message}`);
   }
+}
+
+function buildMediaPath(blob, options = {}) {
+  const type = options.type || inferTypeFromMime(blob.type);
+  const dir = type === 'photo' ? 'photos' : type === 'audio' ? 'audio' : 'videos';
+  const sourceName = options.fileName || blob.name || `media_${Date.now()}.${defaultExtension(type, blob.type)}`;
+  const filename = generateUniqueFilename(sourceName);
+  return `BabyTime/${dir}/${filename}`;
+}
+
+function inferTypeFromMime(mime = '') {
+  if (mime.startsWith('image/')) return 'photo';
+  if (mime.startsWith('audio/')) return 'audio';
+  return 'video';
+}
+
+function defaultExtension(type, mime = '') {
+  if (mime.includes('/')) {
+    const ext = mime.split('/').pop().split(';')[0];
+    if (ext && ext !== 'octet-stream') return ext === 'jpeg' ? 'jpg' : ext;
+  }
+  return type === 'photo' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4';
 }
 
 // ============================================================
@@ -154,15 +181,20 @@ export async function getVideoBlob(path) {
 
   // ✅ 路径清洗：去掉 URL 前缀，只保留相对路径
   let cleanPath = path;
-  if (cleanPath.startsWith('http')) {
+  if (cleanPath.startsWith('fs://file/')) {
+    cleanPath = cleanPath.replace('fs://file/', '');
+  } else if (cleanPath.startsWith('file://')) {
+    cleanPath = cleanPath.replace(/^file:\/+/, '');
+  } else if (cleanPath.startsWith('http')) {
     const urlObj = new URL(cleanPath);
-    cleanPath = urlObj.pathname;
-    // 去掉 /Documents/ 或 /Data/ 前缀
-    cleanPath = cleanPath.replace(/^\/[^\/]+\//, ''); // /Documents/xxx -> xxx
+    cleanPath = decodeURIComponent(urlObj.pathname);
+    cleanPath = cleanPath.replace(/^\/_capacitor_file_\//, '');
+    cleanPath = cleanPath.replace(/^\/+/, '');
+    const marker = cleanPath.match(/(?:Documents|Data)\/(BabyTime\/.*)$/);
+    if (marker) cleanPath = marker[1];
   }
   
   // ✅ 路径补全：如果只有文件名（没有目录前缀），加上默认路径
-  // 注意：视频和音频都在 BabyTime/videos/ 目录下
   if (!cleanPath.includes('/')) {
     cleanPath = 'BabyTime/videos/' + cleanPath;
   }
@@ -199,10 +231,9 @@ export async function getVideoBlob(path) {
 }
 
 async function readFromFilesystem(path) {
-  const fs = await loadFilesystem();
-  const result = await fs.Filesystem.readFile({
+  const result = await Filesystem.readFile({
     path,
-    directory: fs.Directory.Documents
+    directory: Directory.Documents
   });
   return result.data;
 }
@@ -220,7 +251,13 @@ function base64ToBlob(base64, mime = 'video/mp4') {
 async function readVideoFromOPFS(path) {
   if (!navigator.storage?.getDirectory) throw new Error('OPFS 不支持');
   const root = await navigator.storage.getDirectory();
-  const fileHandle = await root.getFileHandle(path);
+  const parts = path.split('/').filter(Boolean);
+  const filename = parts.pop();
+  let dir = root;
+  for (const p of parts) {
+    dir = await dir.getDirectoryHandle(p);
+  }
+  const fileHandle = await dir.getFileHandle(filename);
   const file = await fileHandle.getFile();
   return file;
 }
@@ -260,12 +297,11 @@ async function saveToOPFS(path, blob) {
 }
 
 async function saveToFilesystem(path, blob) {
-  const fs = await loadFilesystem();
   const base64 = await blobToBase64(blob);
-  await fs.Filesystem.writeFile({
+  await Filesystem.writeFile({
     path,
     data: base64,
-    directory: fs.Directory.Documents,
+    directory: Directory.Documents,
     recursive: true
   });
   return path;
@@ -274,21 +310,10 @@ async function saveToFilesystem(path, blob) {
 function blobToBase64(blob) {
   return new Promise((r, j) => {
     const f = new FileReader();
-    f.onloadend = () => r(f.result);
+    f.onloadend = () => r(String(f.result).split(',')[1] || '');
     f.onerror = j;
     f.readAsDataURL(blob);
   });
-}
-
-async function loadFilesystem() {
-  const mod = window.Capacitor?.Plugins?.Filesystem;
-  const Filesystem = mod?.Filesystem || mod.default?.Filesystem || mod;
-  const Directory = mod?.Directory || mod.default?.Directory || {
-    Documents: 'DOCUMENTS',
-    Data: 'DATA',
-    Cache: 'CACHE'
-  };
-  return { Filesystem, Directory };
 }
 
 // ============================================================
@@ -323,17 +348,14 @@ function fileToBase64(file, onProgress = null) {
 }
 
 function isAppEnvironment() {
-  return window.Capacitor?.getPlatform() !== 'web';
+  const platform = Capacitor.getPlatform?.() || window.Capacitor?.getPlatform?.();
+  return platform && platform !== 'web';
 }
 
 export async function saveVideoToNative(file, onProgress = null) {
   if (!isAppEnvironment()) throw new Error('请在APP中使用此功能');
   try {
     const filename = generateUniqueFilename(file.name);
-    const filesystem = await loadFilesystem();
-    if (!filesystem) throw new Error('文件系统不可用');
-    const { Filesystem, Directory } = filesystem;
-    
     let writeSucceeded = false;
     try {
       await Filesystem.writeFile({
@@ -365,10 +387,6 @@ export async function saveVideoToNative(file, onProgress = null) {
 export async function readVideoFromNative(filename) {
   if (!isAppEnvironment()) return null;
   try {
-    const filesystem = await loadFilesystem();
-    if (!filesystem) return null;
-    const { Filesystem, Directory } = filesystem;
-    
     const result = await Filesystem.readFile({
       path: `videos/${filename}`,
       directory: Directory.Documents,
@@ -387,10 +405,6 @@ export async function readVideoFromNative(filename) {
 export async function deleteVideoFromNative(filename) {
   if (!isAppEnvironment()) return false;
   try {
-    const filesystem = await loadFilesystem();
-    if (!filesystem) return false;
-    const { Filesystem, Directory } = filesystem;
-    
     await Filesystem.deleteFile({
       path: `videos/${filename}`,
       directory: Directory.Documents,

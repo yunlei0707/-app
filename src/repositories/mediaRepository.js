@@ -40,22 +40,30 @@ export async function saveMedia(blobOrFile, options = {}) {
 
   console.log('[MediaRepository] 保存媒体:', blobOrFile.name || blobOrFile.type);
 
+  const safeName = fileName || blobOrFile.name || `media_${Date.now()}.${type === 'photo' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4'}`;
+  const dir = type === 'photo' ? 'photos' : type === 'audio' ? 'audio' : 'videos';
+  const preferredPath = `BabyTime/${dir}/${generateUniqueFilename(safeName)}`;
+
   // 使用底层去重存储
-  const result = await saveVideoBlobDedup(blobOrFile);
+  const result = await saveVideoBlobDedup(blobOrFile, preferredPath, {
+    type,
+    fileName: safeName,
+    mimeType: blobOrFile.type || defaultMimeType(type),
+  });
 
   // 构建标准 MediaItem 结构
   // 注意：hash 是可选的，不强制计算避免大文件卡顿
   const mediaItem = {
-    id: uuidv4(),
+    id: result.fileHash ? `media_${result.fileHash.slice(0, 12)}` : uuidv4(),
     type: type,
     path: result.path,
-    fileName: fileName || blobOrFile.name || `media_${Date.now()}.${type === 'photo' ? 'jpg' : type === 'video' ? 'mp4' : 'm4a'}`,
-    mimeType: blobOrFile.type || `image/${type === 'photo' ? 'jpeg' : type}`,
+    fileName: safeName,
+    mimeType: blobOrFile.type || defaultMimeType(type),
     size: result.size,
     createdAt: Date.now(),
     isDuplicate: result.isDuplicate,
     // 可选字段
-    ...(result.hash && { hash: result.hash }),
+    ...(result.fileHash && { hash: result.fileHash }),
     ...(duration !== undefined && { duration }),
     ...(coverPath !== undefined && { coverPath }),
     // ✅ 向后兼容：保持旧字段名，避免 MomentForm 报错
@@ -64,6 +72,12 @@ export async function saveMedia(blobOrFile, options = {}) {
   };
 
   return mediaItem;
+}
+
+function defaultMimeType(type) {
+  if (type === 'photo') return 'image/jpeg';
+  if (type === 'audio') return 'audio/m4a';
+  return 'video/mp4';
 }
 
 /**

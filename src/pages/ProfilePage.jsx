@@ -571,7 +571,7 @@ export function ProfilePage(
     }
     
     // 确保路径格式正确（以 fs://file/BabyTimeBackup/ 开头）
-    if (!fullPath.startsWith('fs://')) {
+    if (!fullPath.startsWith('fs://') && !fullPath.startsWith('file://') && !fullPath.startsWith('content://')) {
       console.warn('[ProfilePage] 路径格式不正确，修正路径');
       fullPath = `fs://file/BabyTimeBackup/${zipSuccessFilename || fullPath}`;
       console.log('[ProfilePage] 修正后路径:', fullPath);
@@ -620,7 +620,7 @@ export function ProfilePage(
     }
     
     // 确保路径格式正确（以 fs://file/BabyTimeBackup/ 开头）
-    if (!fullPath.startsWith('fs://')) {
+    if (!fullPath.startsWith('fs://') && !fullPath.startsWith('file://') && !fullPath.startsWith('content://')) {
       console.warn('[ProfilePage] 路径格式不正确，修正路径');
       fullPath = `fs://file/BabyTimeBackup/${zipSuccessFilename || fullPath}`;
       console.log('[ProfilePage] 修正后路径:', fullPath);

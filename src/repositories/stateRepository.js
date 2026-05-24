@@ -149,8 +149,8 @@ export async function findMediaByHash(hash) {
   return await dbV2.findMediaByHash(hash);
 }
 
-export async function registerMedia(mediaData) {
-  return await dbV2.registerMedia(mediaData);
+export async function registerMedia(fileHash, mediaData) {
+  return await dbV2.registerMedia(fileHash, mediaData);
 }
 
 // 宝宝管理

@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { getImageSrc } from '../utils/image';
+import { getMediaDisplaySrc, normalizeMediaItem } from '../repositories/mediaRepository.js';
 
 export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -14,6 +15,8 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   const [scale, setScale] = useState(1);
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
+  const [displayUrl, setDisplayUrl] = useState('');
+  const objectUrlRef = useRef(null);
   
   // 双指触控相关
   const touchStartRef = useRef(null);
@@ -71,6 +74,37 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   useEffect(() => {
     resetZoom();
   }, [currentIndex, resetZoom]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPhoto() {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      const media = normalizeMediaItem(photos[currentIndex], 'photo');
+      if (!media?.path) {
+        setDisplayUrl('');
+        return;
+      }
+      let url = getImageSrc(media.path);
+      if (!url || media.path.startsWith('BabyTime/') || media.path.startsWith('opfs:')) {
+        url = await getMediaDisplaySrc(media.path);
+      }
+      if (!cancelled) {
+        if (url?.startsWith('blob:')) objectUrlRef.current = url;
+        setDisplayUrl(url || '');
+      }
+    }
+    loadPhoto();
+    return () => {
+      cancelled = true;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, [photos, currentIndex]);
 
   // 键盘和初始化
   useEffect(() => {
@@ -232,7 +266,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(photos[currentIndex]);
+      const response = await fetch(displayUrl || getImageSrc(photos[currentIndex]));
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -311,7 +345,7 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={getImageSrc(photos[currentIndex])}
+          src={displayUrl || getImageSrc(photos[currentIndex])}
           alt={`照片 ${currentIndex + 1}`}
           className="max-w-full max-h-full object-contain"
           style={{

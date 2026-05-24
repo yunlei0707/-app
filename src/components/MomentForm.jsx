@@ -7,13 +7,13 @@ import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play
 import { useApp } from '../store/AppContext';
 import { getCurrentBabyInfo, isSystemAccount } from "../repositories/stateRepository.js";
 import { isInApp, jsBridgeAudioRecorder } from '../utils/jsBridge';
-import { saveAudio, saveVideo, deleteVideo } from '../repositories/mediaRepository.js';
+import { saveAudio, saveImage, saveVideo, deleteVideo } from '../repositories/mediaRepository.js';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem } from '../repositories/mediaRepository';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -25,6 +25,48 @@ const moodOptions = [
   { value: 'angry', emoji: '😠', label: '生气', score: -3 },
   { value: 'sick', emoji: '🤒', label: '不舒服', score: -2 },
 ];
+
+const isTemporaryMediaPath = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  return value.startsWith('blob:') ||
+    value.startsWith('data:') ||
+    value.startsWith('content://') ||
+    value.includes('/_capacitor_file_/') ||
+    value.startsWith('http://localhost/_capacitor_file_') ||
+    value.startsWith('https://localhost/_capacitor_file_');
+};
+
+async function blobFromMediaSource(source, fallbackMime = 'application/octet-stream') {
+  if (source instanceof Blob) return source;
+  if (source?.file instanceof Blob) return source.file;
+  if (source?.blob instanceof Blob) return source.blob;
+
+  const url = typeof source === 'string'
+    ? source
+    : source?.displayURL || source?.url || source?.path || source?.webPath || source?.uri;
+
+  if (!url) return null;
+
+  if (url.startsWith('data:')) {
+    const response = await fetch(url);
+    return await response.blob();
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`媒体读取失败: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return blob.type ? blob : new Blob([blob], { type: fallbackMime });
+}
+
+function fileNameForMedia(input, type) {
+  const fallbackExt = type === 'photo' ? 'jpg' : type === 'audio' ? 'm4a' : 'mp4';
+  if (input?.fileName) return input.fileName;
+  if (input?.name) return input.name;
+  if (input?.filename && !String(input.filename).includes('/')) return input.filename;
+  return `${type}_${Date.now()}.${fallbackExt}`;
+}
 
 // 心情选项映射（用于快速查找score）
 export const moodScoreMap = {
@@ -348,14 +390,16 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
           }
           const blob = new Blob(byteArrays, { type: mimeType });
           
-          // ✅ 保存到文件系统（只存filename，不存整个Base64）
+          // ✅ 保存到文件系统（只存持久 path，不存整个Base64/临时URL）
           const fileToSave = new File([blob], `recording_${Date.now()}.m4a`, { type: mimeType });
-          const { filename, storageType } = await saveVideo(fileToSave);
-          console.log('[录音] 保存到文件系统:', { filename, storageType });
+          const savedAudio = await saveAudio(fileToSave, {
+            fileName: fileToSave.name,
+            duration: recordingTime,
+          });
+          console.log('[录音] 保存到文件系统:', savedAudio.path);
           
           const audioData = {
-            filename,
-            storageType,
+            ...savedAudio,
             name: `recording_${Date.now()}.m4a`,
             size: blob.size,
             duration: recordingTime,
@@ -426,23 +470,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       
-      // ✅ 存入IndexedDB，避免Base64内存开销
-      const fileId = generateFileId();
-      await saveAudioFile(fileId, audioBlob, {
-        name: `recording_${Date.now()}.webm`,
-        type: 'audio/webm',
-        duration: recordingTime
+      const fileToSave = new File([audioBlob], `recording_${Date.now()}.webm`, { type: 'audio/webm' });
+      const savedAudio = await saveAudio(fileToSave, {
+        fileName: fileToSave.name,
+        duration: recordingTime,
       });
-      
-      // 生成临时预览URL（不存入JSON）
       const displayURL = URL.createObjectURL(audioBlob);
       
       const audioData = {
-        audioFileId: fileId,
+        ...savedAudio,
         displayURL: displayURL,
         duration: recordingTime,
         waveform: [...audioWaveform],
-        storageType: 'indexeddb-blob'
+        storageType: 'filesystem'
       };
       setAudios(prev => [...prev, audioData]);
     };
@@ -864,47 +904,20 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       
       const displayURL = URL.createObjectURL(audioBlob);
       
-      // ✅ 存入文件系统，不再用Base64
-      const useFS = await shouldUseFileStorage();
-      let audioData;
+      const fileToSave = new File([audioBlob], file.name, { type: inferredMimeType });
+      const savedAudio = await saveAudio(fileToSave, { fileName: file.name, duration: 0 });
+      console.log('[Audio Upload] 保存到文件系统:', savedAudio.path);
       
-      if (useFS) {
-        // 使用文件系统：原生APP或OPFS（复用saveVideo函数，文件系统不区分类型）
-        const fileToSave = new File([audioBlob], file.name, { type: inferredMimeType });
-        const { filename, storageType } = await saveVideo(fileToSave);
-        console.log('[Audio Upload] 保存到文件系统:', { filename, storageType });
-        
-        audioData = {
-          filename,        // 文件名，不存Base64避免JSON超限
-          storageType,     // 'native' or 'opfs'
-          displayURL,      // 临时URL用于预览播放
-          duration: 0,
-          waveform: [],    // 简化波形
-          fileName: file.name,
-          fileType: inferredMimeType,
-          fileSize: file.size,
-          isImported: true
-        };
-      } else {
-        // 降级：Base64方式
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = () => reject(new Error('音频读取失败'));
-          reader.readAsDataURL(audioBlob);
-        });
-        
-        audioData = {
-          url: base64,
-          displayURL,
-          duration: 0,
-          waveform: [],
-          fileName: file.name,
-          fileType: inferredMimeType,
-          fileSize: file.size,
-          isImported: true
-        };
-      }
+      const audioData = {
+        ...savedAudio,
+        displayURL,
+        duration: 0,
+        waveform: [],
+        fileName: file.name,
+        fileType: inferredMimeType,
+        fileSize: file.size,
+        isImported: true
+      };
       
       setAudios(prev => [...prev, audioData]);
       console.log('[Audio Upload] 上传成功！');
@@ -1056,33 +1069,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const processSinglePhoto = async (file, useOPFS) => {
     // 生成显示用的ObjectURL（临时）
     const displayURL = URL.createObjectURL(file);
-    
-    if (useOPFS) {
-      // OPFS模式：存文件，不存base64
-      const { filename } = await savePhotoToOPFS(file);
-      return {
-        filename,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        displayURL, // 临时显示用
-      };
-    } else {
-      // Base64模式（降级）
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          resolve({
-            url: event.target.result,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            displayURL: event.target.result,
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+    const saved = await saveImage(file, { fileName: file.name });
+    return {
+      ...saved,
+      displayURL,
+    };
   };
 
   // ✅ 使用原生相机/相册选择照片
@@ -1096,8 +1087,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       });
       
       if (photoUri) {
-        // 存储文件URI而不是Base64
-        setPhotos(prev => [...prev, photoUri]);
+        const blob = await blobFromMediaSource(photoUri, 'image/jpeg');
+        const file = new File([blob], `photo_${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+        const saved = await saveImage(file, { fileName: file.name });
+        setPhotos(prev => [...prev, { ...saved, displayURL: photoUri }]);
         
         if (STORAGE_CONFIG.DEBUG_MODE) {
           console.log('[MomentForm] 原生照片上传成功:', photoUri.substring(0, 50) + '...');
@@ -1203,34 +1196,12 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   // 处理单个视频上传
   const processSingleVideo = async (file, useOPFS) => {
     const { cover, duration } = await generateVideoCover(file);
-    
-    if (useOPFS) {
-      // 文件系统模式：原生APP用Capacitor Filesystem，Web用OPFS
-      const { filename, storageType } = await saveVideo(file);
-      return {
-        filename,
-        storageType,  // 'native' or 'opfs'
-        cover: cover,
-        name: file.name,
-        size: file.size,
-        duration: duration,
-      };
-    } else {
-      // Base64模式：传统方式
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          resolve({
-            url: event.target.result,
-            cover: cover,
-            name: file.name,
-            size: file.size,
-            duration: duration,
-          });
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+    const saved = await saveVideo(file, { fileName: file.name, duration, coverPath: cover });
+    return {
+      ...saved,
+      cover,
+      duration,
+    };
   };
 
   // 视频上传 - 智能选择存储方式（OPFS或Base64）
@@ -1310,6 +1281,45 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     setVideos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const persistMediaBeforeSave = async (item, type) => {
+    const normalized = normalizeMediaItem(item, type);
+    if (normalized?.path) {
+      try {
+        assertNoDisplayUrlInPath(normalized);
+        return normalized;
+      } catch {
+        // 临时 URL 会在下面重新持久化。
+      }
+    }
+
+    const sourcePath = typeof item === 'string'
+      ? item
+      : item?.displayURL || item?.url || item?.path || item?.webPath || item?.uri;
+
+    if (!sourcePath && !(item instanceof Blob) && !item?.file && !item?.blob) {
+      return normalized;
+    }
+
+    const blob = await blobFromMediaSource(item, type === 'photo' ? 'image/jpeg' : type === 'audio' ? 'audio/m4a' : 'video/mp4');
+    if (!blob) return normalized;
+
+    const filename = fileNameForMedia(item, type);
+    const file = new File([blob], filename, { type: blob.type || (type === 'photo' ? 'image/jpeg' : type === 'audio' ? 'audio/m4a' : 'video/mp4') });
+    const save = type === 'photo' ? saveImage : type === 'audio' ? saveAudio : saveVideo;
+    const saved = await save(file, {
+      fileName: filename,
+      duration: item?.duration,
+      coverPath: item?.cover || item?.coverPath,
+    });
+
+    return {
+      ...saved,
+      ...(item?.duration !== undefined && { duration: item.duration }),
+      ...(item?.waveform !== undefined && { waveform: item.waveform }),
+      ...(item?.cover !== undefined && { cover: item.cover }),
+    };
+  };
+
   const handleSubmit = async () => {
     // 系统账号不可添加/编辑记录
     if (saving) return;
@@ -1331,16 +1341,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     setSaving(true);
     
     try {
-      // ====== 音频/封面已在上传时转成Base64，无需在保存时处理 ======
-      // 播客音频、播客封面、普通音频都已在上传时立即转Base64并存入state
-      // 避免了File对象在等待保存时失效的问题
-      console.log('[Save] 文件已提前处理完成，开始保存...');
-      
-      // 统一媒体对象结构，兼容新旧数据
-      // ✅ 先用 normalizeMediaItem 归一化所有媒体，确保数据结构尽可能标准
-      const normalizedPhotos = photos.map(p => normalizeMediaItem(p, 'photo')).filter(Boolean);
-      const normalizedVideos = videos.map(v => normalizeMediaItem(v, 'video')).filter(Boolean);
-      const normalizedAudios = audios.map(a => normalizeMediaItem(a, 'audio')).filter(Boolean);
+      console.log('[Save] 开始保存前媒体持久化...');
+      const normalizedPhotos = (await Promise.all(photos.map(p => persistMediaBeforeSave(p, 'photo')))).filter(Boolean);
+      const normalizedVideos = (await Promise.all(videos.map(v => persistMediaBeforeSave(v, 'video')))).filter(Boolean);
+      const normalizedAudios = (await Promise.all(audios.map(a => persistMediaBeforeSave(a, 'audio')))).filter(Boolean);
 
       // 🔥 统一媒体格式：所有媒体合并到 media[] 数组
       // 这是写入层的唯一标准，从今天开始所有新数据都有 media[]

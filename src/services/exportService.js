@@ -1,5 +1,6 @@
 import { processVideos } from './mediaService.js';
 import { createZip } from '../adapters/zipAdapter.js';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 // 旧版 IDB 数据兼容（可空）
 function exportDBData() {
   return Promise.resolve(null);
@@ -95,6 +96,18 @@ function validateFileMap(fileMap, videoResults) {
   return { errors, warnings, deduplicated: totalCount - uniqueCount };
 }
 
+function safeArchiveFileName(media, fallbackExt) {
+  const hash = media.fileHash || media.hash || media.id || Date.now();
+  const sourceName = media.fileName || media.originalName || media.name || `media.${fallbackExt}`;
+  const cleanName = String(sourceName)
+    .split(/[\\/]/)
+    .pop()
+    .replace(/[^\w.\-()\u4e00-\u9fa5]/g, '_');
+  const hasExt = /\.[a-z0-9]{2,5}$/i.test(cleanName);
+  const baseName = hasExt ? cleanName : `${cleanName}.${fallbackExt}`;
+  return `${String(hash).slice(0, 12)}_${baseName}`;
+}
+
 export async function exportAllData(options = {}) {
   const { includeVideos = false, onProgress = null, signal = null } = options;
   const start = Date.now();
@@ -167,6 +180,8 @@ export async function exportAllData(options = {}) {
             ...v, 
             blob: existing.blob, 
             fileName: existing.fileName,
+            fileHash,
+            archiveFileName: existing.archiveFileName,
             isDuplicate: true,
             originalId: existing.id
           });
@@ -218,7 +233,14 @@ export async function exportAllData(options = {}) {
         const fileHash = await calculateMediaHash(blob);
         if (photoHashes.has(fileHash)) {
           const existing = photoHashes.get(fileHash);
-          photoResults.push({ ...p, blob: existing.blob, fileName: existing.fileName, isDuplicate: true });
+          photoResults.push({
+            ...p,
+            blob: existing.blob,
+            fileName: existing.fileName,
+            fileHash,
+            archiveFileName: existing.archiveFileName,
+            isDuplicate: true
+          });
         } else {
           const result = { ...p, blob, fileHash };
           photoResults.push(result);
@@ -277,6 +299,8 @@ export async function exportAllData(options = {}) {
             ...a, 
             blob: existing.blob, 
             fileName: existing.fileName,
+            fileHash,
+            archiveFileName: existing.archiveFileName,
             isDuplicate: true,
             originalId: existing.id
           });
@@ -302,6 +326,7 @@ export async function exportAllData(options = {}) {
   const zip = createZip();
   const fileMap = {};
   const uniqueHashes = new Set();
+  const archiveNamesByHash = new Map();
   let duplicateSkipped = 0;
 
   // 写入视频文件（带去重）
@@ -310,8 +335,9 @@ export async function exportAllData(options = {}) {
       // 重复文件，只更新 fileMap，不重复写入 ZIP
       duplicateSkipped++;
       const original = videoResults.find(v => v.fileHash === video.fileHash);
+      const archiveFileName = archiveNamesByHash.get(video.fileHash) || original.archiveFileName || safeArchiveFileName(original, 'mp4');
       fileMap[video.id] = {
-        fileName: original.fileName,
+        fileName: archiveFileName,
         originalName: video.originalName,
         fileSize: video.blob.size,
         isDuplicate: true,
@@ -321,9 +347,12 @@ export async function exportAllData(options = {}) {
     } else {
       // 新文件，写入 ZIP
       uniqueHashes.add(video.fileHash);
-      zip.addFile(`videos/${video.fileName}`, video.blob);
+      const archiveFileName = safeArchiveFileName(video, 'mp4');
+      video.archiveFileName = archiveFileName;
+      archiveNamesByHash.set(video.fileHash, archiveFileName);
+      zip.addFile(`videos/${archiveFileName}`, video.blob);
       fileMap[video.id] = {
-        fileName: video.fileName,
+        fileName: archiveFileName,
         originalName: video.originalName,
         fileSize: video.blob.size,
         fileHash: video.fileHash,
@@ -338,8 +367,9 @@ export async function exportAllData(options = {}) {
       // 重复文件，只更新 fileMap，不重复写入 ZIP
       duplicateSkipped++;
       const original = [...videoResults, ...audioResults].find(a => a.fileHash === audio.fileHash);
+      const archiveFileName = archiveNamesByHash.get(audio.fileHash) || original.archiveFileName || safeArchiveFileName(original, 'm4a');
       fileMap[audio.id] = {
-        fileName: original.fileName,
+        fileName: archiveFileName,
         originalName: audio.originalName,
         fileSize: audio.blob.size,
         isDuplicate: true,
@@ -349,9 +379,12 @@ export async function exportAllData(options = {}) {
     } else {
       // 新文件，写入 ZIP
       uniqueHashes.add(audio.fileHash);
-      zip.addFile(`audios/${audio.fileName}`, audio.blob);
+      const archiveFileName = safeArchiveFileName(audio, 'm4a');
+      audio.archiveFileName = archiveFileName;
+      archiveNamesByHash.set(audio.fileHash, archiveFileName);
+      zip.addFile(`audios/${archiveFileName}`, audio.blob);
       fileMap[audio.id] = {
-        fileName: audio.fileName,
+        fileName: archiveFileName,
         originalName: audio.originalName,
         fileSize: audio.blob.size,
         fileHash: audio.fileHash,
@@ -366,8 +399,9 @@ export async function exportAllData(options = {}) {
       // 重复文件，只更新 fileMap，不重复写入 ZIP
       duplicateSkipped++;
       const original = [...videoResults, ...audioResults, ...photoResults].find(p => p.fileHash === photo.fileHash);
+      const archiveFileName = archiveNamesByHash.get(photo.fileHash) || original.archiveFileName || safeArchiveFileName(original, 'jpg');
       fileMap[photo.id] = {
-        fileName: original.fileName,
+        fileName: archiveFileName,
         originalName: photo.originalName,
         fileSize: photo.blob.size,
         isDuplicate: true,
@@ -377,9 +411,12 @@ export async function exportAllData(options = {}) {
     } else {
       // 新文件，写入 ZIP
       uniqueHashes.add(photo.fileHash);
-      zip.addFile(`photos/${photo.fileName}`, photo.blob);
+      const archiveFileName = safeArchiveFileName(photo, 'jpg');
+      photo.archiveFileName = archiveFileName;
+      archiveNamesByHash.set(photo.fileHash, archiveFileName);
+      zip.addFile(`photos/${archiveFileName}`, photo.blob);
       fileMap[photo.id] = {
-        fileName: photo.fileName,
+        fileName: archiveFileName,
         originalName: photo.originalName,
         fileSize: photo.blob.size,
         fileHash: photo.fileHash,
@@ -418,10 +455,20 @@ export async function exportAllData(options = {}) {
     'data.json',
     new Blob([jsonStr], { type: 'application/json' })
   );
+  zip.addFile(
+    'data.js',
+    new Blob([
+      `window.BABY_TIME_BACKUP = ${jsonStr};\n`,
+      `export default window.BABY_TIME_BACKUP;\n`
+    ], { type: 'application/javascript' })
+  );
 
   // 5. 生成 ZIP Blob
   console.log('[Export] 开始生成 ZIP 文件...');
-  const zipBlob = await zip.generate(onProgress);
+  const zipBlob = await zip.generate(percent => onProgress?.({
+    progress: Math.round(percent),
+    message: '正在生成压缩包...'
+  }));
   
   // ✅ ZIP 完整性校验
   if (!zipBlob || zipBlob.size < 100) {
@@ -433,10 +480,10 @@ export async function exportAllData(options = {}) {
   const now = new Date();
   const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   const zipFilename = `baby_backup_${timestamp}.zip`;
-  const zipFilePath = `${BASE_DIR}/${zipFilename}`;
+  const zipFilePath = `BabyTimeBackup/${zipFilename}`;
 
   console.log('[Export] 保存到本地:', zipFilePath);
-  await saveToLocal(zipBlob, zipFilePath, zipFilename);
+  const savedPath = await saveToLocal(zipBlob, zipFilePath, zipFilename);
 
   // ✅ fileMap 最终校验
   const fileMapValidation = validateFileMap(fileMap, videoResults);
@@ -445,7 +492,7 @@ export async function exportAllData(options = {}) {
   // 返回结果（兼容 ProfilePage 判断逻辑）
   const result = {
     success: true,
-    filePath: zipFilePath,
+    filePath: savedPath,
     fileName: zipFilename,
     filename: zipFilename,
     fileSize: zipBlob.size,
@@ -547,41 +594,39 @@ function extractAudiosFromData(data) {
 }
 
 async function saveToLocal(blob, path, filename) {
-  const fsModule = await loadFilesystem();
   const base64 = await blobToBase64(blob);
-  const fullPath = `BabyTimeBackup/${filename}`;
+  const fullPath = path || `BabyTimeBackup/${filename}`;
   
   console.log('[Export] 保存文件到:', fullPath);
   
-  await fsModule.Filesystem.writeFile({
+  await Filesystem.writeFile({
     path: fullPath,
     data: base64,
-    directory: fsModule.Directory.Documents,
+    directory: Directory.Documents,
     recursive: true
   });
+
+  let uri = '';
+  try {
+    const result = await Filesystem.getUri({
+      path: fullPath,
+      directory: Directory.Documents,
+    });
+    uri = result.uri;
+  } catch (e) {
+    console.warn('[Export] getUri失败，使用逻辑路径:', e.message);
+  }
   
-  // 强制返回 ProfilePage 期望的标准 fs:// 格式路径
-  const finalUri = `fs://file/BabyTimeBackup/${filename}`;
+  const finalUri = uri || `fs://file/${fullPath}`;
   console.log('[Export] 文件已保存，返回路径:', finalUri);
   
   return finalUri;
 }
 
-async function loadFilesystem() {
-  const mod = window.Capacitor?.Plugins?.Filesystem;
-  const Filesystem = mod?.Filesystem || mod.default?.Filesystem || mod;
-  const Directory = mod?.Directory || mod.default?.Directory || {
-    Documents: 'DOCUMENTS',
-    Data: 'DATA',
-    Cache: 'CACHE'
-  };
-  return { Filesystem, Directory };
-}
-
 function blobToBase64(blob) {
   return new Promise((r, j) => {
     const f = new FileReader();
-    f.onloadend = () => r(f.result);
+    f.onloadend = () => r(String(f.result).split(',')[1] || '');
     f.onerror = j;
     f.readAsDataURL(blob);
   });

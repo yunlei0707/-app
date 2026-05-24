@@ -237,15 +237,15 @@ function VideoItem({ video }) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, [video.url, video.filename, video.path, video.opfsPath]);
+  }, [video]);
 
   const loadVideo = async () => {
     try {
       setLoading(true);
       setError(false);
       
-      // 兼容所有可能的字段名
-      const mediaUrl = video.url || video.path || video.opfsPath || video.filename;
+      const media = normalizeMediaItem(video, 'video');
+      const mediaUrl = media?.path || video.url || video.path || video.opfsPath || video.filename;
       
       // 1. 优先直接使用Base64 url
       if (mediaUrl && mediaUrl.startsWith('data:')) {
@@ -285,7 +285,7 @@ function VideoItem({ video }) {
       {videoUrl && (
         <video
           src={videoUrl}
-          poster={video.cover}
+          poster={video.cover || video.coverPath}
           controls
           className="w-full h-full object-cover"
           playsInline
@@ -303,6 +303,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
   const [audioLoading, setAudioLoading] = useState(true);
   const [audioError, setAudioError] = useState(false);
   const objectUrlsRef = useRef([]); // 追踪所有创建的 Object URL
+  const { photos, videos, audios } = normalizeMomentMedia(moment);
   
   const typeIcons = {
     photo: '📷',
@@ -475,19 +476,19 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
       )}
       
       {/* 视频 - 使用videos字段，支持OPFS和Base64两种模式 */}
-      {moment.type === 'video' && moment.videos && moment.videos.length > 0 && (
+      {moment.type === 'video' && videos.length > 0 && (
         <div className="mb-3 space-y-2">
-          {moment.videos.map((video, index) => (
-            <VideoItem key={index} video={video} />
+          {videos.map((video, index) => (
+            <VideoItem key={video.id || index} video={video} />
           ))}
         </div>
       )}
       
       {/* 语音 */}
-      {moment.type === 'audio' && moment.audios && moment.audios.length > 0 && (
+      {moment.type === 'audio' && audios.length > 0 && (
         <div className="mb-3 space-y-2">
-          {moment.audios.map((audio, index) => (
-            <AudioItem key={index} audio={audio} />
+          {audios.map((audio, index) => (
+            <AudioItem key={audio.id || index} audio={audio} />
           ))}
         </div>
       )}
@@ -569,25 +570,25 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
       )}
       
       {/* 照片 */}
-      {moment.type !== 'video' && moment.type !== 'audio' && moment.type !== 'podcast' && moment.photos && moment.photos.length > 0 && (
+      {moment.type !== 'video' && moment.type !== 'audio' && moment.type !== 'podcast' && photos.length > 0 && (
         <div 
-          className={`grid gap-2 mb-3 ${moment.photos.length === 1 ? 'grid-cols-1' : moment.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}
-          onClick={() => onClick && onClick(moment.photos)}
+          className={`grid gap-2 mb-3 ${photos.length === 1 ? 'grid-cols-1' : photos.length === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}
+          onClick={() => onClick && onClick(photos)}
         >
-          {moment.photos.slice(0, 4).map((photo, index) => (
+          {photos.slice(0, 4).map((photo, index) => (
             <div 
-              key={index} 
+              key={photo.id || index} 
               className={`relative rounded-xl overflow-hidden bg-cream-100 dark:bg-gray-700 ${
-                moment.photos.length === 1 ? 'aspect-auto max-h-96' : 'aspect-square'
-              } ${moment.photos.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''}`}
+                photos.length === 1 ? 'aspect-auto max-h-96' : 'aspect-square'
+              } ${photos.length === 3 && index === 0 ? 'row-span-2 aspect-auto' : ''}`}
             >
               <LazyImage
                 src={photo}
                 alt={`照片 ${index + 1}`}
               />
-              {index === 3 && moment.photos.length > 4 && (
+              {index === 3 && photos.length > 4 && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-2xl font-bold">
-                  +{moment.photos.length - 4}
+                  +{photos.length - 4}
                 </div>
               )}
             </div>
