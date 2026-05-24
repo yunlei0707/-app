@@ -46,9 +46,39 @@ jobs:
         run: pnpm exec cap copy android
 
       - name: Build APK
+        id: build_apk
         run: |
+          set +e
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "### Gradle build failed" >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 120 gradle-build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "GRADLE_LOG_TAIL<<EOF"
+              tail -n 40 gradle-build.log
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+      - name: Report Gradle failure
+        if: failure() && steps.build_apk.outputs.GRADLE_LOG_TAIL != ''
+        run: |
+          while IFS= read -r line; do
+            echo "::error file=gradle-build.log::${line}"
+          done <<< "${{ steps.build_apk.outputs.GRADLE_LOG_TAIL }}"
+
+      - name: Upload Gradle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: gradle-build.log
+          if-no-files-found: ignore
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
