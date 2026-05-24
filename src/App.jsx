@@ -41,7 +41,6 @@ import { isV1Moment, createV2CopyFromV1, isV1GrowthRecord, createV2GrowthCopyFro
 // V1 兼容函数，从统一入口导入
 import { addMoment, updateMoment, addCapsule, updateCapsule, addBaby, updateBaby, addGrowthRecord, updateGrowthRecord } from './repositories/stateRepository';
 import { handleRecordLink } from './utils/linkService';
-import { AIChoiceModal } from './components/AIChoiceModal';
 import { GrowthRecordForm } from './components/GrowthRecordForm';
 import { cleanupOrphanFiles } from './repositories/mediaRepository';
 import { STORAGE_CONFIG } from './config/storage';
@@ -98,8 +97,9 @@ function AppContent() {
     try {
       const hash = window.location.hash.replace('#', '');
       const saved = localStorage.getItem('activeTab');
-      const tab = ['timeline', 'stats', 'virtual', 'profile'].includes(hash) ? hash 
-                : ['timeline', 'stats', 'virtual', 'profile'].includes(saved) ? saved 
+      const tabs = ['timeline', 'stats', 'podcast', 'virtual', 'profile'];
+      const tab = tabs.includes(hash) ? hash 
+                : tabs.includes(saved) ? saved 
                 : 'timeline';
       return tab;
     } catch { return 'timeline'; }
@@ -125,10 +125,6 @@ function AppContent() {
   const [showGrowthForm, setShowGrowthForm] = useState(false);
   const [editingGrowthRecord, setEditingGrowthRecord] = useState(null);
   
-  // AI 选择弹窗状态
-  const [showAIChoice, setShowAIChoice] = useState(false);
-  const [aiChoiceContent, setAIChoiceContent] = useState('');
-
   // v2 双账号系统初始化
   useEffect(() => {
     if (currentUser && currentUser.name) {
@@ -323,11 +319,6 @@ function AppContent() {
         showToast('记录已保存！🎉');
       // 立即触发刷新，确保即使后续有错误也能显示新内容
       window.dispatchEvent(new Event('v2-moment-updated'));
-        
-        // 保存成功后显示 AI 选择弹窗
-        console.log('[App] 保存成功，准备显示 AI 选择弹窗, content:', momentData.content);
-        setAIChoiceContent(typeof momentData.content === "function" ? "" : (momentData.content || ""));
-        setShowAIChoice(true);
         
         // 异步触发联动（不阻塞用户操作）
         setTimeout(() => {
@@ -546,8 +537,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-gray-900">
-      {/* 悬浮小猪按钮 */}
-      
       {/* 页面内容 */}
       {renderPage()}
       
@@ -556,15 +545,6 @@ function AppContent() {
       
       {/* Toast 提示 */}
       <Toast />
-      
-      {/* AI 创作提示弹窗 */}
-      <AIChoiceModal
-        show={showAIChoice}
-        onCancel={() => {
-          console.log('[App] 用户关闭 AI 提示弹窗');
-          setShowAIChoice(false);
-        }}
-      />
       
       {/* 动态表单 */}
       {showMomentForm && (

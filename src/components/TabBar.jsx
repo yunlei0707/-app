@@ -1,7 +1,7 @@
 /**
  * 底部导航栏组件 v2.5.4
  * 
- * 修改：图标恢复原来大小，只保持圆形容器和SDK一致
+ * 底部导航栏组件
  */
 
 import { memo } from 'react';
@@ -22,7 +22,7 @@ const TabButton = memo(({ tab, isActive, onTabChange }) => {
       onClick={() => onTabChange(tab.id)}
       className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-primary-500' : 'text-gray-400 dark:text-gray-500'}`}
     >
-      {/* 圆形图标容器和SDK按钮大小保持一致 */}
+      {/* 圆形图标容器 */}
       <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
         isActive ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700'
       }`}>
@@ -57,14 +57,6 @@ export const TabBar = memo(function TabBar({ activeTab, onTabChange }) {
             onTabChange={onTabChange} 
           />
         ))}
-        {/* 占位，给SDK按钮留出位置 */}
-        <div className="flex-1"></div>
-      </div>
-      {/* AI助手文字，用绝对定位放到SDK按钮正下方 */}
-      <div className="absolute bottom-0.5 right-6">
-        <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-          AI助手
-        </span>
       </div>
     </nav>
   );
