@@ -36,6 +36,7 @@ import
   isSystemAccount,
 } from '../repositories/stateRepository';
 import { exportAllData, exportAllDataWithVideos, triggerDownload } from '../services/exportService.js';
+import JSZipLib from 'jszip';
 import 
 { calculateAge } from '../utils/dateUtils';
 import 
@@ -46,6 +47,7 @@ import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
 import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
+import { saveMediaBlobAtPath } from '../repositories/mediaRepository.js';
 
 // 主题预设配置
 const THEME_PRESETS = [
@@ -60,6 +62,77 @@ const THEME_PRESETS = [
   
 { id: 'sunshine', name: '暖阳黄', color: '#FBBF24', gradient: 'from-amber-400 to-amber-500' },
 ];
+
+function collectImportMedia(data) {
+  const result = [];
+  const addMedia = (item) => {
+    if (item?.id && item?.path) result.push(item);
+  };
+  const scanMoment = (moment) => {
+    if (!moment || typeof moment !== 'object') return;
+    if (Array.isArray(moment.media)) moment.media.forEach(addMedia);
+    if (Array.isArray(moment.photos)) moment.photos.forEach(addMedia);
+    if (Array.isArray(moment.videos)) moment.videos.forEach(addMedia);
+    if (Array.isArray(moment.audios)) moment.audios.forEach(addMedia);
+  };
+
+  (data?.v2AccountData?.timeline || []).forEach(scanMoment);
+  (data?.data?.moments || []).forEach(scanMoment);
+  (data?.moments || []).forEach(scanMoment);
+
+  const byId = new Map();
+  result.forEach(item => {
+    if (!byId.has(item.id)) byId.set(item.id, item);
+  });
+  return [...byId.values()];
+}
+
+function zipFolderForMedia(type, path = '') {
+  if (type === 'photo' || path.includes('/photos/')) return 'photos';
+  if (type === 'audio' || path.includes('/audio/') || path.includes('/audios/')) return 'audios';
+  return 'videos';
+}
+
+async function importZipMediaFiles(zipContent, data, { onProgress, onMessage, onCancelCheck } = {}) {
+  const mediaItems = collectImportMedia(data);
+  const fileMap = data?.fileMap || {};
+  if (mediaItems.length === 0) return { total: 0, imported: 0, failed: 0 };
+
+  let imported = 0;
+  let failed = 0;
+  for (let i = 0; i < mediaItems.length; i++) {
+    if (onCancelCheck?.()) throw new Error('导入已取消');
+    const media = mediaItems[i];
+    const mapped = fileMap[media.id];
+    const folder = zipFolderForMedia(media.type, media.path);
+    const archiveName = mapped?.fileName || media.fileName || media.name || media.path.split('/').pop();
+    const candidates = [
+      `${folder}/${archiveName}`,
+      `${folder}/${media.path.split('/').pop()}`,
+    ];
+    const zipFile = candidates.map(path => zipContent.file(path)).find(Boolean);
+
+    if (!zipFile) {
+      console.warn('[Import] 媒体文件缺失:', media.id, candidates);
+      failed++;
+      continue;
+    }
+
+    try {
+      const blob = await zipFile.async('blob');
+      await saveMediaBlobAtPath(media.path, blob);
+      imported++;
+      const percent = Math.round((imported / mediaItems.length) * 100);
+      onProgress?.(percent);
+      onMessage?.(`正在导入媒体 ${imported}/${mediaItems.length}`);
+    } catch (e) {
+      console.error('[Import] 媒体文件导入失败:', media.path, e);
+      failed++;
+    }
+  }
+
+  return { total: mediaItems.length, imported, failed };
+}
 
 // 名场面emoji选项
 const EMOJI_OPTIONS = ['⭐', '🌱', '💪', '📚', '✨', '🎈', '🎀', '🌟', '💫', '🌈', '☀️', '🌙', '❤️', '🎉', '👏', '🦋', '🌸', '🍀'];
@@ -684,12 +757,7 @@ export function ProfilePage(
 
   // 从ZIP文件中解压并读取data.json
   const extractDataFromZip = async (file) => {
-    // 检查JSZip是否可用
-    if (typeof window.JSZip === 'undefined') {
-      throw new Error('JSZip库未加载，请检查网络连接');
-    }
-    
-    const zip = new window.JSZip();
+    const zip = new (window.JSZip || JSZipLib)();
     const zipContent = await zip.loadAsync(file);
     
     // 查找data.json文件
@@ -748,7 +816,7 @@ export function ProfilePage(
           try {
             console.log('[Import] 开始ZIP流式导入');
             // 先读取ZIP中的 data.json
-            const JSZip = window.JSZip;
+            const JSZip = window.JSZip || JSZipLib;
             if (!JSZip) {
               throw new Error('JSZip库未加载，请检查网络连接');
             }
@@ -764,13 +832,22 @@ export function ProfilePage(
             const data = JSON.parse(jsonContent);
             
             setImportProgress(20);
+            const mediaImportResult = await importZipMediaFiles(zipContent, data, {
+              onProgress: percent => setImportProgress(20 + Math.round(percent * 0.45)),
+              onMessage: setImportMessage,
+              onCancelCheck: () => importCancelRef.current,
+            });
+            if (mediaImportResult.total > 0) {
+              console.log('[Import] 媒体导入完成:', mediaImportResult);
+              setImportMessage(`媒体文件导入完成 ${mediaImportResult.imported}/${mediaImportResult.total}`);
+            }
             setImportMessage('数据解析完成，开始导入...');
             
             // 优先导入 v2 数据
             if (data.v2AccountData) {
               console.log('[Import] 检测到v2数据，开始导入');
               importV2AccountData(data.v2AccountData, importMode);
-              setImportProgress(40);
+              setImportProgress(70);
               setImportMessage('v2数据导入完成，准备导入视频文件...');
               await new Promise(r => setTimeout(r, 200));
             }
@@ -780,7 +857,7 @@ export function ProfilePage(
             console.log('[Import] 开始遍历 ZIP 文件...');
             zipContent.forEach((relativePath, file) => {
               console.log('[Import] 发现文件:', relativePath, 'dir:', file.dir);
-              if (relativePath.startsWith('videos/') && !file.dir) {
+              if (false && relativePath.startsWith('videos/') && !file.dir) {
                 videoFiles.push({ relativePath, file });
               }
             });

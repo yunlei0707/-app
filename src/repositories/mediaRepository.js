@@ -16,6 +16,7 @@
 // 底层存储 driver - 只有这里可以引用
 import {
   saveVideoBlobDedup,
+  saveVideoBlob,
   getVideoBlob,
   readVideoFromNative,
   saveVideoToNative,
@@ -72,6 +73,13 @@ export async function saveMedia(blobOrFile, options = {}) {
   };
 
   return mediaItem;
+}
+
+export async function saveMediaBlobAtPath(path, blob) {
+  if (!path || !(blob instanceof Blob)) {
+    throw new Error('saveMediaBlobAtPath requires a path and Blob');
+  }
+  return await saveVideoBlob(path, blob);
 }
 
 function defaultMimeType(type) {
