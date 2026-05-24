@@ -8,6 +8,16 @@ import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCcw } fr
 import { getImageSrc } from '../utils/image';
 import { getMediaDisplaySrc, normalizeMediaItem } from '../repositories/mediaRepository.js';
 
+function shouldLoadMediaBlob(path) {
+  if (!path || typeof path !== 'string') return false;
+  return path.startsWith('BabyTime/') ||
+    path.startsWith('opfs:') ||
+    path.startsWith('fs://') ||
+    path.startsWith('file://') ||
+    path.startsWith('content://') ||
+    path.includes('/_capacitor_file_');
+}
+
 export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   
@@ -87,8 +97,8 @@ export function PhotoViewer({ photos, initialIndex = 0, onClose }) {
         setDisplayUrl('');
         return;
       }
-      let url = getImageSrc(media.path);
-      if (!url || media.path.startsWith('BabyTime/') || media.path.startsWith('opfs:')) {
+      let url = shouldLoadMediaBlob(media.path) ? '' : getImageSrc(media.path);
+      if (!url) {
         url = await getMediaDisplaySrc(media.path);
       }
       if (!cancelled) {

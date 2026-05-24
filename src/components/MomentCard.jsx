@@ -10,6 +10,16 @@ import { getMediaBlob, getMediaDisplaySrc, normalizeMediaItem, normalizeMomentMe
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getImageSrc } from '../utils/image';
 
+function shouldLoadMediaBlob(path) {
+  if (!path || typeof path !== 'string') return false;
+  return path.startsWith('BabyTime/') ||
+    path.startsWith('opfs:') ||
+    path.startsWith('fs://') ||
+    path.startsWith('file://') ||
+    path.startsWith('content://') ||
+    path.includes('/_capacitor_file_');
+}
+
 // 图片组件 - 支持所有媒体格式，自动归一化
 function LazyImage({ src, alt, className, onClick }) {
   const [imageUrl, setImageUrl] = useState('');
@@ -42,10 +52,10 @@ function LazyImage({ src, alt, className, onClick }) {
       }
       
       // 优先使用 getImageSrc 处理 Capacitor 文件路径
-      let url = getImageSrc(media.path);
+      let url = shouldLoadMediaBlob(media.path) ? '' : getImageSrc(media.path);
       
       // 如果需要OPFS处理，使用 mediaRepository 统一入口
-      if (!url || media.path.startsWith('opfs:')) {
+      if (!url) {
         url = await getMediaDisplaySrc(media.path);
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
