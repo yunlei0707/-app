@@ -22,6 +22,7 @@ import {
   addMomentToCurrentAccount,
   deleteMomentFromCurrentAccount,
   updateMomentInCurrentAccount,
+  updateV2AccountData,
   isSystemAccount as checkIsSystemAccount,
   isV1Account as checkIsV1Account,
   getCurrentBabyInfo,
@@ -620,7 +621,13 @@ export function TimelinePage({
       }
       
       // v2 用户数据：永久删除
-      deleteMomentFromCurrentAccount(momentId);
+      const account = getCurrentV2Account();
+      if (account?.accountData?.timeline) {
+        const timeline = account.accountData.timeline.filter(m => m.id !== momentId);
+        updateV2AccountData(account.identityName, account.accountId, { timeline });
+      } else {
+        deleteMomentFromCurrentAccount(momentId);
+      }
       setV2Moments(prev => prev.filter(m => m.id !== momentId));
       
       // 删除对应的联动内容（静默处理，不影响主流程）

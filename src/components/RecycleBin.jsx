@@ -24,6 +24,15 @@ export function RecycleBin({ onClose }) {
   const loadDeletedMoments = async () => {
     setIsLoading(true);
     try {
+      const v2BabyInfo = getCurrentBabyInfo();
+      const account = getCurrentV2Account();
+      const isV2Account = !!v2BabyInfo && !!account?.accountData;
+      if (isV2Account) {
+        setHasV2Baby(true);
+        setDeletedMoments((account.accountData.timeline || []).filter(m => m.isDeleted));
+        return;
+      }
+
       // ✅ 修复数据隔离：与 TimelinePage 保持一致，优先判断 currentBaby
       // 有普通宝宝（currentBaby 存在）时，使用 IndexedDB 的回收站数据
       // 只有没有普通宝宝但有 v2 宝宝时，才使用 v2 账号的回收站数据
@@ -64,6 +73,20 @@ export function RecycleBin({ onClose }) {
   const handleRestore = async (momentId) => {
     setActionLoading(momentId);
     try {
+      if (hasV2Baby) {
+        const account = getCurrentV2Account();
+        if (account?.accountData?.timeline) {
+          const timeline = account.accountData.timeline.map(m =>
+            m.id === momentId ? { ...m, isDeleted: false, deletedAt: null } : m
+          );
+          updateV2AccountData(account.identityName, account.accountId, { timeline });
+          window.dispatchEvent(new Event('v2-moment-updated'));
+        }
+        showToast('已还原到时光轴');
+        await loadDeletedMoments();
+        return;
+      }
+
       // ✅ 修复数据隔离：与 TimelinePage 保持一致，优先判断 currentBaby
       if (currentBaby?.id) {
         // 普通宝宝：恢复 IndexedDB 数据
@@ -102,6 +125,18 @@ export function RecycleBin({ onClose }) {
 
     setActionLoading(momentId);
     try {
+      if (hasV2Baby) {
+        const account = getCurrentV2Account();
+        if (account?.accountData?.timeline) {
+          const timeline = account.accountData.timeline.filter(m => m.id !== momentId);
+          updateV2AccountData(account.identityName, account.accountId, { timeline });
+          window.dispatchEvent(new Event('v2-moment-updated'));
+        }
+        showToast('已永久删除');
+        await loadDeletedMoments();
+        return;
+      }
+
       // ✅ 修复数据隔离：与 TimelinePage 保持一致，优先判断 currentBaby
       if (currentBaby?.id) {
         // 普通宝宝：永久删除 IndexedDB 数据
@@ -126,6 +161,18 @@ export function RecycleBin({ onClose }) {
     if (!confirm('确定要清空回收站吗？所有已删除的记录将被永久删除！')) return;
 
     try {
+      if (hasV2Baby) {
+        const account = getCurrentV2Account();
+        if (account?.accountData?.timeline) {
+          const timeline = account.accountData.timeline.filter(m => !m.isDeleted);
+          updateV2AccountData(account.identityName, account.accountId, { timeline });
+          window.dispatchEvent(new Event('v2-moment-updated'));
+        }
+        showToast('回收站已清空');
+        await loadDeletedMoments();
+        return;
+      }
+
       // ✅ 修复数据隔离：与 TimelinePage 保持一致，优先判断 currentBaby
       if (currentBaby?.id) {
         // 普通宝宝：清空 IndexedDB 回收站
