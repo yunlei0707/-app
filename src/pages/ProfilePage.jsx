@@ -12,7 +12,7 @@ import
 import 
 { 
   Moon, Sun, Download, Upload, Trash2, ChevronRight, Heart, LogOut, User, 
-  Palette, Tag, Tags, Edit3, Plus, X, Check, Image, Users, Trophy, Sparkles, Copy, Check as CheckIcon, ChevronDown, Database,
+  Palette, Tag, Tags, Edit3, Plus, X, Check, Image, Users, Trophy, Sparkles, Copy, Check as CheckIcon, ChevronDown,
   HelpCircle, Shield, FileText, Info, RotateCcw
 } from 'lucide-react';
 import 
@@ -42,9 +42,8 @@ import
 import 
 { BabyHeader } from '../components/BabyHeader';
 import 
-{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount, addMomentToCurrentAccount } from '../repositories/stateRepository';
+{ getCurrentV2Account, getCurrentBabyInfo, isSystemAccount as checkIsSystemAccount } from '../repositories/stateRepository';
 import { isInApp, exportToFile, importFromFile } from '../utils/jsBridge';
-import { sampleTemplates, ageGroups, getBabyAgeGroup, getTypeEmoji, getMoodEmoji, getWeatherEmoji } from '../data/sampleTemplates';
 import { ImportProgressModal } from '../components/ImportProgressModal';
 import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { deleteMediaFile, saveMediaBlobAtPath } from '../repositories/mediaRepository.js';
@@ -200,7 +199,6 @@ export function ProfilePage(
   const [editingMilestone, setEditingMilestone] = useState(null);
   const [milestoneForm, setMilestoneForm] = useState(
 { label: '', emoji: '⭐', color: '#FF7B70' });
-  const [showStorageModal, setShowStorageModal] = useState(false);
   // 错误提示弹窗
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorModalTitle, setErrorModalTitle] = useState('');
@@ -213,7 +211,7 @@ export function ProfilePage(
     setErrorModalMessage(message);
     setErrorModalType(type);
     setShowErrorModal(true);
-  }, []); // 存储优化弹窗
+  }, []);
   
   // 心情标签管理状态
   const [showMoodModal, setShowMoodModal] = useState(false);
@@ -236,20 +234,11 @@ export function ProfilePage(
   const importCancelRef = useRef(false);
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
   
-  // 导入示例数据 - 模板选择流程
-  const [isImportingSample, setIsImportingSample] = useState(false);
   const [showTagGroup, setShowTagGroup] = useState(false);
   
   // 分组折叠状态 - 数据管理和"其他"默认折叠
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showOther, setShowOther] = useState(false);
-  
-  // 示例数据模板选择流程状态
-  const [sampleStep, setSampleStep] = useState(null); // null | 'age' | 'template' | 'edit'
-  const [selectedAge, setSelectedAge] = useState(null);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [editedMoments, setEditedMoments] = useState([]); // 编辑中的记录列表
-  const [editingContent, setEditingContent] = useState(null); // 当前编辑的记录ID
   
   // v2 账号系统状态
   const [v2AccountInfo, setV2AccountInfo] = useState(null);
@@ -288,140 +277,6 @@ export function ProfilePage(
     return Array(32).fill(0).map(() => Array(6).fill(0).map(() => Math.random() * 255));
   }, []);
   
-  // 导入示例数据 - 启动模板选择流程
-  const handleImportSampleData = useCallback(() => {
-    if (!currentBaby && !hasV2Baby) return;
-    // 根据宝宝生日计算推荐月龄
-    const babyBirthDate = v2AccountInfo?.accountData?.birthDate || currentBaby?.birthDate;
-    const recommendedAge = getBabyAgeGroup(babyBirthDate);
-    setSelectedAge(recommendedAge);
-    setSampleStep('age');
-  }, [currentBaby, hasV2Baby, v2AccountInfo]);
-
-  // 选择月龄
-  const handleSelectAge = useCallback((age) => {
-    setSelectedAge(age);
-    setSelectedTemplate(null);
-    setSampleStep('template');
-  }, []);
-
-  // 选择模板
-  const handleSelectTemplate = useCallback((template) => {
-    setSelectedTemplate(template);
-    // 深拷贝模板数据用于编辑
-    setEditedMoments(template.moments.map(m => ({ ...m })));
-    setSampleStep('edit');
-  }, []);
-
-  // 删除记录
-  const handleDeleteMoment = useCallback((index) => {
-    setEditedMoments(prev => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // 更新记录内容
-  const handleUpdateContent = useCallback((index, content) => {
-    setEditedMoments(prev => prev.map((m, i) => i === index ? { ...m, content } : m));
-  }, []);
-
-  // 替换记录图片
-  const handleReplaceImage = useCallback((index) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target.result;
-        setEditedMoments(prev => prev.map((m, i) => {
-          if (i !== index) return m;
-          return { ...m, photos: [dataUrl] };
-        }));
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
-  }, []);
-
-  // 删除记录图片
-  const handleRemoveImage = useCallback((index) => {
-    setEditedMoments(prev => prev.map((m, i) => {
-      if (i !== index) return m;
-      const updated = { ...m };
-      delete updated.photos;
-      return updated;
-    }));
-  }, []);
-
-  // 执行导入
-  const executeImport = useCallback(async () => {
-    if (!editedMoments.length || isImportingSample) return;
-    
-    setIsImportingSample(true);
-    try {
-      const now = new Date();
-      const babyInfo = getCurrentBabyInfo();
-      const isV2 = !!babyInfo;
-      
-      for (const moment of editedMoments) {
-        const date = new Date(now.getTime() - moment.daysAgo * 24 * 60 * 60 * 1000);
-        const data = { 
-          ...moment, 
-          date: date.toISOString(),
-          photos: moment.photos ? [...moment.photos] : undefined,
-          videos: moment.videos ? [...moment.videos] : undefined,
-          audios: moment.audios ? [...moment.audios] : undefined,
-        };
-        delete data.daysAgo;
-        
-        if (isV2) {
-          addMomentToCurrentAccount(data);
-        } else {
-          await addMoment({ babyId: currentBaby.id, ...data });
-        }
-      }
-      
-      showToast(`已导入${editedMoments.length}条示例数据，正在刷新...`, 'success');
-      
-      // 重置状态
-      setSampleStep(null);
-      setSelectedAge(null);
-      setSelectedTemplate(null);
-      setEditedMoments([]);
-      
-      setTimeout(() => window.location.reload(), 500);
-    } catch (error) {
-      console.error('导入示例数据失败:', error);
-      showToast('导入失败', 'error');
-    } finally {
-      setIsImportingSample(false);
-    }
-  }, [editedMoments, isImportingSample, currentBaby, showToast]);
-
-  // 重置模板选择流程
-  const resetSampleSelection = useCallback(() => {
-    setSampleStep(null);
-    setSelectedAge(null);
-    setSelectedTemplate(null);
-    setEditedMoments([]);
-    setEditingContent(null);
-  }, []);
-
-  // 步骤返回
-  const handleSampleStepBack = useCallback(() => {
-    if (sampleStep === 'edit') {
-      setSampleStep('template');
-      setEditedMoments([]);
-    } else if (sampleStep === 'template') {
-      setSampleStep('age');
-      setSelectedTemplate(null);
-    } else {
-      resetSampleSelection();
-    }
-  }, [sampleStep, resetSampleSelection]);
-
-  // 下拉刷新状态
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
@@ -1498,34 +1353,6 @@ export function ProfilePage(
         <div className="mt-4">
           <p className="text-sm font-medium text-gray-500 mb-2 px-1">数据管理</p>
           <div className="space-y-2">
-            {/* 导入示例数据 */}
-            <button
-              onClick={handleImportSampleData}
-              disabled={!currentBaby || isImportingSample}
-              className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50"
-            >
-              <Database className="w-5 h-5 text-primary-500" />
-              <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">导入示例数据</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {isImportingSample ? '导入中...' : '选择模板，添加照片、视频、语音、文字'}
-                </p>
-              </div>
-            </button>
-
-            {/* 存储优化 */}
-            <button
-              onClick={() => setShowStorageModal(true)}
-              className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              <Database className="w-5 h-5 text-blue-500" />
-              <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">存储优化</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">视频存储优化与迁移</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-
             {/* 导出数据 */}
             <button
               onClick={() => handleExport()}
@@ -2361,285 +2188,6 @@ export function ProfilePage(
       )}
       
       
-      {/* 示例数据模板选择面板 */}
-      {sampleStep && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => resetSampleSelection()}
-        >
-          <div 
-            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl max-h-[85vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 标题栏 */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-              <button
-                onClick={handleSampleStepBack}
-                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
-              </button>
-              <h3 className="font-bold dark:text-white">
-                {sampleStep === 'age' && '选择宝宝月龄'}
-                {sampleStep === 'template' && '选择模板'}
-                {sampleStep === 'edit' && '编辑预览'}
-              </h3>
-              <button
-                onClick={resetSampleSelection}
-                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* 内容区域 */}
-            <div className="flex-1 overflow-y-auto p-4">
-              
-              {/* Step 1: 选择月龄 */}
-              {sampleStep === 'age' && (
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(ageGroups).map(([key, age]) => {
-                    const isRecommended = key === selectedAge;
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => handleSelectAge(key)}
-                        className={`relative p-4 rounded-xl border-2 transition-all ${
-                          isRecommended 
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
-                            : 'border-gray-100 dark:border-gray-700 hover:border-primary-200'
-                        }`}
-                      >
-                        {isRecommended && (
-                          <span className="absolute -top-2 -right-2 px-2 py-0.5 text-xs bg-primary-500 text-white rounded-full">
-                            推荐
-                          </span>
-                        )}
-                        <div className="text-lg font-bold text-gray-800 dark:text-white">
-                          {age.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {age.range}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              
-              {/* Step 2: 选择模板 */}
-              {sampleStep === 'template' && selectedAge && (
-                <div className="space-y-3">
-                  {sampleTemplates[selectedAge]?.map((template, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSelectTemplate(template)}
-                      className="w-full p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-medium dark:text-white">{template.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            {template.description}
-                          </div>
-                        </div>
-                        <span className="px-2 py-1 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded-full whitespace-nowrap">
-                          {template.moments.length}条记录
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              {/* Step 3: 编辑预览 */}
-              {sampleStep === 'edit' && (
-                <div className="space-y-4">
-                  {editedMoments.map((moment, index) => (
-                    <div 
-                      key={index}
-                      className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 relative"
-                    >
-                      {/* 删除按钮 */}
-                      <button
-                        onClick={() => handleDeleteMoment(index)}
-                        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                      
-                      {/* 类型标签 */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="px-2 py-0.5 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded-full">
-                          {getTypeEmoji(moment.type)} {moment.type === 'photo' ? '照片' : moment.type === 'video' ? '视频' : moment.type === 'audio' ? '语音' : moment.type === 'podcast' ? '播客' : '文字'}
-                        </span>
-                      </div>
-                      
-                      {/* 内容编辑 */}
-                      {editingContent === index ? (
-                        <textarea
-                          value={moment.content}
-                          onChange={(e) => handleUpdateContent(index, e.target.value)}
-                          onBlur={() => setEditingContent(null)}
-                          autoFocus
-                          className="w-full min-h-[80px] p-3 text-sm bg-white dark:bg-gray-800 border border-primary-300 dark:border-primary-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => setEditingContent(index)}
-                          className="min-h-[60px] p-3 text-sm bg-white dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors dark:text-white"
-                        >
-                          {moment.content}
-                        </div>
-                      )}
-                      
-                      {/* 底部信息 */}
-                      <div className="flex items-center gap-3 mt-3 text-sm text-gray-500 dark:text-gray-400">
-                        <span>{getMoodEmoji(moment.mood)}</span>
-                        <span>{getWeatherEmoji(moment.weather)}</span>
-                        <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
-                          {moment.milestoneLabel}
-                        </span>
-                        <span className="ml-auto text-xs">
-                          {moment.daysAgo}天前
-                        </span>
-                      </div>
-                      
-                      {/* 照片预览 */}
-                      {moment.photos && moment.photos[0] ? (
-                        <div className="mt-3 relative group">
-                          <img 
-                            src={moment.photos[0]} 
-                            alt="" 
-                            className="w-full h-32 object-cover rounded-lg"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = '';
-                              e.target.parentElement.innerHTML = `
-                                <div class="w-full h-32 bg-gray-200 dark:bg-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-                                  <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                  <span class="text-xs">图片加载失败</span>
-                                </div>
-                              `;
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-3 md:opacity-0">
-                            <button
-                              onClick={() => handleReplaceImage(index)}
-                              className="px-3 py-1.5 bg-white rounded-lg text-sm font-medium text-gray-800 active:bg-gray-200"
-                            >
-                              替换
-                            </button>
-                            <button
-                              onClick={() => handleRemoveImage(index)}
-                              className="px-3 py-1.5 bg-red-500 rounded-lg text-sm font-medium text-white active:bg-red-600"
-                            >
-                              删除
-                            </button>
-                          </div>
-                          {/* 移动端：底部操作条 */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 rounded-b-lg flex md:hidden">
-                            <button
-                              onClick={() => handleReplaceImage(index)}
-                              className="flex-1 py-2 text-center text-sm text-white active:bg-white/20"
-                            >
-                              替换图片
-                            </button>
-                            <button
-                              onClick={() => handleRemoveImage(index)}
-                              className="flex-1 py-2 text-center text-sm text-red-300 active:bg-white/20 border-l border-white/20"
-                            >
-                              删除图片
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleReplaceImage(index)}
-                          className="mt-3 w-full h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 hover:border-primary-400 hover:text-primary-500 transition-colors"
-                        >
-                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                          <span className="text-xs">添加图片</span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {editedMoments.length === 0 && (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      已删除所有记录
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* 底部操作栏 */}
-            {sampleStep === 'edit' && (
-              <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-3">
-                <button
-                  onClick={handleSampleStepBack}
-                  className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium"
-                >
-                  返回重选
-                </button>
-                <button
-                  onClick={executeImport}
-                  disabled={editedMoments.length === 0 || isImportingSample}
-                  className="flex-1 py-3 bg-primary-500 text-white rounded-xl font-medium disabled:opacity-50"
-                >
-                  {isImportingSample ? '导入中...' : `确认导入${editedMoments.length > 0 ? `(${editedMoments.length}条)` : ''}`}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-        {/* 存储优化弹窗 */}
-        {showStorageModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md overflow-hidden">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h3 className="text-lg font-bold dark:text-white">💾 存储优化</h3>
-                <button
-                  onClick={() => setShowStorageModal(false)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-              
-              <div className="p-4 space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
-                  <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">OPFS存储优势</h4>
-                  <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-                    <li>• 减少约33%的存储空间占用</li>
-                    <li>• 页面加载更快，内存占用更低</li>
-                    <li>• 支持超大视频文件</li>
-                  </ul>
-                </div>
-                
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <h4 className="font-medium text-gray-800 dark:text-white mb-2">迁移说明</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    新上传的视频已自动使用OPFS存储。
-                    历史视频迁移功能会在后续版本完善。
-                  </p>
-                </div>
-                
-                <button
-                  onClick={() => setShowStorageModal(false)}
-                  className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600"
-                >
-                  我知道了
-                </button>
-              </div>
-            </div>
-          </div>
-
-      )}
-      {/* 错误提示弹窗 */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
