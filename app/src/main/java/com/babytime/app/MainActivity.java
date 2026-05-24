@@ -1,5 +1,6 @@
 package com.babytime.app;
 
+import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebSettings;
@@ -38,7 +39,7 @@ public class MainActivity extends BridgeActivity {
             WebSettings settings = webView.getSettings();
             
             // 启用调试模式（release包建议关闭）
-            if (BuildConfig.DEBUG) {
+            if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
                 WebView.setWebContentsDebuggingEnabled(true);
             }
             
@@ -67,11 +68,6 @@ public class MainActivity extends BridgeActivity {
             // 允许混合内容（HTTP和HTTPS混合）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-            }
-            
-            // 禁用 AppCache（Android 7.0+ 已废弃）
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                settings.setAppCacheEnabled(true);
             }
             
         } catch (Exception e) {
