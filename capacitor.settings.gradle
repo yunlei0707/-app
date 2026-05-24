@@ -1,15 +1,15 @@
 // Capacitor Android plugin projects. Keep this file deterministic for CI.
 include ':capacitor-android'
-project(':capacitor-android').projectDir = rootProject.file('node_modules/@capacitor/android/capacitor')
+project(':capacitor-android').projectDir = new File(rootDir, 'node_modules/@capacitor/android/capacitor')
 
 include ':capacitor-camera'
-project(':capacitor-camera').projectDir = rootProject.file('node_modules/@capacitor/camera/android')
+project(':capacitor-camera').projectDir = new File(rootDir, 'node_modules/@capacitor/camera/android')
 
 include ':capacitor-filesystem'
-project(':capacitor-filesystem').projectDir = rootProject.file('node_modules/@capacitor/filesystem/android')
+project(':capacitor-filesystem').projectDir = new File(rootDir, 'node_modules/@capacitor/filesystem/android')
 
 include ':capacitor-share'
-project(':capacitor-share').projectDir = rootProject.file('node_modules/@capacitor/share/android')
+project(':capacitor-share').projectDir = new File(rootDir, 'node_modules/@capacitor/share/android')
 
 include ':capacitor-voice-recorder'
-project(':capacitor-voice-recorder').projectDir = rootProject.file('node_modules/capacitor-voice-recorder/android')
+project(':capacitor-voice-recorder').projectDir = new File(rootDir, 'node_modules/capacitor-voice-recorder/android')
