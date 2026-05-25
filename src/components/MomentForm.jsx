@@ -13,7 +13,7 @@ import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc, getPodcastCoverSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
+import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, getRecordingStatus, pauseRecording as nativePauseRecording, resumeRecording as nativeResumeRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -66,6 +66,15 @@ function fileNameForMedia(input, type) {
   if (input?.name) return input.name;
   if (input?.filename && !String(input.filename).includes('/')) return input.filename;
   return `${type}_${Date.now()}.${fallbackExt}`;
+}
+
+function stripTransientMediaFields(value) {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(stripTransientMediaFields);
+  const { displayURL, previewUrl, objectUrl, webPath, uri, ...rest } = value;
+  return Object.fromEntries(
+    Object.entries(rest).map(([key, item]) => [key, stripTransientMediaFields(item)])
+  );
 }
 
 // 心情选项映射（用于快速查找score）
@@ -134,6 +143,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   // 录音相关状态
   const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioWaveform, setAudioWaveform] = useState([]);
   const mediaRecorderRef = useRef(null);
@@ -454,10 +464,12 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
           throw new Error('录音结果为空');
         }
         setIsRecording(false);
+        setIsRecordingPaused(false);
         console.log('[录音] 录音保存完成');
       } catch (e) {
         console.error('[录音] 原生录音停止失败:', e);
         setIsRecording(false);
+        setIsRecordingPaused(false);
         alert('录音保存失败: ' + (e.message || '未知错误'));
       }
     } else {
@@ -622,8 +634,22 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       showToast('正在启动录音...', 'info');
       
       if (isNative) {
-        // 原生环境：先让界面进入录音状态，再等待原生插件确认
+        try {
+          await withTimeout(nativeStartRecording(), 8000, '原生录音插件未响应');
+          const status = await getRecordingStatus();
+          if (status && status !== 'RECORDING') {
+            throw new Error(`录音未真正启动，当前状态: ${status}`);
+          }
+        } catch (nativeError) {
+          console.warn('[录音] 原生录音不可用:', nativeError);
+          setIsRecording(false);
+          setIsRecordingPaused(false);
+          showToast('录音插件未响应，请重新打开应用后再试', 'error');
+          return;
+        }
+
         setIsRecording(true);
+        setIsRecordingPaused(false);
         setRecordingTime(0);
         setAudioWaveform([]);
         timerRef.current = setInterval(() => {
@@ -635,19 +661,6 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
-
-        try {
-          await withTimeout(nativeStartRecording(), 8000, '原生录音插件未响应');
-        } catch (nativeError) {
-          console.warn('[录音] 原生录音不可用:', nativeError);
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          setIsRecording(false);
-          showToast('录音插件未响应，请重新打开应用后再试', 'error');
-          return;
-        }
       } else {
         // 浏览器环境
         await startBrowserRecording();
@@ -656,6 +669,31 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       console.error('[录音] 失败:', e);
       // 只在真正出错时显示提示，不弹出冗余窗口
       showToast('录音启动失败: ' + (e.message || '未知错误'), 'error');
+    }
+  };
+
+  const toggleRecordingPause = async () => {
+    if (!isRecording) return;
+    try {
+      if (isRecordingPaused) {
+        await nativeResumeRecording();
+        setIsRecordingPaused(false);
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1);
+        }, 1000);
+        showToast('已继续录音', 'success');
+      } else {
+        await nativePauseRecording();
+        setIsRecordingPaused(true);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        showToast('已暂停录音', 'success');
+      }
+    } catch (e) {
+      console.error('[录音] 暂停/继续失败:', e);
+      showToast(e.message || '录音暂停失败', 'error');
     }
   };
   
@@ -1403,9 +1441,12 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     
     try {
       console.log('[Save] 开始保存前媒体持久化...');
-      const normalizedPhotos = (await Promise.all(photos.map(p => persistMediaBeforeSave(p, 'photo')))).filter(Boolean);
-      const normalizedVideos = (await Promise.all(videos.map(v => persistMediaBeforeSave(v, 'video')))).filter(Boolean);
-      const normalizedAudios = (await Promise.all(audios.map(a => persistMediaBeforeSave(a, 'audio')))).filter(Boolean);
+      const normalizedPhotos = stripTransientMediaFields((await Promise.all(photos.map(p => persistMediaBeforeSave(p, 'photo')))).filter(Boolean));
+      const normalizedVideos = stripTransientMediaFields((await Promise.all(videos.map(v => persistMediaBeforeSave(v, 'video')))).filter(Boolean));
+      const normalizedAudios = stripTransientMediaFields((await Promise.all(audios.map(a => persistMediaBeforeSave(a, 'audio')))).filter(Boolean));
+      const normalizedPodcastCover = podcastCover
+        ? stripTransientMediaFields(await persistMediaBeforeSave(podcastCover, 'photo'))
+        : null;
 
       // 🔥 统一媒体格式：所有媒体合并到 media[] 数组
       // 这是写入层的唯一标准，从今天开始所有新数据都有 media[]
@@ -1431,8 +1472,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         podcast: type === 'podcast' ? {
           title: podcastTitle,
           description: podcastDescription,
-          audio: podcastAudio,
-          cover: podcastCover
+          audio: stripTransientMediaFields(podcastAudio),
+          cover: normalizedPodcastCover
         } : null,
         mood,
         weather,
@@ -1813,7 +1854,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                   <div className="relative">
                     {/* ✅ 使用 getImageSrc 统一处理图片路径 */}
                     <img
-                      src={getPodcastCoverSrc(podcastCover)}
+                      src={podcastCover?.displayURL || getPodcastCoverSrc(podcastCover)}
                       alt="播客封面"
                       className="w-full h-40 object-cover rounded-xl"
                     />
@@ -1926,6 +1967,26 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                   </>
                 )}
               </button>
+
+              {isRecording && (
+                <button
+                  type="button"
+                  onClick={toggleRecordingPause}
+                  className="px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors bg-cream-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-cream-300 dark:hover:bg-gray-500"
+                >
+                  {isRecordingPaused ? (
+                    <>
+                      <Play className="w-5 h-5" />
+                      <span>继续</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-5 h-5" />
+                      <span>暂停</span>
+                    </>
+                  )}
+                </button>
+              )}
               
               <label className="flex-1">
                 <div className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors bg-cream-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-cream-300 dark:hover:bg-gray-500 cursor-pointer">

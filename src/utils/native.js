@@ -326,12 +326,62 @@ export async function startRecording() {
     if (result?.value === false) {
       throw new Error('录音插件返回启动失败');
     }
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const status = await getRecordingStatus();
+    if (status && status !== 'RECORDING') {
+      throw new Error(`录音未真正启动，当前状态: ${status}`);
+    }
     console.log('[Native] ✅ 录音已启动');
     return true;
   } catch (e) {
     console.error('[Native] ❌ 启动录音异常:', e);
     throw e;
   }
+}
+
+export async function getRecordingStatus() {
+  if (!isNativePlatform()) {
+    return window._mediaRecorder?.state === 'recording' ? 'RECORDING' : 'NONE';
+  }
+
+  const recorder = await loadVoiceRecorder();
+  if (!recorder || typeof recorder.getCurrentStatus !== 'function') return null;
+  const result = await recorder.getCurrentStatus();
+  return result?.status || result?.value?.status || null;
+}
+
+export async function pauseRecording() {
+  if (!isNativePlatform()) {
+    if (window._mediaRecorder?.state === 'recording') {
+      window._mediaRecorder.pause();
+      return true;
+    }
+    return false;
+  }
+
+  const recorder = await loadVoiceRecorder();
+  if (!recorder || typeof recorder.pauseRecording !== 'function') {
+    throw new Error('录音插件不支持暂停');
+  }
+  const result = await recorder.pauseRecording();
+  return result?.value !== false;
+}
+
+export async function resumeRecording() {
+  if (!isNativePlatform()) {
+    if (window._mediaRecorder?.state === 'paused') {
+      window._mediaRecorder.resume();
+      return true;
+    }
+    return false;
+  }
+
+  const recorder = await loadVoiceRecorder();
+  if (!recorder || typeof recorder.resumeRecording !== 'function') {
+    throw new Error('录音插件不支持继续录音');
+  }
+  const result = await recorder.resumeRecording();
+  return result?.value !== false;
 }
 
 export async function stopRecording() {
@@ -436,6 +486,9 @@ export default {
   requestCameraPermission,
   requestAudioPermission,
   startRecording,
+  getRecordingStatus,
+  pauseRecording,
+  resumeRecording,
   stopRecording,
   shareContent,
   writeFile,

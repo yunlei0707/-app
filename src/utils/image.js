@@ -60,12 +60,12 @@ export function getImageSrc(uri) {
 export function getMediaObjectSrc(media) {
   if (!media) return '';
   if (typeof media === 'string') return media;
-  return media.displayURL ||
+  return media.path ||
     media.url ||
-    media.path ||
     media.filename ||
     media.coverPath ||
     media.cover ||
+    media.displayURL ||
     '';
 }
 
