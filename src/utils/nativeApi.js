@@ -42,13 +42,39 @@ let Filesystem = null;
 let CameraSource = null;
 let Directory = null;
 
+const DEFAULT_CAMERA_SOURCE = {
+  Prompt: 'PROMPT',
+  Camera: 'CAMERA',
+  Photos: 'PHOTOS',
+};
+
+const DEFAULT_DIRECTORY = {
+  Documents: 'DOCUMENTS',
+  Data: 'DATA',
+};
+
+function withTimeout(promise, timeoutMs = 2500) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Native plugin import timeout')), timeoutMs);
+    }),
+  ]);
+}
+
 async function loadCameraPlugin() {
   if (!isNativePlatform()) return null;
   if (Camera) return Camera;
   try {
-    const module = await import('@capacitor/camera');
+    if (window.Capacitor?.Plugins?.Camera) {
+      Camera = window.Capacitor.Plugins.Camera;
+      CameraSource = DEFAULT_CAMERA_SOURCE;
+      return Camera;
+    }
+
+    const module = await withTimeout(import('@capacitor/camera'));
     Camera = module.Camera;
-    CameraSource = module.CameraSource;
+    CameraSource = module.CameraSource || DEFAULT_CAMERA_SOURCE;
     return Camera;
   } catch (e) {
     console.warn('[Native] 相机插件加载失败:', e);
@@ -60,9 +86,15 @@ async function loadFilesystemPlugin() {
   if (!isNativePlatform()) return null;
   if (Filesystem) return Filesystem;
   try {
-    const module = await import('@capacitor/filesystem');
+    if (window.Capacitor?.Plugins?.Filesystem) {
+      Filesystem = window.Capacitor.Plugins.Filesystem;
+      Directory = DEFAULT_DIRECTORY;
+      return Filesystem;
+    }
+
+    const module = await withTimeout(import('@capacitor/filesystem'));
     Filesystem = module.Filesystem;
-    Directory = module.Directory;
+    Directory = module.Directory || DEFAULT_DIRECTORY;
     return Filesystem;
   } catch (e) {
     console.warn('[Native] 文件系统插件加载失败:', e);
@@ -156,8 +188,11 @@ export async function takePhoto(options = {}) {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
+      input.style.position = 'fixed';
+      input.style.left = '-9999px';
       input.onchange = async (e) => {
         const file = e.target.files[0];
+        input.remove();
         if (file) {
           const url = URL.createObjectURL(file);
           resolve(url);
@@ -165,14 +200,18 @@ export async function takePhoto(options = {}) {
           reject(new Error('未选择图片'));
         }
       };
+      input.oncancel = () => {
+        input.remove();
+        reject(new Error('未选择图片'));
+      };
+      document.body.appendChild(input);
       input.click();
     });
   }
 
   // 原生环境
   const camera = await loadCameraPlugin();
-  const filesystem = await loadFilesystemPlugin();
-  if (!camera || !filesystem) {
+  if (!camera) {
     throw new Error('相机插件不可用');
   }
 
@@ -209,7 +248,20 @@ async function loadVoiceRecorderPlugin() {
   if (!isNativePlatform()) return null;
   if (VoiceRecorder) return VoiceRecorder;
   try {
-    const module = await import('capacitor-voice-recorder');
+    if (window.Capacitor?.Plugins?.VoiceRecorder) {
+      VoiceRecorder = window.Capacitor.Plugins.VoiceRecorder;
+      return VoiceRecorder;
+    }
+    if (window.VoiceRecorder) {
+      VoiceRecorder = window.VoiceRecorder;
+      return VoiceRecorder;
+    }
+    if (window.CapacitorVoiceRecorder || window.VoiceRecorderPlugin) {
+      VoiceRecorder = window.CapacitorVoiceRecorder || window.VoiceRecorderPlugin;
+      return VoiceRecorder;
+    }
+
+    const module = await withTimeout(import('capacitor-voice-recorder'));
     VoiceRecorder = module.VoiceRecorder;
     return VoiceRecorder;
   } catch (e) {
