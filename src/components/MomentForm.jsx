@@ -595,7 +595,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     try {
       const isNative = isNativePlatform();
       
-      if (isNative || window.Capacitor) {
+      if (isNative) {
         // 原生环境：调用原生录音
         await nativeStartRecording();
         setIsRecording(true);
@@ -1617,6 +1617,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             
             {/* ✅ 使用原生相机/相册按钮 */}
             <button
+              type="button"
               onClick={handleNativePhotoUpload}
               className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-primary-400 transition-colors"
             >
@@ -1846,6 +1847,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={isRecording ? stopRecording : startRecording}
                 className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors ${
                   isRecording

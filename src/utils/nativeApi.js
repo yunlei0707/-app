@@ -192,6 +192,10 @@ export async function takePhoto(options = {}) {
     width: options.width || 1920,
     height: options.height || 1920,
     correctOrientation: true,
+    promptLabelHeader: options.promptLabelHeader || '添加照片',
+    promptLabelPhoto: options.promptLabelPhoto || '从相册选择',
+    promptLabelPicture: options.promptLabelPicture || '拍照',
+    promptLabelCancel: options.promptLabelCancel || '取消',
   });
   return photo.webPath || photo.path || photo.uri;
 }
@@ -221,8 +225,15 @@ export async function checkAudioPermission() {
   const recorder = await loadVoiceRecorderPlugin();
   if (!recorder) return false;
   try {
-    const result = await recorder.checkPermissions();
-    return result?.value?.audioRecording === 'granted' || result?.value?.audioRecording === true;
+    if (typeof recorder.hasAudioRecordingPermission === 'function') {
+      const result = await recorder.hasAudioRecordingPermission();
+      return result?.value === true || result?.value === 'granted';
+    }
+    if (typeof recorder.checkPermissions === 'function') {
+      const result = await recorder.checkPermissions();
+      return result?.value?.audioRecording === 'granted' || result?.value?.audioRecording === true;
+    }
+    return true;
   } catch (e) {
     console.warn('[Native] 检查录音权限失败:', e);
     return false;
@@ -244,7 +255,9 @@ export async function requestAudioPermission() {
   try {
     const hasPermission = await checkAudioPermission();
     if (hasPermission) return true;
-    const result = await recorder.requestAudioRecordingPermissions();
+    const result = typeof recorder.requestAudioRecordingPermission === 'function'
+      ? await recorder.requestAudioRecordingPermission()
+      : await recorder.requestAudioRecordingPermissions();
     return result?.value === 'granted' || result?.value === true;
   } catch (e) {
     console.warn('[Native] 请求录音权限失败:', e);
