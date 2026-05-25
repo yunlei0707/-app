@@ -5,12 +5,20 @@ import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import com.capacitorjs.plugins.camera.CameraPlugin;
+import com.capacitorjs.plugins.filesystem.FilesystemPlugin;
+import com.capacitorjs.plugins.share.SharePlugin;
 import com.getcapacitor.BridgeActivity;
+import com.tchvu3.capacitorvoicerecorder.VoiceRecorder;
 
 public class MainActivity extends BridgeActivity {
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(CameraPlugin.class);
+        registerPlugin(FilesystemPlugin.class);
+        registerPlugin(SharePlugin.class);
+        registerPlugin(VoiceRecorder.class);
         super.onCreate(savedInstanceState);
         
         // 延迟到 Bridge 完全初始化后再配置 WebView

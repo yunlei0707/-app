@@ -483,7 +483,14 @@ export async function exportAllData(options = {}) {
   const zipFilePath = `BabyTimeBackup/${zipFilename}`;
 
   console.log('[Export] 保存到本地:', zipFilePath);
-  const savedPath = await saveToLocal(zipBlob, zipFilePath, zipFilename);
+  let savedPath = '';
+  let savedToNative = false;
+  try {
+    savedPath = await saveToLocal(zipBlob, zipFilePath, zipFilename);
+    savedToNative = true;
+  } catch (e) {
+    console.warn('[Export] 原生文件保存失败，降级为浏览器 Blob 导出:', e.message);
+  }
 
   // ✅ fileMap 最终校验
   const fileMapValidation = validateFileMap(fileMap, videoResults);
@@ -496,7 +503,7 @@ export async function exportAllData(options = {}) {
     fileName: zipFilename,
     filename: zipFilename,
     fileSize: zipBlob.size,
-    isNative: true,
+    isNative: savedToNative,
     blob: zipBlob,
     report: {
       duration: Date.now() - start,
