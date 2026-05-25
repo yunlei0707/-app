@@ -1124,16 +1124,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         'User cancelled photos app',
         'userCancel',
         'cancel',
-        'Permission',
-        'permission',
-        '权限',
       ];
+      const permissionMessages = ['Permission', 'permission', '权限', '相机', '照片', 'photo', 'camera'];
+      const isPermissionError = permissionMessages.some(msg =>
+        error.message?.includes(msg) || error.code?.includes(msg)
+      );
       const shouldIgnore = ignoreMessages.some(msg => 
         error.message?.includes(msg) || error.code?.includes(msg)
       );
       // ✅ 【修复9】权限确认后，即使出错也不显示失败提示，因为文件实际可能已经保存了
       // 只在真正的技术错误时显示提示
-      if (!shouldIgnore) {
+      if (isPermissionError) {
+        showToast('请在系统设置中允许相机和照片权限后重试', 'error');
+      } else if (!shouldIgnore) {
         showToast('照片上传失败，请重试', 'error');
       }
     }

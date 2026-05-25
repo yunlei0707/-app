@@ -68,6 +68,10 @@ function withTimeout(promise, timeoutMs = 2500) {
   ]);
 }
 
+function isPermissionGranted(value) {
+  return value === 'granted' || value === 'limited';
+}
+
 async function loadCameraPlugin() {
   if (!isNativePlatform()) return null;
   if (Camera) return Camera;
@@ -223,10 +227,12 @@ export async function takePhoto(options = {}) {
 
   // ✅ 主动检查和请求相机权限（解决"每次询问"不弹窗问题）
   const permStatus = await camera.checkPermissions();
-  if (permStatus.camera !== 'granted' || permStatus.photos !== 'granted') {
-    const requestResult = await camera.requestPermissions();
-    if (requestResult.camera !== 'granted' && requestResult.photos !== 'granted') {
-      throw new Error('请授予相机和存储权限后重试');
+  if (!isPermissionGranted(permStatus.camera) || !isPermissionGranted(permStatus.photos)) {
+    const requestResult = await camera.requestPermissions({
+      permissions: ['camera', 'photos'],
+    });
+    if (!isPermissionGranted(requestResult.camera) && !isPermissionGranted(requestResult.photos)) {
+      throw new Error('请在系统设置中允许相机和照片权限后重试');
     }
   }
 
