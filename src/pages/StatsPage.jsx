@@ -193,33 +193,16 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
   
   // 下拉刷新手势处理
   const handleTouchStart = useCallback((e) => {
-    touchStartY.current = e.touches[0].clientY;
-    if (containerRef.current) {
-      scrollTop.current = containerRef.current.scrollTop;
-    }
+    setPullDistance(0);
   }, []);
   
   const handleTouchMove = useCallback((e) => {
-    if (isRefreshing) return;
-    
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - touchStartY.current;
-    
-    if (scrollTop.current <= 0 && diff > 0) {
-      const dampened = Math.min(diff * 0.3, 100);
-      setPullDistance(dampened);
-    } else {
-      setPullDistance(0);
-    }
-  }, [isRefreshing]);
+    setPullDistance(0);
+  }, []);
   
   const handleTouchEnd = useCallback(() => {
-    if (pullDistance > 60 && !isRefreshing) {
-      handleRefresh();
-    } else {
-      setPullDistance(0);
-    }
-  }, [pullDistance, isRefreshing, handleRefresh]);
+    setPullDistance(0);
+  }, []);
   
   // 计算统计数据
   const stats = useMemo(() => {
@@ -574,7 +557,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       onTouchEnd={handleTouchEnd}
     >
       {/* 下拉刷新指示器 */}
-      {(pullDistance > 0 || isRefreshing) && (
+      {false && (pullDistance > 0 || isRefreshing) && (
         <div 
           className="flex items-center justify-center py-3 text-gray-400 transition-transform"
           style={{ transform: `translateY(${pullDistance}px)` }}

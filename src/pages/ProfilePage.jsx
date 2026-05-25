@@ -312,40 +312,19 @@ export function ProfilePage(
     }
   }, [currentBaby, isRefreshing, refreshBabies, refreshMoments, refreshCapsules, showToast]);
   
-  // 下拉刷新处理
-  const handleTouchStart = useCallback((e) => 
-{
-    if (containerRef.current) 
-{
-      scrollTop.current = containerRef.current.scrollTop;
-      touchStartY.current = e.touches[0].clientY;
-    }
-  }, []);
-  
-  const handleTouchMove = useCallback((e) => 
-{
-    if (isRefreshing) return;
-    
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - touchStartY.current;
-    
-    if (scrollTop.current <= 0 && diff > 0) 
-{
-      const dampenedDiff = Math.min(diff * 0.5, 80);
-      setPullDistance(dampenedDiff);
-      e.preventDefault();
-    }
-  }, [isRefreshing]);
-  
-  const handleTouchEnd = useCallback(() => 
-{
-    if (pullDistance > 50) 
-{
-      refreshData();
-    }
+  // 下拉刷新处理已禁用，避免移动端出现网页式下拉刷新反馈。
+  const handleTouchStart = useCallback(() => {
     setPullDistance(0);
-  }, [pullDistance, refreshData]);
-  
+  }, []);
+
+  const handleTouchMove = useCallback(() => {
+    setPullDistance(0);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    setPullDistance(0);
+  }, []);
+
   // 显示导出选择弹窗
   const handleExport = useCallback(() => {
     setShowZipExportModal(true);
@@ -1199,7 +1178,7 @@ export function ProfilePage(
       
 {/* 下拉刷新指示器 */}
       
-{(pullDistance > 0 || isRefreshing) && (
+{false && (pullDistance > 0 || isRefreshing) && (
         <div 
           className="flex items-center justify-center py-3 text-gray-400 transition-transform"
           style=

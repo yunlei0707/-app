@@ -243,11 +243,19 @@ export async function getVideoBlob(path) {
 }
 
 async function readFromFilesystem(path) {
-  const result = await Filesystem.readFile({
-    path,
-    directory: Directory.Documents
-  });
-  return result.data;
+  try {
+    const result = await Filesystem.readFile({
+      path,
+      directory: Directory.Data
+    });
+    return result.data;
+  } catch (dataError) {
+    const result = await Filesystem.readFile({
+      path,
+      directory: Directory.Documents
+    });
+    return result.data;
+  }
 }
 
 function base64ToBlob(base64, mime = 'video/mp4') {
@@ -342,7 +350,7 @@ async function saveToFilesystem(path, blob) {
   await Filesystem.writeFile({
     path,
     data: base64,
-    directory: Directory.Documents,
+    directory: Directory.Data,
     recursive: true
   });
   return path;
@@ -398,20 +406,20 @@ export async function saveVideoToNative(file, onProgress = null) {
   try {
     const filename = generateUniqueFilename(file.name);
     let writeSucceeded = false;
-    try {
-      await Filesystem.writeFile({
-        path: `videos/${filename}`,
-        data: file,
-        directory: Directory.Documents,
-        recursive: true,
-      });
+  try {
+    await Filesystem.writeFile({
+      path: `videos/${filename}`,
+      data: file,
+      directory: Directory.Data,
+      recursive: true,
+    });
       writeSucceeded = true;
     } catch (blobError) {
       const base64 = await fileToBase64(file, onProgress);
       await Filesystem.writeFile({
         path: `videos/${filename}`,
         data: base64,
-        directory: Directory.Documents,
+        directory: Directory.Data,
         recursive: true,
       });
       writeSucceeded = true;
@@ -430,7 +438,7 @@ export async function readVideoFromNative(filename) {
   try {
     const result = await Filesystem.readFile({
       path: `videos/${filename}`,
-      directory: Directory.Documents,
+      directory: Directory.Data,
     });
     
     if (result.data instanceof Blob) {
@@ -448,7 +456,7 @@ export async function deleteVideoFromNative(filename) {
   try {
     await Filesystem.deleteFile({
       path: `videos/${filename}`,
-      directory: Directory.Documents,
+      directory: Directory.Data,
     });
     return true;
   } catch (error) {
@@ -488,11 +496,19 @@ export async function deleteMediaPath(path) {
   try {
     await Filesystem.deleteFile({
       path: cleanPath,
-      directory: Directory.Documents,
+      directory: Directory.Data,
     });
     deleted = true;
   } catch (e) {
-    console.warn('[StorageAdapter] Filesystem delete skipped:', e.message);
+    try {
+      await Filesystem.deleteFile({
+        path: cleanPath,
+        directory: Directory.Documents,
+      });
+      deleted = true;
+    } catch (documentsError) {
+      console.warn('[StorageAdapter] Filesystem delete skipped:', documentsError.message);
+    }
   }
 
   try {

@@ -2,7 +2,7 @@
  * 动态编辑表单组件
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { X, Image, Video, FileText, Star, MapPin, AlertCircle, Mic, Square, Play, Pause, Navigation, Search, Upload } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getCurrentBabyInfo, isSystemAccount } from "../repositories/stateRepository.js";
@@ -94,7 +94,7 @@ const formatTime2 = (seconds) => {
 };
 
 export function MomentForm({ moment, onSave, onCancel, babyId }) {
-  const { getAllMilestones, currentBaby, showToast } = useApp();
+  const { getAllMilestones, getAllMoods, currentBaby, showToast } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
   // 是否强制使用播客类型（隐藏类型选择）
   const isPodcastOnly = moment?.type === 'podcast' && !moment?.id;
@@ -150,6 +150,25 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
 
   // 获取所有名场面选项
   const milestoneOptions = getAllMilestones();
+  const allMoodOptions = useMemo(() => {
+    const contextMoods = typeof getAllMoods === 'function' ? getAllMoods() : [];
+    const existing = new Set(moodOptions.map(option => option.value));
+    const customMoods = (Array.isArray(contextMoods) ? contextMoods : [])
+      .filter(option => {
+        const value = option.value || option.id;
+        return value && !existing.has(value);
+      })
+      .map(option => {
+        const value = option.value || option.id;
+        return {
+          value,
+          emoji: option.emoji || '😊',
+          label: option.label || value,
+          score: moodScoreMap[value] ?? 0,
+        };
+      });
+    return [...moodOptions, ...customMoods];
+  }, [getAllMoods]);
 
   // 清理录音资源 & 预初始化音频数据库
   useEffect(() => {
@@ -1887,7 +1906,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 w-8 flex-shrink-0">开心</span>
               <div className="flex flex-wrap gap-2">
-                {moodOptions.filter(o => o.score >= 2).map(option => (
+                {allMoodOptions.filter(o => o.score >= 2).map(option => (
                   <button
                     key={option.value}
                     onClick={() => setMood(mood === option.value ? '' : option.value)}
@@ -1906,7 +1925,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 w-8 flex-shrink-0">平静</span>
               <div className="flex flex-wrap gap-2">
-                {moodOptions.filter(o => o.score >= -1 && o.score <= 1).map(option => (
+                {allMoodOptions.filter(o => o.score >= -1 && o.score <= 1).map(option => (
                   <button
                     key={option.value}
                     onClick={() => setMood(mood === option.value ? '' : option.value)}
@@ -1925,7 +1944,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400 w-8 flex-shrink-0">低落</span>
               <div className="flex flex-wrap gap-2">
-                {moodOptions.filter(o => o.score <= -2).map(option => (
+                {allMoodOptions.filter(o => o.score <= -2).map(option => (
                   <button
                     key={option.value}
                     onClick={() => setMood(mood === option.value ? '' : option.value)}

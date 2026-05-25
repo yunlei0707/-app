@@ -58,14 +58,14 @@ function useCurrentUser() {
 }
 
 // 渲染头像
-function renderAvatar(avatar, size = 'normal') {
+function renderAvatar(avatar, size = 'normal', className = '') {
   const sizeClasses = {
     small: 'w-8 h-8 text-sm',
     normal: 'w-10 h-10 text-lg',
     large: 'w-12 h-12 text-xl',
   };
 
-  const containerClass = `${sizeClasses[size]} rounded-full bg-white/20 flex items-center justify-center overflow-hidden`;
+  const containerClass = `${sizeClasses[size]} rounded-full bg-white/20 flex items-center justify-center overflow-hidden ${className}`;
 
   if (!avatar) {
     return (
@@ -102,6 +102,8 @@ export function UserHeader({
   theme,
   onThemeToggle,
   avatarSize = 'normal',
+  avatarClassName = '',
+  titleClassName = 'text-xl font-bold text-white',
   className = ''
 }) {
   const { avatar, name } = useCurrentUser();
@@ -109,11 +111,11 @@ export function UserHeader({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       {/* 头像 */}
-      {renderAvatar(avatar, avatarSize)}
+      {renderAvatar(avatar, avatarSize, avatarClassName)}
       
       {/* 标题 */}
       {showTitle && (
-        <h1 className="text-xl font-bold text-white">
+        <h1 className={titleClassName}>
           {title || name || '用户'}
         </h1>
       )}

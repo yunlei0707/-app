@@ -17,6 +17,7 @@ import { useMomentStore } from '../store/momentStore';
 import { PredictionPage } from '../components/PredictionPage';
 import { Plus, Sparkles, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { deleteUnreferencedMomentMedia } from '../repositories/mediaRepository.js';
+import { UserHeader } from '../components/UserHeader';
 import { 
   getCurrentV2Account, 
   getCurrentTimeline, 
@@ -312,6 +313,7 @@ export function TimelinePage({
   const milestoneDropdownRef = useRef(null);
   const typeDropdownRef = useRef(null);
   const moodDropdownRef = useRef(null);
+  const filterPanelRef = useRef(null);
 
   
   // 下拉刷新状态
@@ -339,6 +341,9 @@ export function TimelinePage({
   // 点击外部关闭所有下拉框
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (filterPanelRef.current?.contains(event.target)) {
+        return;
+      }
       if (milestoneDropdownRef.current && !milestoneDropdownRef.current.contains(event.target)) {
         setShowMilestoneDropdown(false);
       }
@@ -401,33 +406,16 @@ export function TimelinePage({
   
   // 下拉刷新手势处理
   const handleTouchStart = useCallback((e) => {
-    touchStartY.current = e.touches[0].clientY;
-    if (containerRef.current) {
-      scrollTop.current = containerRef.current.scrollTop;
-    }
+    setPullDistance(0);
   }, []);
   
   const handleTouchMove = useCallback((e) => {
-    if (isRefreshing) return;
-    
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - touchStartY.current;
-    
-    if (scrollTop.current <= 0 && diff > 0) {
-      const dampened = Math.min(diff * 0.3, 100);
-      setPullDistance(dampened);
-    } else {
-      setPullDistance(0);
-    }
-  }, [isRefreshing]);
+    setPullDistance(0);
+  }, []);
   
   const handleTouchEnd = useCallback(() => {
-    if (pullDistance > 60 && !isRefreshing) {
-      handleRefresh();
-    } else {
-      setPullDistance(0);
-    }
-  }, [pullDistance, isRefreshing, handleRefresh]);
+    setPullDistance(0);
+  }, []);
   
   // ✅ 修复：账号数据隔离 - 根据账号类型选择数据源
   // 关键修复：只有系统账号（default）才使用v2Moments
@@ -657,6 +645,28 @@ export function TimelinePage({
   // 统计
   const totalCount = filteredMoments.length;
   const filteredCount = filteredMoments.length;
+  const activeFilterPanel = showTypeDropdown ? 'type' : showMoodDropdown ? 'mood' : showMilestoneDropdown ? 'milestone' : null;
+  const filterPanelOptions = activeFilterPanel === 'type'
+    ? typeFilters
+    : activeFilterPanel === 'mood'
+      ? moodFilters
+      : activeFilterPanel === 'milestone'
+        ? milestoneFilters
+        : [];
+  const selectFilterOption = (value) => {
+    if (activeFilterPanel === 'type') setSelectedType(value);
+    if (activeFilterPanel === 'mood') setSelectedMood(value);
+    if (activeFilterPanel === 'milestone') setSelectedMilestone(value);
+    setShowTypeDropdown(false);
+    setShowMoodDropdown(false);
+    setShowMilestoneDropdown(false);
+  };
+  const isSelectedFilterOption = (value) => {
+    if (activeFilterPanel === 'type') return selectedType === value;
+    if (activeFilterPanel === 'mood') return selectedMood === value;
+    if (activeFilterPanel === 'milestone') return selectedMilestone === value;
+    return false;
+  };
 
   return (
     <div 
@@ -668,7 +678,7 @@ export function TimelinePage({
       onScroll={handleScroll}
     >
       {/* 下拉刷新指示器 */}
-      {pullDistance > 0 && (
+      {false && pullDistance > 0 && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-2">
           {isRefreshing ? (
             <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
@@ -689,7 +699,13 @@ export function TimelinePage({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               {/* 小头像 */}
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center text-lg overflow-hidden shadow-sm">
+              <UserHeader
+                title={v2AccountInfo?.identityName || currentUser?.name || '时光轴'}
+                avatarSize="small"
+                titleClassName="text-base font-medium text-gray-600 dark:text-gray-300"
+                avatarClassName="bg-gradient-to-br from-primary-200 to-primary-300 shadow-sm"
+              />
+              <div className="hidden w-8 h-8 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 items-center justify-center text-lg overflow-hidden shadow-sm">
                 {v2AccountInfo?.accountData?.avatar ? (
                   v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
                     <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
@@ -706,7 +722,7 @@ export function TimelinePage({
                   <span>👶</span>
                 )}
               </div>
-              <h1 className="text-base font-medium text-gray-600 dark:text-gray-300">
+              <h1 className="hidden text-base font-medium text-gray-600 dark:text-gray-300">
                 📸 时光轴
               </h1>
               
@@ -758,7 +774,7 @@ export function TimelinePage({
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
               </button>
               
-              {showTypeDropdown && (
+              {false && showTypeDropdown && (
                 <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
                   {typeFilters.map(filter => (
                     <button
@@ -796,7 +812,7 @@ export function TimelinePage({
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showMoodDropdown ? 'rotate-180' : ''}`} />
               </button>
               
-              {showMoodDropdown && (
+              {false && showMoodDropdown && (
                 <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
                   {moodFilters.map(filter => (
                     <button
@@ -837,7 +853,7 @@ export function TimelinePage({
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showMilestoneDropdown ? 'rotate-180' : ''}`} />
               </button>
               
-              {showMilestoneDropdown && (
+              {false && showMilestoneDropdown && (
                 <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
                   {milestoneFilters.map(filter => (
                     <button
@@ -872,6 +888,25 @@ export function TimelinePage({
           </div>
           
           {/* 第四行：添加记录按钮 - 宽度和筛选栏左右对齐 */}
+          {activeFilterPanel && (
+            <div ref={filterPanelRef} className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {filterPanelOptions.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => selectFilterOption(option.value)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                    isSelectedFilterOption(option.value)
+                      ? 'bg-primary-500 border-primary-500 text-white'
+                      : 'bg-white border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {option.emoji && <span className="mr-1">{option.emoji}</span>}
+                  {option.shortLabel || option.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="mt-4">
             <button
               onClick={() => onAddMoment?.()}

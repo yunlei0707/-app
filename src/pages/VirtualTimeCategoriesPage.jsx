@@ -278,7 +278,7 @@ export function VirtualTimeCategoriesPage() {
                 >
                   预览
                 </button>
-                {!category.isPreset && (
+                {false && !category.isPreset && (
                   <>
                     <button
                       onClick={(e) => handleEditCategory(category, e)}
@@ -294,7 +294,7 @@ export function VirtualTimeCategoriesPage() {
                     </button>
                   </>
                 )}
-                {category.isPreset && (
+                {false && category.isPreset && (
                   <button
                     onClick={(e) => handleEditCategory(category, e)}
                     className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -327,7 +327,7 @@ export function VirtualTimeCategoriesPage() {
                           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.description}</p>
                         )}
                       </div>
-                      {!item.isPreset && !category.isPreset && (
+                      {false && !item.isPreset && !category.isPreset && (
                         <div className="flex items-center gap-1">
                           <button
                             onClick={(e) => handleEditItem(category.id, item, e)}
@@ -347,7 +347,7 @@ export function VirtualTimeCategoriesPage() {
                   ))}
                   
                   {/* 添加内容项按钮 */}
-                  {!category.isPreset && (
+                  {false && !category.isPreset && (
                     <button
                       onClick={() => handleAddItem(category.id)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
@@ -363,7 +363,7 @@ export function VirtualTimeCategoriesPage() {
         )}
         
         {/* 添加一级分类按钮 */}
-        {!isSystemAccount && (
+        {false && !isSystemAccount && (
           <button
             onClick={handleAddCategory}
             className="w-full py-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm flex items-center justify-center gap-2 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -382,7 +382,7 @@ export function VirtualTimeCategoriesPage() {
       </main>
       
       {/* 一级分类表单弹窗 */}
-      {showCategoryForm && (
+      {false && showCategoryForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
           <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
@@ -434,7 +434,7 @@ export function VirtualTimeCategoriesPage() {
       )}
       
       {/* 二级内容项表单弹窗 */}
-      {showItemForm && (
+      {false && showItemForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
           <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-4 py-3 flex items-center justify-between">

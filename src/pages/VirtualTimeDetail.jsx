@@ -281,7 +281,7 @@ export function VirtualTimeDetail() {
       <BabyHeader />
       
       {/* 添加按钮 */}
-      {!isSystemAccount && (
+      {false && !isSystemAccount && (
         <div className="px-4 py-3">
           <button
             onClick={() => setShowAddForm(true)}
@@ -294,7 +294,7 @@ export function VirtualTimeDetail() {
       )}
       
       {/* 添加表单 */}
-      {showAddForm && (
+      {false && showAddForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
           <div className="w-full bg-white dark:bg-gray-800 rounded-t-3xl p-4 animate-slide-up">
             <div className="flex items-center justify-between mb-4">
@@ -501,7 +501,7 @@ export function VirtualTimeDetail() {
                             <Share2 className="w-4 h-4" />
                           )}
                         </button>
-                        {!item.is_linked && (
+                        {false && !item.is_linked && (
                           <button
                             onClick={() => handleDeleteContent(item.id)}
                             className="p-1.5 text-gray-400 hover:text-red-500"
@@ -561,7 +561,7 @@ export function VirtualTimeDetail() {
           <div className="text-center py-12">
             <span className="text-6xl block mb-4 opacity-30">{topic.coverEmoji}</span>
             <p className="text-gray-500 dark:text-gray-400">还没有记录哦</p>
-            {!isSystemAccount && (
+            {false && !isSystemAccount && (
               <button
                 onClick={() => setShowAddForm(true)}
                 className="mt-4 px-6 py-2 bg-primary-500 text-white rounded-lg"
