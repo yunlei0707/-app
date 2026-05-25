@@ -27,7 +27,7 @@ import {
   generateUniqueFilename,
 } from '../adapters/storageAdapter.js';
 import { readFileFromOPFS, getFileDisplayURL, saveVideoToOPFS, cleanupOrphanFiles } from '../utils/opfs.js';
-import { takePhoto, startRecording, stopRecording, isNativePlatform } from '../utils/nativeApi.js';
+import { takePhoto, startRecording, stopRecording, isNativePlatform } from '../utils/native.js';
 import { saveAudioFile, deleteAudioFile } from '../utils/audioStorage.js';
 import { normalizeMomentMedia } from '../utils/mediaSchema.js';
 import { v4 as uuidv4 } from 'uuid';
