@@ -130,6 +130,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   
   const videoRef = useRef(null);
   const photoInputRef = useRef(null);
+  const podcastCoverInputRef = useRef(null);
   
   // 录音相关状态
   const [isRecording, setIsRecording] = useState(false);
@@ -609,9 +610,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         try {
           await withTimeout(nativeStartRecording(), 3500, '原生录音插件未响应');
         } catch (nativeError) {
-          console.warn('[录音] 原生录音不可用，切换备用录音:', nativeError);
-          showToast('原生录音未响应，正在切换备用录音...', 'info');
-          await startBrowserRecording();
+          console.warn('[录音] 原生录音不可用:', nativeError);
+          showToast('录音插件未响应，请重新打开应用后再试', 'error');
           return;
         }
         setIsRecording(true);
@@ -827,34 +827,30 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     }
   };
 
-  // 播客封面上传 - 上传时立即转Base64避免File对象失效
+  const openPodcastCoverPicker = () => {
+    podcastCoverInputRef.current?.click();
+  };
+
+  // 播客封面上传 - 与照片保持同一套沙箱保存链路
   const handlePodcastCoverUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     console.log('[Podcast Cover Upload] 开始上传:', { type: file.type, name: file.name, size: file.size });
 
     try {
-      // 临时URL用于立即预览
       const displayURL = URL.createObjectURL(file);
-      
-      // 立即转成Base64存入state
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = () => reject(new Error('封面读取失败'));
-        reader.readAsDataURL(file);
-      });
-      
+      const saved = await saveImage(file, { fileName: file.name || `podcast_cover_${Date.now()}.jpg` });
       setPodcastCover({
-        url: base64,  // 直接存base64用于保存
-        displayURL: displayURL,  // 临时URL用于预览
+        ...saved,
+        url: saved.path,
+        displayURL,
         name: file.name,
         type: file.type,
         size: file.size
       });
       
-      console.log('[Podcast Cover Upload] 上传成功！已转Base64');
+      console.log('[Podcast Cover Upload] 上传成功！已保存到媒体库:', saved.path);
       
     } catch (error) {
       console.error('[MomentForm] 播客封面上传失败:', error);
@@ -1796,7 +1792,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                   <div className="relative">
                     {/* ✅ 使用 getImageSrc 统一处理图片路径 */}
                     <img
-                      src={getImageSrc(typeof podcastCover === 'string' ? podcastCover : podcastCover.url)}
+                      src={getImageSrc(typeof podcastCover === 'string' ? podcastCover : (podcastCover.displayURL || podcastCover.url || podcastCover.path || podcastCover.filename))}
                       alt="播客封面"
                       className="w-full h-40 object-cover rounded-xl"
                     />
@@ -1808,14 +1804,23 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                     </button>
                   </div>
                 ) : (
-                  // ✅ 使用原生相机/相册
-                  <button
-                    onClick={handleNativePodcastCoverUpload}
-                    className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center hover:border-primary-500 transition-colors"
-                  >
-                    <Image className="w-8 h-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">选择封面图片</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={openPodcastCoverPicker}
+                      className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-center hover:border-primary-500 transition-colors"
+                    >
+                      <Image className="w-8 h-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">选择封面图片</span>
+                    </button>
+                    <input
+                      ref={podcastCoverInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePodcastCoverUpload}
+                      className="hidden"
+                    />
+                  </>
                 )}
               </div>
             </div>

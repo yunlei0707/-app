@@ -193,7 +193,21 @@ export async function requestAudioPermission() {
 
 export function isNativePlatform() {
   try {
-    return !!(window.Capacitor && window.Capacitor.isNativePlatform?.());
+    const capacitor = window.Capacitor;
+    if (!capacitor) return false;
+
+    if (typeof capacitor.isNativePlatform === 'function' && capacitor.isNativePlatform()) {
+      return true;
+    }
+
+    if (typeof capacitor.getPlatform === 'function') {
+      const platform = capacitor.getPlatform();
+      if (platform === 'android' || platform === 'ios') {
+        return true;
+      }
+    }
+
+    return !!capacitor.Plugins;
   } catch (e) {
     return false;
   }

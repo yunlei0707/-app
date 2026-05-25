@@ -38,7 +38,16 @@ export function getImageSrc(uri) {
   
   // 2. ⚠️ 关键：只在原生环境调用 convertFileSrc，Web 端直接用
   const Capacitor = getCapacitor();
-  if (Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+  const isNative = !!(
+    Capacitor &&
+    (
+      (typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) ||
+      (typeof Capacitor.getPlatform === 'function' && ['android', 'ios'].includes(Capacitor.getPlatform())) ||
+      Capacitor.Plugins
+    )
+  );
+
+  if (isNative) {
     if (typeof Capacitor.convertFileSrc === 'function') {
       return Capacitor.convertFileSrc(uri);
     }
