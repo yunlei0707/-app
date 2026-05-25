@@ -17,9 +17,15 @@ function getCapacitor() {
 export function isNativePlatform() {
   try {
     const Capacitor = getCapacitor();
-    return Capacitor && typeof Capacitor.isNativePlatform === 'function'
-      ? Capacitor.isNativePlatform()
-      : false;
+    if (!Capacitor) return false;
+    if (typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) {
+      return true;
+    }
+    if (typeof Capacitor.getPlatform === 'function') {
+      const platform = Capacitor.getPlatform();
+      if (platform === 'android' || platform === 'ios') return true;
+    }
+    return !!Capacitor.Plugins;
   } catch (e) {
     return false;
   }
