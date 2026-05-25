@@ -12,7 +12,7 @@ import { ImportProgressCalculator } from '../utils/progressCalculator';
 import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
-import { getImageSrc } from '../utils/image';
+import { getImageSrc, getPodcastCoverSrc } from '../utils/image';
 import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
 
 const moodOptions = [
@@ -436,6 +436,22 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             isImported: false,
           };
           setAudios(prev => [...prev, audioData]);
+        } else if (result && result.path) {
+          const audioData = {
+            id: `audio_${Date.now()}`,
+            type: 'audio',
+            path: result.path,
+            filename: result.path,
+            name: `recording_${Date.now()}.m4a`,
+            duration: recordingTime,
+            waveform: [...audioWaveform],
+            mimeType: result.mimeType || 'audio/m4a',
+            storageType: 'filesystem',
+            isImported: false,
+          };
+          setAudios(prev => [...prev, audioData]);
+        } else {
+          throw new Error('录音结果为空');
         }
         setIsRecording(false);
         console.log('[录音] 录音保存完成');
@@ -606,18 +622,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       showToast('正在启动录音...', 'info');
       
       if (isNative) {
-        // 原生环境：调用原生录音
-        try {
-          await withTimeout(nativeStartRecording(), 3500, '原生录音插件未响应');
-        } catch (nativeError) {
-          console.warn('[录音] 原生录音不可用:', nativeError);
-          showToast('录音插件未响应，请重新打开应用后再试', 'error');
-          return;
-        }
+        // 原生环境：先让界面进入录音状态，再等待原生插件确认
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
-        // 开始计时
         timerRef.current = setInterval(() => {
           setRecordingTime(prev => {
             if (prev >= 599) {
@@ -627,6 +635,19 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             return prev + 1;
           });
         }, 1000);
+
+        try {
+          await withTimeout(nativeStartRecording(), 8000, '原生录音插件未响应');
+        } catch (nativeError) {
+          console.warn('[录音] 原生录音不可用:', nativeError);
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          setIsRecording(false);
+          showToast('录音插件未响应，请重新打开应用后再试', 'error');
+          return;
+        }
       } else {
         // 浏览器环境
         await startBrowserRecording();
@@ -1792,7 +1813,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
                   <div className="relative">
                     {/* ✅ 使用 getImageSrc 统一处理图片路径 */}
                     <img
-                      src={getImageSrc(typeof podcastCover === 'string' ? podcastCover : (podcastCover.displayURL || podcastCover.url || podcastCover.path || podcastCover.filename))}
+                      src={getPodcastCoverSrc(podcastCover)}
                       alt="播客封面"
                       className="w-full h-40 object-cover rounded-xl"
                     />

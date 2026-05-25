@@ -3,6 +3,8 @@
  * 所有UI组件直接调用此文件
  */
 
+import { VoiceRecorder as ImportedVoiceRecorder } from 'capacitor-voice-recorder';
+
 // 懒加载插件（避免Web环境打包报错）
 let CameraModule = null;
 let FilesystemModule = null;
@@ -81,6 +83,12 @@ async function loadVoiceRecorder() {
       return VoiceRecorderModule;
     }
     
+    if (ImportedVoiceRecorder) {
+      console.log('[Native] 从capacitor-voice-recorder静态代理获取录音插件');
+      VoiceRecorderModule = ImportedVoiceRecorder;
+      return VoiceRecorderModule;
+    }
+
     // 3. 最后尝试从全局查找
     const globalVoiceRecorder = window.CapacitorVoiceRecorder || window.VoiceRecorderPlugin;
     if (globalVoiceRecorder) {
@@ -171,12 +179,19 @@ export async function requestAudioPermission() {
       return false;
     }
     
-    console.log('[Native] 检查录音权限...');
-    const hasPermission = await recorder.hasAudioRecordingPermission();
-    console.log('[Native] 当前录音权限状态:', hasPermission);
-    
-    if (!hasPermission.value) {
+    let hasPermission = { value: true };
+    if (typeof recorder.hasAudioRecordingPermission === 'function') {
+      console.log('[Native] 检查录音权限...');
+      hasPermission = await recorder.hasAudioRecordingPermission();
+      console.log('[Native] 当前录音权限状态:', hasPermission);
+    }
+
+    if (hasPermission.value !== true && hasPermission.value !== 'granted') {
       console.log('[Native] 权限未授予，开始请求权限...');
+      if (typeof recorder.requestAudioRecordingPermission !== 'function') {
+        console.warn('[Native] 录音插件不支持权限请求方法，继续尝试录音');
+        return true;
+      }
       const result = await recorder.requestAudioRecordingPermission();
       console.log('[Native] 请求权限结果:', result);
       return result.value === 'granted' || result.value === true;
@@ -307,7 +322,10 @@ export async function startRecording() {
 
   console.log('[Native] 调用 recorder.startRecording()');
   try {
-    await recorder.startRecording();
+    const result = await recorder.startRecording();
+    if (result?.value === false) {
+      throw new Error('录音插件返回启动失败');
+    }
     console.log('[Native] ✅ 录音已启动');
     return true;
   } catch (e) {
@@ -339,7 +357,8 @@ export async function stopRecording() {
   
   return {
     base64: result.value?.recordDataBase64,
-    duration: result.value?.duration || 0,
+    path: result.value?.path,
+    duration: result.value?.msDuration || result.value?.duration || 0,
     mimeType: result.value?.mimeType,
   };
 }

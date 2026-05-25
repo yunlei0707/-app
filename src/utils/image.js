@@ -57,6 +57,22 @@ export function getImageSrc(uri) {
   return uri;
 }
 
+export function getMediaObjectSrc(media) {
+  if (!media) return '';
+  if (typeof media === 'string') return media;
+  return media.displayURL ||
+    media.url ||
+    media.path ||
+    media.filename ||
+    media.coverPath ||
+    media.cover ||
+    '';
+}
+
+export function getPodcastCoverSrc(cover) {
+  return getImageSrc(getMediaObjectSrc(cover));
+}
+
 /**
  * 批量处理图片数组
  * @param {Array} photos - 图片 URI 数组
@@ -70,4 +86,6 @@ export function getImageSrcList(photos) {
 export default {
   getImageSrc,
   getImageSrcList,
+  getMediaObjectSrc,
+  getPodcastCoverSrc,
 };

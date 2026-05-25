@@ -9,9 +9,60 @@ import { useNavigate } from 'react-router-dom';
 import { Play, X, Mic } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
+import { getMediaObjectSrc, getImageSrc } from '../utils/image';
+import { getMediaDisplaySrc } from '../repositories/mediaRepository.js';
 import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from "../repositories/stateRepository.js";
 import { getMomentsByBaby } from '../repositories/stateRepository';
 import { MomentForm } from '../components/MomentForm';
+
+function shouldLoadMediaBlob(path) {
+  if (!path || typeof path !== 'string') return false;
+  return path.startsWith('BabyTime/') ||
+    path.startsWith('opfs:') ||
+    path.startsWith('fs://') ||
+    path.startsWith('file://') ||
+    path.startsWith('content://') ||
+    path.includes('/_capacitor_file_');
+}
+
+function PodcastCoverImage({ cover, alt = '', className = '' }) {
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    let revokedUrl = '';
+    let cancelled = false;
+
+    async function load() {
+      const raw = getMediaObjectSrc(cover);
+      if (!raw) {
+        setSrc('');
+        return;
+      }
+
+      try {
+        const nextSrc = shouldLoadMediaBlob(raw) ? await getMediaDisplaySrc(raw) : getImageSrc(raw);
+        if (cancelled) {
+          if (nextSrc?.startsWith?.('blob:')) URL.revokeObjectURL(nextSrc);
+          return;
+        }
+        revokedUrl = nextSrc?.startsWith?.('blob:') ? nextSrc : '';
+        setSrc(nextSrc || '');
+      } catch (e) {
+        console.warn('[PodcastPage] 封面加载失败:', e);
+        if (!cancelled) setSrc('');
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+  }, [cover]);
+
+  if (!src) return null;
+  return <img src={src} alt={alt} className={className} />;
+}
 
 export function PodcastPage() {
   const navigate = useNavigate();
@@ -213,13 +264,10 @@ export function PodcastPage() {
                 {/* 播客封面 */}
                 <div className="aspect-square relative">
                   {moment.podcast.cover ? (
-                    <img 
-                      src={typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover.url}
+                    <PodcastCoverImage
+                      cover={moment.podcast.cover}
                       alt=""
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
@@ -266,8 +314,8 @@ export function PodcastPage() {
             {/* 播客封面 */}
             {selectedPodcast.podcast.cover && (
               <div className="aspect-square rounded-xl overflow-hidden mb-4">
-                <img
-                  src={typeof selectedPodcast.podcast.cover === 'string' ? selectedPodcast.podcast.cover : selectedPodcast.podcast.cover.url}
+                <PodcastCoverImage
+                  cover={selectedPodcast.podcast.cover}
                   alt=""
                   className="w-full h-full object-cover"
                 />

@@ -8,7 +8,7 @@ import { formatDateFriendly, formatTime } from '../utils/dateUtils';
 import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X } from 'lucide-react';
 import { getMediaBlob, getMediaDisplaySrc, normalizeMediaItem, normalizeMomentMedia } from '../repositories/mediaRepository.js';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
-import { getImageSrc } from '../utils/image';
+import { getImageSrc, getMediaObjectSrc, getPodcastCoverSrc } from '../utils/image';
 
 function shouldLoadMediaBlob(path) {
   if (!path || typeof path !== 'string') return false;
@@ -518,7 +518,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
                 onClick={() => setShowFullscreenPlayer(true)}
               >
                 <LazyImage
-                  src={typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover.url}
+                  src={getMediaObjectSrc(moment.podcast.cover)}
                   alt={moment.podcast.title || '播客封面'}
                   onClick={() => setShowFullscreenPlayer(true)}
                 />
@@ -651,7 +651,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
           <div 
             className="absolute inset-0 bg-cover bg-center blur-3xl opacity-40 scale-110"
             style={{
-              backgroundImage: `url(${getImageSrc(typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url)})`
+              backgroundImage: `url(${getPodcastCoverSrc(moment.podcast.cover)})`
             }}
           />
           
@@ -674,8 +674,8 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
             {/* 封面图片 */}
             <div className="w-full max-w-sm aspect-square mb-8 rounded-2xl overflow-hidden shadow-2xl">
               {moment.podcast.cover ? (
-                <img
-                  src={getImageSrc(typeof moment.podcast.cover === 'string' ? moment.podcast.cover : moment.podcast.cover?.url)}
+                <LazyImage
+                  src={getMediaObjectSrc(moment.podcast.cover)}
                   alt={moment.podcast.title || '播客封面'}
                   className="w-full h-full object-cover"
                 />
