@@ -93,6 +93,13 @@ const formatTime2 = (seconds) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
+const withTimeout = (promise, timeoutMs, message) => Promise.race([
+  promise,
+  new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), timeoutMs);
+  }),
+]);
+
 export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const { getAllMilestones, getAllMoods, currentBaby, showToast } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
@@ -122,6 +129,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const [saving, setSaving] = useState(false);
   
   const videoRef = useRef(null);
+  const photoInputRef = useRef(null);
   
   // 录音相关状态
   const [isRecording, setIsRecording] = useState(false);
@@ -594,10 +602,18 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const startRecording = async () => {
     try {
       const isNative = isNativePlatform();
+      showToast('正在启动录音...', 'info');
       
       if (isNative) {
         // 原生环境：调用原生录音
-        await nativeStartRecording();
+        try {
+          await withTimeout(nativeStartRecording(), 3500, '原生录音插件未响应');
+        } catch (nativeError) {
+          console.warn('[录音] 原生录音不可用，切换备用录音:', nativeError);
+          showToast('原生录音未响应，正在切换备用录音...', 'info');
+          await startBrowserRecording();
+          return;
+        }
         setIsRecording(true);
         setRecordingTime(0);
         setAudioWaveform([]);
@@ -1143,6 +1159,11 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   };
 
   // 照片上传 - 智能选择存储方式（OPFS或Base64）
+  const openPhotoPicker = () => {
+    showToast('正在打开照片选择...', 'info');
+    photoInputRef.current?.click();
+  };
+
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -1160,6 +1181,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
       const newPhotos = await Promise.all(photoPromises);
       
       setPhotos(prev => [...prev, ...newPhotos]);
+      showToast(`已添加${newPhotos.length}张照片`, 'success');
     } catch (error) {
       console.error('[MomentForm] 照片上传失败:', error);
       // 忽略权限相关错误，因为文件实际可能已经保存了
@@ -1621,12 +1643,20 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             {/* ✅ 使用原生相机/相册按钮 */}
             <button
               type="button"
-              onClick={handleNativePhotoUpload}
+              onClick={openPhotoPicker}
               className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-primary-400 transition-colors"
             >
               <Image className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">拍照或选择照片</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">添加照片</p>
             </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
           </div>
         )}
         
