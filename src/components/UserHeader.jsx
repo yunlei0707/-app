@@ -16,28 +16,22 @@ function useCurrentUser() {
 
   useEffect(() => {
     const updateUserInfo = () => {
-      // 优先使用 v2 账号信息
+      // 优先使用登录页保存的身份信息，回退到 v2 账号。
       const v2Account = getCurrentV2Account();
       
-      if (v2Account?.accountData) {
-        // v2 账号数据
-        const avatar = v2Account.accountData.avatar;
-        const name = v2Account.identityName; // 使用身份名称
+      try {
+        const userStr = localStorage.getItem('currentUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const avatar = user?.avatar || v2Account?.accountData?.avatar || null;
+        const name = user?.name || user?.nickname || user?.username || v2Account?.identityName || null;
+
         setUserInfo({ avatar, name });
-      } else {
-        // 回退到 localStorage 中的 currentUser
-        try {
-          const userStr = localStorage.getItem('currentUser');
-          if (userStr) {
-            const user = JSON.parse(userStr);
-            setUserInfo({
-              avatar: user.avatar || null,
-              name: user.name || user.nickname || null,
-            });
-          }
-        } catch (e) {
-          console.error('解析 currentUser 失败:', e);
-        }
+      } catch (e) {
+        console.error('解析 currentUser 失败:', e);
+        setUserInfo({
+          avatar: v2Account?.accountData?.avatar || null,
+          name: v2Account?.identityName || null,
+        });
       }
     };
 

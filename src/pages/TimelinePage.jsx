@@ -700,7 +700,6 @@ export function TimelinePage({
             <div className="flex items-center gap-2">
               {/* 小头像 */}
               <UserHeader
-                title={v2AccountInfo?.identityName || currentUser?.name || '时光轴'}
                 avatarSize="small"
                 titleClassName="text-base font-medium text-gray-600 dark:text-gray-300"
                 avatarClassName="bg-gradient-to-br from-primary-200 to-primary-300 shadow-sm"
@@ -756,15 +755,15 @@ export function TimelinePage({
           />
           
           {/* 第三行：筛选栏 - 三个标签保持同一行 */}
-          <div className="flex items-center gap-2 mt-4 overflow-x-auto">
+          <div className="grid grid-cols-3 gap-2 mt-4">
             {/* 类型筛选 */}
-            <div ref={typeDropdownRef} className="relative flex-shrink-0 z-50">
+            <div ref={typeDropdownRef} className="relative z-50 min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowTypeDropdown(!showTypeDropdown);
                 }}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap"
+                className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
               >
                 {selectedType ? (
                   typeFilters.find(f => f.value === selectedType)?.label
@@ -796,13 +795,13 @@ export function TimelinePage({
             </div>
             
             {/* 心情筛选 */}
-            <div ref={moodDropdownRef} className="relative flex-shrink-0 z-50">
+            <div ref={moodDropdownRef} className="relative z-50 min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMoodDropdown(!showMoodDropdown);
                 }}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap"
+                className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
               >
                 {selectedMood ? (
                   moodFilters.find(f => f.value === selectedMood)?.label
@@ -834,13 +833,13 @@ export function TimelinePage({
             </div>
             
             {/* 名场面筛选 */}
-            <div ref={milestoneDropdownRef} className="relative flex-shrink-0 z-50">
+            <div ref={milestoneDropdownRef} className="relative z-50 min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMilestoneDropdown(!showMilestoneDropdown);
                 }}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap"
+                className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
               >
                 {selectedMilestone ? (
                   <>
@@ -879,7 +878,7 @@ export function TimelinePage({
             {hasActiveFilters && (
               <button
                 onClick={handleClearAllFilters}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 flex-shrink-0"
+                className="col-span-3 flex items-center justify-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
               >
                 <X className="w-4 h-4" />
                 清除
@@ -889,19 +888,19 @@ export function TimelinePage({
           
           {/* 第四行：添加记录按钮 - 宽度和筛选栏左右对齐 */}
           {activeFilterPanel && (
-            <div ref={filterPanelRef} className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            <div ref={filterPanelRef} className="mt-3 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               {filterPanelOptions.map(option => (
                 <button
                   key={option.value}
                   onClick={() => selectFilterOption(option.value)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full border text-sm transition-colors ${
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                     isSelectedFilterOption(option.value)
-                      ? 'bg-primary-500 border-primary-500 text-white'
-                      : 'bg-white border-gray-200 text-gray-600'
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {option.emoji && <span className="mr-1">{option.emoji}</span>}
-                  {option.shortLabel || option.label}
+                  {option.emoji && <span className="w-5 text-center">{option.emoji}</span>}
+                  <span className="truncate">{option.shortLabel || option.label}</span>
                 </button>
               ))}
             </div>
