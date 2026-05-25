@@ -10,10 +10,11 @@ import { calculateAge } from '../utils/dateUtils';
 import { getMomentsByBaby, getCapsulesByBaby } from '../repositories/stateRepository';
 import { Gift, TrendingUp, Camera, Star, BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Edit3, BarChart2 } from 'lucide-react'
 import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from "../repositories/stateRepository.js";
-import { mergeGrowthRecords, shouldMergeDisplay, isV1GrowthRecord, createV2GrowthCopyFromV1 } from '../utils/dataMerger';
+import { mergeGrowthRecords, shouldMergeDisplay } from '../utils/dataMerger';
 import { TimeBlindBox } from '../components/TimeBlindBox';
 import { GROWTH_LABELS, GROWTH_UNITS, GROWTH_ICONS } from '../utils/growthMilestones';
 import { moodScoreMap as importedMoodScoreMap } from '../components/MomentForm';
+import { normalizeMomentMedia } from '../repositories/mediaRepository.js';
 
 // 心情选项配置
 const moodOptions = [
@@ -29,7 +30,7 @@ const moodOptions = [
 
 // 成长曲线图组件
 export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, onAddGrowthRecord, onEditGrowthRecord }) {
-  const { currentBaby, currentUser, moments, capsules, setMoments, setCapsules, showToast, getAllMilestones, growthRecords, refreshGrowthRecords } = useApp();
+  const { currentBaby, currentUser, moments, capsules, setMoments, setCapsules, showToast, getAllMilestones, getAllMoods, growthRecords, refreshGrowthRecords } = useApp();
   
   // v2 账号系统：获取当前账号信息
   const [v2Moments, setV2Moments] = useState([]);
@@ -76,13 +77,12 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     window.addEventListener('storage', updateV2Info);
     // 监听数据更新事件（添加/导入动态后触发）
     window.addEventListener('v2-moment-updated', handleDataUpdate);
-    // 轮询更新（和 TimelinePage 一致，300ms）
-    const interval = setInterval(updateV2Info, 300);
-    
+    window.addEventListener('v2-growth-updated', updateV2Info);
+    // 事件驱动刷新，避免成长数据页持续高频轮询。
     return () => {
       window.removeEventListener('storage', updateV2Info);
       window.removeEventListener('v2-moment-updated', handleDataUpdate);
-      clearInterval(interval);
+      window.removeEventListener('v2-growth-updated', updateV2Info);
     };
   }, [currentBaby, setMoments, setCapsules]);
   
@@ -93,9 +93,66 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       refreshGrowthRecords(babyId);
     }
   }, [currentBaby, v2BabyInfo, refreshGrowthRecords]);
+
+  useEffect(() => {
+    if (!currentBaby || getCurrentBabyInfo()) return;
+
+    Promise.all([
+      getMomentsByBaby(currentBaby.id),
+      getCapsulesByBaby(currentBaby.id),
+    ]).then(([babyMoments, babyCapsules]) => {
+      setMoments(babyMoments);
+      setCapsules(babyCapsules);
+    }).catch(error => {
+      console.error('[StatsPage] load v1 stats source failed:', error);
+    });
+  }, [currentBaby, setMoments, setCapsules]);
   
   // 优先使用 v2 账号信息，兼容旧的 currentBaby
   const displayBaby = v2BabyInfo || currentBaby;
+
+  const activeMoments = useMemo(() => {
+    const source = hasV2Baby ? v2Moments : moments;
+    return (Array.isArray(source) ? source : []).filter(m => !m.isDeleted);
+  }, [hasV2Baby, v2Moments, moments]);
+
+  const allMoodOptions = useMemo(() => {
+    const customOptions = typeof getAllMoods === 'function' ? getAllMoods() : [];
+    const merged = [...moodOptions];
+    customOptions.forEach(option => {
+      const value = option.value || option.id;
+      if (!value || merged.some(item => item.value === value)) return;
+      merged.push({
+        value,
+        emoji: option.emoji || '',
+        label: option.label || value,
+        score: importedMoodScoreMap[value] ?? 0,
+      });
+    });
+    return merged;
+  }, [getAllMoods]);
+
+  const growthDisplayRecords = useMemo(() => {
+    const v1Records = Array.isArray(growthRecords) ? growthRecords : [];
+    const v2Records = Array.isArray(v2Growth?.records) ? v2Growth.records : [];
+    let records = [];
+
+    if (isSystemAccount) {
+      records = v2Records.map(record => ({ ...record, _origin: 'v2', _isV1: false }));
+    } else if (shouldMergeDisplay(isSystemAccount, checkIsV1Account())) {
+      records = mergeGrowthRecords(v1Records, v2Records);
+    } else {
+      records = v1Records.map(record => ({ ...record, _origin: 'v1', _isV1: true }));
+    }
+
+    return records
+      .filter(record => record && record.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [growthRecords, v2Growth, isSystemAccount]);
+
+  const growthChartRecords = useMemo(() => {
+    return [...growthDisplayRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [growthDisplayRecords]);
   
   // 下拉刷新状态
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -171,25 +228,30 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     const age = calculateAge(displayBaby.birthDate);
     
     // 和 TimelinePage 一致：有 v2 宝宝用 v2Moments，否则用 moments
-    const activeMoments = hasV2Baby
-      ? v2Moments.filter(m => !m.isDeleted)
-      : (moments && moments.length > 0
-        ? moments.filter(m => !m.isDeleted)
-        : []);
+    const mediaByMoment = activeMoments.map(moment => ({
+      moment,
+      ...normalizeMomentMedia(moment),
+    }));
     
     // 照片数量
-    const photoCount = activeMoments.filter(m => m.photos && m.photos.length > 0)
-      .reduce((acc, m) => acc + m.photos.length, 0);
+    const photoCount = mediaByMoment.reduce((acc, item) => acc + item.photos.length, 0);
     
     // 名场面数量
     const milestoneCount = activeMoments.filter(m => m.milestone).length;
     
     // 按类型统计
-    const photoMoments = activeMoments.filter(m => m.type === 'photo').length;
-    const videoMoments = activeMoments.filter(m => m.type === 'video').length;
-    const diaryMoments = activeMoments.filter(m => m.type === 'diary').length;
-    const audioMoments = activeMoments.filter(m => m.type === 'audio').length;
-    const podcastMoments = activeMoments.filter(m => m.type === 'podcast').length;
+    const getMomentType = ({ moment, photos, videos, audios }) => {
+      if (moment.type) return moment.type;
+      if (videos.length > 0) return 'video';
+      if (audios.length > 0) return 'audio';
+      if (photos.length > 0) return 'photo';
+      return 'diary';
+    };
+    const photoMoments = mediaByMoment.filter(item => getMomentType(item) === 'photo').length;
+    const videoMoments = mediaByMoment.filter(item => getMomentType(item) === 'video').length;
+    const diaryMoments = mediaByMoment.filter(item => getMomentType(item) === 'diary').length;
+    const audioMoments = mediaByMoment.filter(item => getMomentType(item) === 'audio').length;
+    const podcastMoments = mediaByMoment.filter(item => getMomentType(item) === 'podcast').length;
     
     // 按心情统计
     const moodStats = {};
@@ -224,22 +286,16 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       topMood,
       moodStats,
     };
-  }, [currentBaby, moments, capsules, v2Moments, hasV2Baby]);
+  }, [displayBaby, activeMoments, capsules]);
   
   // 名场面列表
   const milestones = useMemo(() => {
-    const sourceMoments = hasV2Baby
-      ? v2Moments
-      : (moments && moments.length > 0 ? moments : []);
-    return sourceMoments.filter(m => m.milestone && !m.isDeleted).slice(0, 5);
-  }, [moments, v2Moments, hasV2Baby]);
+    return activeMoments.filter(m => m.milestone).slice(0, 5);
+  }, [activeMoments]);
 
   // 名场面类型统计
   const milestoneStats = useMemo(() => {
-    const sourceMoments = hasV2Baby
-      ? v2Moments
-      : (moments && moments.length > 0 ? moments : []);
-    const milestoneMoments = sourceMoments.filter(m => m.milestone && !m.isDeleted);
+    const milestoneMoments = activeMoments.filter(m => m.milestone);
     
     // 获取所有名场面选项
     const allOptions = getAllMilestones();
@@ -278,7 +334,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     
     // 按数量降序
     return result.sort((a, b) => b.count - a.count);
-  }, [moments, v2Moments, hasV2Baby, getAllMilestones]);
+  }, [activeMoments, getAllMilestones]);
 
   // 月龄神预言统计
   const predictionStats = useMemo(() => {
@@ -307,28 +363,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
   // 成长趋势数据处理
   const growthTrackData = useMemo(() => {
     try {
-      const isSystem = checkIsSystemAccount();
-      const isV1 = checkIsV1Account();
-      
-      let records;
-      
-      if (isSystem) {
-        // 系统账号：只使用v2数据
-        records = [...(v2Growth?.records || [])].sort((a, b) => a.date.localeCompare(b.date));
-      } else if (shouldMergeDisplay(isSystem, isV1)) {
-        // ✅ 用户账号：自动合并 v1 + v2 成长数据
-        const v1Records = Array.isArray(growthRecords) ? [...growthRecords] : [];
-        const v2Records = [...(v2Growth?.records || [])];
-        records = mergeGrowthRecords(v1Records, v2Records);
-      } else {
-        // v1单独模式：只使用v1数据
-        records = (Array.isArray(growthRecords) ? [...growthRecords] : []).sort((a, b) => a.date.localeCompare(b.date));
-      }
-
-      if (!Array.isArray(records) || records.length === 0) return { points: [] };
-
-      // 提取选中指标的数据
-      const points = records
+      const points = growthChartRecords
         .filter(record => record[selectedGrowthMetric] != null)
         .map(record => ({
           date: record.date,
@@ -342,7 +377,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       console.error('[StatsPage] 处理成长趋势数据出错:', error);
       return { points: [] };
     }
-  }, [growthRecords, v2Growth, selectedGrowthMetric]);
+  }, [growthChartRecords, selectedGrowthMetric]);
   const getAggregationConfig = (range) => {
     switch (range) {
       case 7:
@@ -384,18 +419,16 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
   };
   
   const moodTrackData = useMemo(() => {
-    const activeMoments = hasV2Baby
-      ? v2Moments.filter(m => !m.isDeleted && m.mood)
-      : (moments && moments.length > 0 ? moments.filter(m => !m.isDeleted && m.mood) : []);
+    const moodMoments = activeMoments.filter(m => m.mood);
     
-    if (activeMoments.length === 0) return { points: [], distribution: {} };
+    if (moodMoments.length === 0) return { points: [], distribution: {} };
     
     const now = new Date();
     const cutoffDays = moodTimeRange === 'all' ? 365 * 10 : moodTimeRange;
     const cutoffDate = new Date(now.getTime() - cutoffDays * 24 * 60 * 60 * 1000);
     
     // 过滤时间范围内的数据
-    const filtered = activeMoments.filter(m => new Date(m.date) >= cutoffDate);
+    const filtered = moodMoments.filter(m => new Date(m.date) >= cutoffDate);
     
     if (filtered.length === 0) return { points: [], distribution: {} };
     
@@ -426,12 +459,11 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     const points = Object.entries(groupMap)
       .map(([date, data]) => {
         const avgScore = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
-        const moodInfo = scoreToMood(avgScore);
         // 统计该组内各心情出现次数，找最常见的
         const moodCount = {};
         data.moods.forEach(m => { moodCount[m] = (moodCount[m] || 0) + 1; });
         const dominantMood = Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0][0];
-        const dominantOption = moodOptions.find(o => o.value === dominantMood) || { emoji: '😊', label: '开心' };
+        const dominantOption = allMoodOptions.find(o => o.value === dominantMood) || { emoji: '😊', label: '开心' };
         
         return {
           date,
@@ -451,7 +483,34 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     });
     
     return { points, distribution, groupDays };
-  }, [moments, v2Moments, hasV2Baby, moodTimeRange, moodScoreMap]);
+  }, [activeMoments, moodTimeRange, moodScoreMap, allMoodOptions]);
+
+  const handleDeleteGrowthRecord = useCallback(async () => {
+    const record = growthDisplayRecords.find(item => item.id === deleteConfirmId);
+    if (!record) {
+      setDeleteConfirmId(null);
+      return;
+    }
+
+    try {
+      if (record._isV1 || record._origin === 'v1') {
+        const { deleteGrowthRecord } = await import('../utils/db');
+        await deleteGrowthRecord(record.id);
+      } else {
+        const currentGrowth = getCurrentGrowth() || {};
+        const records = (currentGrowth.records || []).filter(item => item.id !== record.id);
+        await updateCurrentGrowth({ ...currentGrowth, records });
+        window.dispatchEvent(new Event('v2-growth-updated'));
+      }
+      await refreshGrowthRecords(currentBaby?.id || v2BabyInfo?.id);
+      showToast('已删除');
+    } catch (e) {
+      console.error('[StatsPage] delete growth record failed:', e);
+      showToast('删除失败', 'error');
+    } finally {
+      setDeleteConfirmId(null);
+    }
+  }, [deleteConfirmId, growthDisplayRecords, currentBaby, v2BabyInfo, refreshGrowthRecords, showToast]);
 
   if (!displayBaby || !stats) {
     return (
@@ -560,7 +619,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <TimeBlindBox moments={hasV2Baby ? v2Moments.filter(m => !m.isDeleted) : (moments || [])} babyName={v2BabyInfo?.nickname || v2BabyInfo?.name || displayBaby?.name || '宝宝'} />
+              <TimeBlindBox moments={activeMoments} babyName={v2BabyInfo?.nickname || v2BabyInfo?.name || displayBaby?.name || '宝宝'} />
             </div>
           </div>
           
@@ -789,7 +848,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
               {moodTrackData.points.length > 0 ? (
                 <>
                   {/* SVG折线图 */}
-                  <MoodCurveChart points={moodTrackData.points} moodOptions={moodOptions} />
+                  <MoodCurveChart points={moodTrackData.points} moodOptions={allMoodOptions} />
                   
                   {/* 心情分布条 */}
                   {(() => {
@@ -805,7 +864,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                         {Object.entries(moodTrackData.distribution)
                           .sort((a, b) => b[1] - a[1])
                           .map(([mood, count]) => {
-                            const option = moodOptions.find(o => o.value === mood);
+                            const option = allMoodOptions.find(o => o.value === mood);
                             if (!option) return null;
                             const width = (count / totalCount) * 100;
                             const color = option.score > 0 
@@ -836,7 +895,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                         {Object.entries(moodTrackData.distribution)
                           .sort((a, b) => b[1] - a[1])
                           .map(([mood, count]) => {
-                            const option = moodOptions.find(o => o.value === mood);
+                            const option = allMoodOptions.find(o => o.value === mood);
                             if (!option) return null;
                             return (
                               <div 
@@ -1052,12 +1111,12 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
           {showGrowthRecords && (
             <div className="space-y-4">
               {/* 最新数据卡片 */}
-              {growthRecords.length > 0 ? (
+              {growthDisplayRecords.length > 0 ? (
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     {['height', 'weight', 'headCircumference', 'footLength'].map((field) => {
-                      const latest = growthRecords[0];
-                      const previous = growthRecords[1];
+                      const latest = growthDisplayRecords[0];
+                      const previous = growthDisplayRecords[1];
                       const value = latest?.[field];
                       const oldValue = previous?.[field];
                       const change = value && oldValue ? (value - oldValue).toFixed(1) : null;
@@ -1102,7 +1161,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                   
                   {/* 历史记录列表 */}
                   <div className="space-y-2">
-                    {(growthRecords || []).map((record, index) => (
+                    {growthDisplayRecords.map((record, index) => (
                       <div key={record.id} className="bg-cream-50 dark:bg-gray-800 rounded-xl p-3">
                         <div 
                           className="flex items-center justify-between cursor-pointer"
@@ -1199,17 +1258,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                         取消
                       </button>
                       <button
-                        onClick={async () => {
-                          try {
-                            const { deleteGrowthRecord } = await import('../utils/db');
-                            await deleteGrowthRecord(deleteConfirmId);
-                            await refreshGrowthRecords();
-                            showToast('已删除');
-                          } catch (e) {
-                            showToast('删除失败', 'error');
-                          }
-                          setDeleteConfirmId(null);
-                        }}
+                        onClick={handleDeleteGrowthRecord}
                         className="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium"
                       >
                         删除

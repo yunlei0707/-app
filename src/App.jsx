@@ -443,6 +443,7 @@ function AppContent() {
         showToast('成长记录已保存！📏');
       }
       
+      window.dispatchEvent(new Event('v2-growth-updated'));
       setShowGrowthForm(false);
       setEditingGrowthRecord(null);
       refreshGrowthRecords(babyId);

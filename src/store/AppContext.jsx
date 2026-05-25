@@ -65,6 +65,7 @@ export function AppProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [babies, setBabies] = useState([]);
   const [currentBaby, setCurrentBaby] = useState(null);
+  const [moments, setMoments] = useState([]);
   // ✅ 生产级优化：moments 状态移至 TimelinePage 组件内或使用 Zustand
   // 避免应用启动时阻塞加载
   const [capsules, setCapsules] = useState([]);
@@ -295,6 +296,8 @@ export function AppProvider({ children }) {
     babies,
     currentBaby,
     setCurrentBaby,
+    moments,
+    setMoments,
     capsules,
     setCapsules,
     theme,

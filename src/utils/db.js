@@ -637,6 +637,12 @@ export async function updateGrowthRecord(id, updates) {
   return updatedRecord;
 }
 
+export async function deleteGrowthRecord(id) {
+  const db = await initDB();
+  await db.delete('growthRecords', id);
+  return true;
+}
+
 // ==================== 自定义名场面和心情操作 ====================
 
 /**
