@@ -10,6 +10,3 @@ project(':capacitor-filesystem').projectDir = new File(rootDir, 'node_modules/@c
 
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File(rootDir, 'node_modules/@capacitor/share/android')
-
-include ':capacitor-voice-recorder'
-project(':capacitor-voice-recorder').projectDir = new File(rootDir, 'node_modules/capacitor-voice-recorder/android')

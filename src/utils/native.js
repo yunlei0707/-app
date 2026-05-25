@@ -3,8 +3,6 @@
  * 所有UI组件直接调用此文件
  */
 
-import { VoiceRecorder as ImportedVoiceRecorder } from 'capacitor-voice-recorder';
-
 // 懒加载插件（避免Web环境打包报错）
 let CameraModule = null;
 let FilesystemModule = null;
@@ -83,12 +81,6 @@ async function loadVoiceRecorder() {
       return VoiceRecorderModule;
     }
     
-    if (ImportedVoiceRecorder) {
-      console.log('[Native] 从capacitor-voice-recorder静态代理获取录音插件');
-      VoiceRecorderModule = ImportedVoiceRecorder;
-      return VoiceRecorderModule;
-    }
-
     // 3. 最后尝试从全局查找
     const globalVoiceRecorder = window.CapacitorVoiceRecorder || window.VoiceRecorderPlugin;
     if (globalVoiceRecorder) {

@@ -141,7 +141,7 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const photoInputRef = useRef(null);
   const podcastCoverInputRef = useRef(null);
   
-  // 录音相关状态
+  // 录音相关状态（现场录音入口已隐藏，仅保留旧数据兼容）
   const [isRecording, setIsRecording] = useState(false);
   const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -189,18 +189,9 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
     return [...moodOptions, ...customMoods];
   }, [getAllMoods]);
 
-  // 清理录音资源 & 预初始化音频数据库
+  // 预初始化音频数据库
   useEffect(() => {
-    // 预初始化音频数据库（异步，不阻塞）
     preInitAudioDB();
-    
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
   }, []);
   
   // 初始化高德地图
@@ -1946,50 +1937,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
             )}
             
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors ${
-                  isRecording
-                    ? 'bg-red-500 text-white'
-                    : 'bg-primary-500 text-white hover:bg-primary-600'
-                }`}
-              >
-                {isRecording ? (
-                  <>
-                    <Square className="w-5 h-5" />
-                    <span>停止录音 ({formatTime2(recordingTime)})</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-5 h-5" />
-                    <span>开始录音</span>
-                  </>
-                )}
-              </button>
-
-              {isRecording && (
-                <button
-                  type="button"
-                  onClick={toggleRecordingPause}
-                  className="px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors bg-cream-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-cream-300 dark:hover:bg-gray-500"
-                >
-                  {isRecordingPaused ? (
-                    <>
-                      <Play className="w-5 h-5" />
-                      <span>继续</span>
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="w-5 h-5" />
-                      <span>暂停</span>
-                    </>
-                  )}
-                </button>
-              )}
-              
               <label className="flex-1">
-                <div className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors bg-cream-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-cream-300 dark:hover:bg-gray-500 cursor-pointer">
+                <div className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors bg-primary-500 text-white hover:bg-primary-600 cursor-pointer">
                   <Upload className="w-5 h-5" />
                   <span>导入音频</span>
                 </div>

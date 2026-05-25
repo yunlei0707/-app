@@ -54,9 +54,4 @@
     
     <!-- 防止休眠 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    
-    <!-- 录音权限 -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-
 </manifest>
