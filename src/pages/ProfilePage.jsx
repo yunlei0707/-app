@@ -1241,17 +1241,17 @@ export function ProfilePage(
         
         {/* 数据管理分组 */}
         <div className="mt-4">
-          <p className="text-sm font-medium text-gray-500 mb-2 px-1">数据管理</p>
+          <p className="text-base font-semibold text-gray-600 dark:text-gray-300 mb-2 px-1">数据管理</p>
           <div className="space-y-2">
             {/* 导出数据 */}
             <button
               onClick={() => handleExport()}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <Download className="w-5 h-5 text-amber-500" />
+              <Download className="w-6 h-6 text-amber-500" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">导出数据</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">备份应用数据到本地</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">导出数据</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">备份应用数据到本地</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -1261,10 +1261,10 @@ export function ProfilePage(
               onClick={() => setShowImportModal(true)}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <Upload className="w-5 h-5 text-gray-400" />
+              <Upload className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">导入数据</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">从备份文件恢复数据</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">导入数据</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">从备份文件恢复数据</p>
               </div>
             </button>
 
@@ -1273,10 +1273,10 @@ export function ProfilePage(
               onClick={() => onOpenRecycleBin()}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <Trash2 className="w-5 h-5 text-gray-400" />
+              <Trash2 className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">回收站</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">查看已删除的时光记录</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">回收站</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">查看已删除的时光记录</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -1286,9 +1286,9 @@ export function ProfilePage(
               onClick={handleLogout}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <LogOut className="w-5 h-5 text-gray-400" />
+              <LogOut className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">退出登录</span>
+                <span className="text-base font-medium text-gray-700 dark:text-white">退出登录</span>
               </div>
             </button>
           </div>
@@ -1300,7 +1300,7 @@ export function ProfilePage(
             onClick={() => setShowOther(!showOther)}
             className="w-full flex items-center justify-between cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors mb-2 px-1"
           >
-            <p className="text-sm font-medium text-gray-500">其他</p>
+            <p className="text-base font-semibold text-gray-600 dark:text-gray-300">其他</p>
             <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showOther ? 'rotate-180' : ''}`} />
           </button>
           {showOther && (
@@ -1310,10 +1310,10 @@ export function ProfilePage(
               onClick={() => showToast('帮助与反馈暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <HelpCircle className="w-5 h-5 text-gray-400" />
+              <HelpCircle className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">帮助与反馈</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">获取使用帮助或提交反馈</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">帮助与反馈</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">获取使用帮助或提交反馈</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -1323,10 +1323,10 @@ export function ProfilePage(
               onClick={() => showToast('隐私政策暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <Shield className="w-5 h-5 text-gray-400" />
+              <Shield className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">隐私政策</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">了解数据收集与使用政策</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">隐私政策</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">了解数据收集与使用政策</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -1336,20 +1336,20 @@ export function ProfilePage(
               onClick={() => showToast('用户协议暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
-              <FileText className="w-5 h-5 text-gray-400" />
+              <FileText className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm dark:text-white">用户协议</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">使用条款与免责声明</p>
+                <span className="text-base font-medium dark:text-white">用户协议</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">使用条款与免责声明</p>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
 
             {/* 版本信息 */}
             <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3">
-              <Info className="w-5 h-5 text-gray-400" />
+              <Info className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">版本信息</span>
-                <p className="text-xs text-gray-400 dark:text-gray-400">当前版本 v2.42.0</p>
+                <span className="text-base font-medium text-gray-700 dark:text-white">版本信息</span>
+                <p className="text-sm text-gray-400 dark:text-gray-400">当前版本 v2.52.0</p>
               </div>
             </div>
           </div>

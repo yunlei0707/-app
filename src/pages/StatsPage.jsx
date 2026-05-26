@@ -270,18 +270,6 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     };
   }, [displayBaby, activeMoments, capsules]);
 
-  const podcastStats = useMemo(() => {
-    const podcasts = activeMoments
-      .filter(moment => moment.type === 'podcast' && !moment.isDeleted)
-      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
-    const withAudio = podcasts.filter(moment => moment.podcast?.audio).length;
-    return {
-      total: podcasts.length,
-      withAudio,
-      latest: podcasts[0] || null,
-    };
-  }, [activeMoments]);
-  
   // 名场面列表
   const milestones = useMemo(() => {
     return activeMoments.filter(m => m.milestone).slice(0, 5);
@@ -345,6 +333,23 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     }
   }, [v2BabyInfo, displayBaby]);
 
+  const babyLetterStats = useMemo(() => {
+    const list = (Array.isArray(capsules) ? capsules : []).filter(item => !item.isDeleted);
+    const now = new Date();
+    const unlocked = list.filter(item => item.unlockDate && new Date(item.unlockDate) <= now).length;
+    const locked = list.length - unlocked;
+    const next = list
+      .filter(item => item.unlockDate && new Date(item.unlockDate) > now)
+      .sort((a, b) => new Date(a.unlockDate) - new Date(b.unlockDate))[0] || null;
+
+    return {
+      total: list.length,
+      unlocked,
+      locked,
+      next,
+    };
+  }, [capsules]);
+
   // 心情轨迹状态 - 必须在条件返回之前声明
   const [moodTimeRange, setMoodTimeRange] = useState(30); // 7/30/90/180/all
   const [showMoodTrack, setShowMoodTrack] = useState(true);
@@ -352,7 +357,6 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
 
   // 成长趋势图状态
   const [selectedGrowthMetric, setSelectedGrowthMetric] = useState('height'); // height/weight/headCircumference/footLength
-  const [showGrowthTrack, setShowGrowthTrack] = useState(true);
 
   // 成长趋势数据处理
   const growthTrackData = useMemo(() => {
@@ -691,27 +695,35 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
           )}
         </div>
         
-        {/* 记录类型分布 */}
-        <div className="card animate-fade-in" style={{ animationDelay: '0.08s' }}>
+        {/* 给宝宝的信统计 */}
+        <div
+          className="card animate-fade-in cursor-pointer active:scale-[0.98] transition-transform"
+          style={{ animationDelay: '0.08s' }}
+          onClick={() => onOpenCapsules?.()}
+        >
           <h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <span className="text-xl">🎙️</span>
-            宝宝播客统计
+            <Gift className="w-5 h-5 text-rose-500" />
+            给宝宝的信
+            <ChevronRight className="w-4 h-4 text-gray-400 ml-auto" />
           </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onStatClick({ type: 'filter', filterType: 'podcast' })}
-              className="bg-purple-50 dark:bg-gray-700 rounded-xl p-4 text-left active:scale-[0.98] transition-transform"
-            >
-              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{podcastStats.total}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">播客记录</p>
-            </button>
-            <div className="bg-rose-50 dark:bg-gray-700 rounded-xl p-4 text-left">
-              <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{podcastStats.withAudio}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">可播放音频</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-rose-50 dark:bg-gray-700 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{babyLetterStats.total}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">全部信件</p>
+            </div>
+            <div className="bg-amber-50 dark:bg-gray-700 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{babyLetterStats.locked}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">待解锁</p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-gray-700 rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{babyLetterStats.unlocked}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">已解锁</p>
             </div>
           </div>
           <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 truncate">
-            最新：{podcastStats.latest?.podcast?.title || (podcastStats.total ? '未命名播客' : '暂无播客')}
+            {babyLetterStats.next?.unlockDate
+              ? `下一封：${babyLetterStats.next.unlockDate}`
+              : babyLetterStats.total > 0 ? '暂无待解锁信件' : '还没有写给宝宝的信'}
           </p>
         </div>
 
@@ -940,60 +952,6 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
           )}
         </div>
 
-        {/* 成长趋势图区块 */}
-        <div className="card animate-fade-in" style={{ animationDelay: '0.25s' }}>
-          <h3 
-            className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 cursor-pointer hover:text-gray-600"
-            onClick={() => setShowGrowthTrack(!showGrowthTrack)}
-          >
-            <span className="text-xl">📊</span>
-            成长趋势
-            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ml-auto ${showGrowthTrack ? 'rotate-180' : ''}`} />
-          </h3>
-          
-          {showGrowthTrack && (
-            <div className="space-y-4">
-              {/* 指标切换按钮 */}
-              <div className="flex gap-2 justify-center flex-wrap">
-                {[
-                  { key: 'height', label: '身高', icon: '📏', color: 'text-rose-500' },
-                  { key: 'weight', label: '体重', icon: '⚖️', color: 'text-amber-500' },
-                  { key: 'headCircumference', label: '头围', icon: '🧠', color: 'text-purple-500' },
-                  { key: 'footLength', label: '脚长', icon: '👣', color: 'text-emerald-500' },
-                ].map(metric => (
-                  <button
-                    key={metric.key}
-                    onClick={() => setSelectedGrowthMetric(metric.key)}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      selectedGrowthMetric === metric.key
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                    }`}
-                  >
-                    <span>{metric.icon}</span>
-                    <span>{metric.label}</span>
-                  </button>
-                ))}
-              </div>
-              
-              {growthTrackData.points.length > 0 ? (
-                <>
-                  {/* SVG折线图 */}
-                  <GrowthCurveChart 
-                    points={growthTrackData.points} 
-                    metric={selectedGrowthMetric}
-                  />
-                </>
-              ) : (
-                <div className="text-center py-6 text-gray-400 dark:text-gray-500">
-                  <p className="text-sm">还没有成长记录哦</p>
-                  <p className="text-xs mt-1">点击"记录成长数据"开始追踪</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        
         {/* 名场面类型统计 */}
         <div className="card animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <h3 
@@ -1125,6 +1083,43 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
           
           {showGrowthRecords && (
             <div className="space-y-4">
+              {/* 成长趋势与指标切换 */}
+              <div className="space-y-4">
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {[
+                    { key: 'height', label: '身高', icon: '📏' },
+                    { key: 'weight', label: '体重', icon: '⚖️' },
+                    { key: 'headCircumference', label: '头围', icon: '🧠' },
+                    { key: 'footLength', label: '脚长', icon: '👣' },
+                  ].map(metric => (
+                    <button
+                      key={metric.key}
+                      onClick={() => setSelectedGrowthMetric(metric.key)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                        selectedGrowthMetric === metric.key
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      }`}
+                    >
+                      <span>{metric.icon}</span>
+                      <span>{metric.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {growthTrackData.points.length > 0 ? (
+                  <GrowthCurveChart
+                    points={growthTrackData.points}
+                    metric={selectedGrowthMetric}
+                  />
+                ) : (
+                  <div className="text-center py-4 text-gray-400 dark:text-gray-500">
+                    <p className="text-sm">还没有成长趋势数据</p>
+                    <p className="text-xs mt-1">添加身体数据后会自动生成趋势</p>
+                  </div>
+                )}
+              </div>
+
               {/* 最新数据卡片 */}
               {growthDisplayRecords.length > 0 ? (
                 <>

@@ -771,7 +771,7 @@ export function TimelinePage({
           <div className="mt-4">
             <button
               onClick={() => onAddMoment?.()}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary-400 to-primary-500 text-white rounded-xl shadow-lg hover:from-primary-500 hover:to-primary-600 transition-all active:scale-95"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-white text-primary-600 rounded-xl border border-primary-100 shadow-lg hover:bg-primary-50 transition-all active:scale-95"
             >
               <Plus className="w-5 h-5" />
               <span className="font-medium">添加记录</span>
