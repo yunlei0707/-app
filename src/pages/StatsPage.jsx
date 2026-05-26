@@ -270,6 +270,18 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       moodStats,
     };
   }, [displayBaby, activeMoments, capsules]);
+
+  const podcastStats = useMemo(() => {
+    const podcasts = activeMoments
+      .filter(moment => moment.type === 'podcast' && !moment.isDeleted)
+      .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+    const withAudio = podcasts.filter(moment => moment.podcast?.audio).length;
+    return {
+      total: podcasts.length,
+      withAudio,
+      latest: podcasts[0] || null,
+    };
+  }, [activeMoments]);
   
   // 名场面列表
   const milestones = useMemo(() => {
@@ -581,24 +593,24 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
             <div className="flex items-center gap-2">
               {/* 头像显示在左上角（使用v2账号身份信息） */}
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center text-lg overflow-hidden shadow-sm">
-                {v2AccountInfo?.accountData?.avatar ? (
-                  v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
-                    <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span>{v2AccountInfo.accountData.avatar}</span>
-                  )
-                ) : currentUser?.avatar ? (
+                {currentUser?.avatar ? (
                   currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
                     <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span>{currentUser.avatar}</span>
+                  )
+                ) : v2AccountInfo?.accountData?.avatar ? (
+                  v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
+                    <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{v2AccountInfo.accountData.avatar}</span>
                   )
                 ) : (
                   <span>👶</span>
                 )}
               </div>
               <h1 className="text-base font-medium text-gray-600 dark:text-gray-300">
-                {v2AccountInfo?.identityName || currentUser?.name || "📊 成长数据"}
+                {currentUser?.name || "成长数据"}
               </h1>
             </div>
             <div className="flex items-center gap-2">
@@ -683,6 +695,29 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
         </div>
         
         {/* 记录类型分布 */}
+        <div className="card animate-fade-in" style={{ animationDelay: '0.08s' }}>
+          <h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <span className="text-xl">🎙️</span>
+            宝宝播客统计
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => onStatClick({ type: 'filter', filterType: 'podcast' })}
+              className="bg-purple-50 dark:bg-gray-700 rounded-xl p-4 text-left active:scale-[0.98] transition-transform"
+            >
+              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{podcastStats.total}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">播客记录</p>
+            </button>
+            <div className="bg-rose-50 dark:bg-gray-700 rounded-xl p-4 text-left">
+              <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{podcastStats.withAudio}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">可播放音频</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 truncate">
+            最新：{podcastStats.latest?.podcast?.title || (podcastStats.total ? '未命名播客' : '暂无播客')}
+          </p>
+        </div>
+
         <div className="card animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h3 
             className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 cursor-pointer hover:text-gray-600"

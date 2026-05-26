@@ -316,6 +316,7 @@ function createEmptyUserAccount() {
  * @returns {Object} 初始化结果
  */
 export async function initializeApp(identityName) {
+  const sharedIdentityName = identityName || 'family';
   // 1. 检查并执行 v1 -> v2 迁移（如果有旧数据）
   if (!isMigrated()) {
     const migrateResult = await migrateV1ToV2();
@@ -326,21 +327,42 @@ export async function initializeApp(identityName) {
   const v2Data = getV2Data();
   
   // 3. 检查该身份是否已有 v2 数据
-  if (!v2Data || !v2Data[identityName]) {
+  if (!v2Data || !v2Data[sharedIdentityName]) {
     // 新用户，初始化双账号结构
-    return initializeV2ForNewUser(identityName);
+    const existingIdentityName = v2Data
+      ? Object.keys(v2Data).find(name => name !== sharedIdentityName && v2Data[name]?.accounts)
+      : null;
+
+    if (existingIdentityName) {
+      const nextData = {
+        ...(v2Data || {}),
+        [sharedIdentityName]: JSON.parse(JSON.stringify(v2Data[existingIdentityName])),
+      };
+      saveV2Data(nextData);
+      localStorage.setItem(CURRENT_IDENTITY_KEY, sharedIdentityName);
+      const sharedAccountId = nextData[sharedIdentityName].currentAccountId || 'user';
+      localStorage.setItem(CURRENT_ACCOUNT_KEY, sharedAccountId);
+      return {
+        success: true,
+        isNewUser: false,
+        message: '已切换到家庭共享数据',
+        data: nextData[sharedIdentityName]
+      };
+    }
+
+    return initializeV2ForNewUser(sharedIdentityName);
   }
   
   // 已有数据，设置当前身份
-  localStorage.setItem(CURRENT_IDENTITY_KEY, identityName);
-  const currentAccountId = v2Data[identityName].currentAccountId || 'user';
+  localStorage.setItem(CURRENT_IDENTITY_KEY, sharedIdentityName);
+  const currentAccountId = v2Data[sharedIdentityName].currentAccountId || 'user';
   localStorage.setItem(CURRENT_ACCOUNT_KEY, currentAccountId);
   
   return {
     success: true,
     isNewUser: false,
     message: '加载已有数据',
-    data: v2Data[identityName]
+    data: v2Data[sharedIdentityName]
   };
 }
 

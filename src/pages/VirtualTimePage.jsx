@@ -211,24 +211,24 @@ export function VirtualTimePage() {
             <div className="flex items-center gap-2">
               {/* 头像显示在左上角（使用v2账号身份信息） */}
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center text-lg overflow-hidden shadow-sm">
-                {v2AccountInfo?.accountData?.avatar ? (
-                  v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
-                    <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span>{v2AccountInfo.accountData.avatar}</span>
-                  )
-                ) : currentUser?.avatar ? (
+                {currentUser?.avatar ? (
                   currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
                     <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span>{currentUser.avatar}</span>
+                  )
+                ) : v2AccountInfo?.accountData?.avatar ? (
+                  v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
+                    <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{v2AccountInfo.accountData.avatar}</span>
                   )
                 ) : (
                   <span>✨</span>
                 )}
               </div>
               <h1 className="text-base font-medium text-gray-600 dark:text-gray-300">
-                {v2AccountInfo?.identityName || currentUser?.name || "✨ 未来宝宝"}
+                {currentUser?.name || "未来宝宝"}
               </h1>
             </div>
             <div className="flex items-center gap-2">

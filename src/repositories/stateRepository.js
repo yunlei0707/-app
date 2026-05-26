@@ -322,7 +322,7 @@ export function getCurrentMediaIndex() {
  */
 
 export function initializeApp() {
-  return dbV2.initializeApp();
+  return dbV2.initializeApp('family');
 }
 
 /**

@@ -6,14 +6,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, X, Mic } from 'lucide-react';
+import { Play, X, Mic, Edit3, Trash2 } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getMediaObjectSrc, getImageSrc } from '../utils/image';
 import { getMediaDisplaySrc } from '../repositories/mediaRepository.js';
-import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, isSystemAccount } from "../repositories/stateRepository.js";
+import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, updateMomentInCurrentAccount, isSystemAccount } from "../repositories/stateRepository.js";
 import { getMomentsByBaby } from '../repositories/stateRepository';
 import { MomentForm } from '../components/MomentForm';
+import { UserHeader } from '../components/UserHeader';
 
 function shouldLoadMediaBlob(path) {
   if (!path || typeof path !== 'string') return false;
@@ -71,6 +72,7 @@ export function PodcastPage() {
   const [loading, setLoading] = useState(true);
   // 创建播客模态框状态
   const [showPodcastForm, setShowPodcastForm] = useState(false);
+  const [editingPodcast, setEditingPodcast] = useState(null);
   // 选中的播客（用于显示详情和播放）
   const [selectedPodcast, setSelectedPodcast] = useState(null);
   // 播客播放器状态
@@ -92,14 +94,14 @@ export function PodcastPage() {
       
       // 1. 从 v2（localStorage）加载播客
       const v2Timeline = getCurrentTimeline() || [];
-      const v2Podcasts = v2Timeline.filter(m => m.type === 'podcast' && m.podcast);
+      const v2Podcasts = v2Timeline.filter(m => m.type === 'podcast' && m.podcast && !m.isDeleted);
       allPodcasts.push(...v2Podcasts);
       
       // 2. 从 v1（IndexedDB）加载播客
       const babyId = currentBaby?.id || getCurrentBabyInfo()?.id;
       if (babyId) {
         const v1Moments = await getMomentsByBaby(babyId);
-        const v1Podcasts = v1Moments.filter(m => m.type === 'podcast' && m.podcast);
+        const v1Podcasts = v1Moments.filter(m => m.type === 'podcast' && m.podcast && !m.isDeleted);
         allPodcasts.push(...v1Podcasts);
       }
       
@@ -149,7 +151,33 @@ export function PodcastPage() {
       showToast('系统账号不可添加记录', 'error');
       return;
     }
+    setEditingPodcast(null);
     setShowPodcastForm(true);
+  };
+
+  const handleEditPodcast = (moment) => {
+    setSelectedPodcast(null);
+    setPodcastAudioUrl(null);
+    setEditingPodcast(moment);
+    setShowPodcastForm(true);
+  };
+
+  const handleDeletePodcast = async (moment) => {
+    if (!moment?.id) return;
+    if (!window.confirm('确定删除这个播客吗？删除后可在回收站查看。')) return;
+    try {
+      await updateMomentInCurrentAccount(moment.id, {
+        isDeleted: true,
+        deletedAt: new Date().toISOString()
+      });
+      setSelectedPodcast(null);
+      setPodcastAudioUrl(null);
+      showToast('播客已移入回收站', 'success');
+      loadAllPodcasts();
+    } catch (error) {
+      console.error('删除播客失败:', error);
+      showToast('删除失败，请重试', 'error');
+    }
   };
 
   // 保存播客
@@ -163,10 +191,15 @@ export function PodcastPage() {
       };
       
       // 保存到当前账号
-      addMomentToCurrentAccount(momentData);
+      if (editingPodcast?.id) {
+        await updateMomentInCurrentAccount(editingPodcast.id, momentData);
+      } else {
+        await addMomentToCurrentAccount(momentData);
+      }
       
       showToast('播客创建成功！🎉', 'success');
       setShowPodcastForm(false);
+      setEditingPodcast(null);
       
       // 重新加载播客列表
       loadAllPodcasts();
@@ -197,7 +230,7 @@ export function PodcastPage() {
             </div>
             {/* 播客表单 - 强制类型为 podcast */}
             <MomentForm
-              moment={{ type: 'podcast' }}
+              moment={editingPodcast || { type: 'podcast' }}
               onSave={handleSavePodcast}
               babyId={currentBaby?.id || getCurrentBabyInfo()?.id}
               onCancel={() => setShowPodcastForm(false)}
@@ -208,7 +241,12 @@ export function PodcastPage() {
 
       {/* 顶部标题 */}
       <div className="bg-white dark:bg-gray-800 px-4 py-4 shadow-sm flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+        <UserHeader
+          avatarSize="small"
+          titleClassName="text-base font-medium text-gray-700 dark:text-gray-200"
+          avatarClassName="bg-gradient-to-br from-primary-200 to-primary-300 shadow-sm"
+        />
+        <h1 className="hidden text-xl font-bold text-gray-800 dark:text-white">
           🎙️ 宝宝播客
         </h1>
         <button
@@ -278,6 +316,28 @@ export function PodcastPage() {
                   <div className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow">
                     <Play className="w-4 h-4 text-gray-700" />
                   </div>
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEditPodcast(moment);
+                      }}
+                      className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow"
+                      title="编辑播客"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-gray-700" />
+                    </button>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeletePodcast(moment);
+                      }}
+                      className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow"
+                      title="删除播客"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    </button>
+                  </div>
                 </div>
                 {/* 播客标题 */}
                 <div className="p-2">
@@ -303,12 +363,29 @@ export function PodcastPage() {
             {/* 头部 */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-800 dark:text-white">播客详情</h3>
-              <button
-                onClick={handleClosePodcast}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleEditPodcast(selectedPodcast)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                  title="编辑播客"
+                >
+                  <Edit3 className="w-5 h-5 text-gray-500" />
+                </button>
+                <button
+                  onClick={() => handleDeletePodcast(selectedPodcast)}
+                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                  title="删除播客"
+                >
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </button>
+                <button
+                  onClick={handleClosePodcast}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                  title="关闭"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             
             {/* 播客封面 */}

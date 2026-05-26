@@ -115,10 +115,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   // 是否强制使用播客类型（隐藏类型选择）
   const isPodcastOnly = moment?.type === 'podcast' && !moment?.id;
   // 播客相关状态
-  const [podcastTitle, setPodcastTitle] = useState(moment?.podcastTitle || '');
-  const [podcastDescription, setPodcastDescription] = useState(moment?.podcastDescription || '');
-  const [podcastAudio, setPodcastAudio] = useState(moment?.podcastAudio || null);
-  const [podcastCover, setPodcastCover] = useState(moment?.podcastCover || null);
+  const [podcastTitle, setPodcastTitle] = useState(moment?.podcastTitle || moment?.podcast?.title || '');
+  const [podcastDescription, setPodcastDescription] = useState(moment?.podcastDescription || moment?.podcast?.description || '');
+  const [podcastAudio, setPodcastAudio] = useState(moment?.podcastAudio || moment?.podcast?.audio || null);
+  const [podcastCover, setPodcastCover] = useState(moment?.podcastCover || moment?.podcast?.cover || null);
   const [content, setContent] = useState(moment?.content || '');
   const [photos, setPhotos] = useState(moment?.photos || []);
   const [videos, setVideos] = useState(moment?.videos || []); // [{url, cover, name, size}]

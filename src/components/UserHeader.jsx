@@ -22,15 +22,16 @@ function useCurrentUser() {
       try {
         const userStr = localStorage.getItem('currentUser');
         const user = userStr ? JSON.parse(userStr) : null;
-        const avatar = user?.avatar || v2Account?.accountData?.avatar || null;
-        const name = user?.name || user?.nickname || user?.username || v2Account?.identityName || null;
+        const avatar = user?.avatar || null;
+        const rawName = user?.name || user?.nickname || user?.username || null;
+        const name = rawName && rawName !== 'undefined' ? rawName : null;
 
         setUserInfo({ avatar, name });
       } catch (e) {
         console.error('解析 currentUser 失败:', e);
         setUserInfo({
-          avatar: v2Account?.accountData?.avatar || null,
-          name: v2Account?.identityName || null,
+          avatar: null,
+          name: null,
         });
       }
     };

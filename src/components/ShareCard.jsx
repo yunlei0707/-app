@@ -2,9 +2,10 @@
  * 分享卡片组件
  * 接收动态数据，渲染成漂亮的卡片，然后用html2canvas转成图片
  */
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Image as ImageIcon, Music, Video, Camera, BookOpen } from 'lucide-react';
+import { getMediaDisplaySrc, normalizeMomentMedia } from '../repositories/mediaRepository.js';
 
 // 心情图标映射
 const moodIcons = {
@@ -29,6 +30,7 @@ const milestoneIcons = {
 export function ShareCard({ 
   visible, 
   onClose, 
+  moment = null,
   babyName = '宝宝',
   date = '',
   content = '',
@@ -40,11 +42,59 @@ export function ShareCard({
 }) {
   const [generating, setGenerating] = useState(false);
   const [shareImage, setShareImage] = useState(null);
+  const [resolvedThumbnail, setResolvedThumbnail] = useState('');
   const cardRef = useRef(null);
+  const media = useMemo(() => moment ? normalizeMomentMedia(moment) : null, [moment]);
+  const displayType = moment?.type || (media?.videos?.length ? 'video' : media?.photos?.length ? 'photo' : media?.audios?.length ? 'audio' : type);
+  const displayContent = moment?.content || moment?.podcast?.description || content;
+  const displayDate = moment?.date || date;
+  const displayMood = moment?.mood || mood;
+  const displayMilestone = moment?.milestone || milestone;
+  const displayMilestoneLabel = moment?.milestoneLabel || milestoneLabel;
+  const isVisible = visible ?? !!moment;
+
+  useEffect(() => {
+    let objectUrl = '';
+    let cancelled = false;
+
+    async function loadThumbnail() {
+      const candidate = thumbnail ||
+        media?.photos?.[0]?.path ||
+        media?.photos?.[0]?.url ||
+        media?.videos?.[0]?.cover ||
+        media?.videos?.[0]?.coverPath ||
+        moment?.podcast?.cover?.path ||
+        moment?.podcast?.cover?.url ||
+        moment?.podcast?.cover;
+
+      if (!candidate) {
+        setResolvedThumbnail('');
+        return;
+      }
+
+      try {
+        const rawPath = typeof candidate === 'string' ? candidate : candidate.path || candidate.url || candidate.filename;
+        const src = rawPath?.startsWith('data:') ? rawPath : await getMediaDisplaySrc(rawPath);
+        if (!cancelled) {
+          setResolvedThumbnail(src || '');
+          if (src?.startsWith('blob:')) objectUrl = src;
+        }
+      } catch (error) {
+        console.warn('[ShareCard] thumbnail load failed:', error);
+        if (!cancelled) setResolvedThumbnail('');
+      }
+    }
+
+    loadThumbnail();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [media, moment, thumbnail]);
 
   // 获取类型图标
   const getTypeIcon = () => {
-    switch (type) {
+    switch (displayType) {
       case 'video': return <Video className="w-4 h-4" />;
       case 'audio': return <Music className="w-4 h-4" />;
       case 'diary': return <BookOpen className="w-4 h-4" />;
@@ -98,7 +148,7 @@ export function ShareCard({
     link.click();
   };
 
-  if (!visible) return null;
+  if (!isVisible) return null;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -138,19 +188,19 @@ export function ShareCard({
                       <span className="text-2xl">👶</span>
                       <span className="font-bold text-gray-800">{babyName}</span>
                     </div>
-                    {milestoneLabel && (
+                    {displayMilestoneLabel && (
                       <span className="px-3 py-1 bg-pink-100 text-pink-600 rounded-full text-xs font-medium flex items-center gap-1">
-                        <span>{milestoneIcons[milestone] || '📅'}</span>
-                        {milestoneLabel}
+                        <span>{milestoneIcons[displayMilestone] || '📅'}</span>
+                        {displayMilestoneLabel}
                       </span>
                     )}
                   </div>
 
                   {/* 媒体内容（图片/视频封面） */}
-                  {thumbnail && type !== 'diary' && (
+                  {resolvedThumbnail && displayType !== 'diary' && (
                     <div className="mb-4 rounded-xl overflow-hidden shadow-md">
                       <img 
-                        src={thumbnail} 
+                        src={resolvedThumbnail} 
                         alt="分享图片" 
                         className="w-full aspect-square object-cover"
                         crossOrigin="anonymous"
@@ -160,19 +210,19 @@ export function ShareCard({
 
                   {/* 内容文字 */}
                   <p className="text-gray-700 leading-relaxed mb-4 text-sm">
-                    {content}
+                    {displayContent}
                   </p>
 
                   {/* 底部信息 */}
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-3">
-                      <span>{moodIcons[mood] || '😊'}</span>
+                      <span>{moodIcons[displayMood] || '😊'}</span>
                       <span className="flex items-center gap-1">
                         {getTypeIcon()}
-                        {type === 'photo' ? '照片' : type === 'video' ? '视频' : type === 'audio' ? '语音' : '文字'}
+                        {displayType === 'photo' ? '照片' : displayType === 'video' ? '视频' : displayType === 'audio' ? '语音' : '文字'}
                       </span>
                     </div>
-                    <span>{formatDate(date)}</span>
+                    <span>{formatDate(displayDate)}</span>
                   </div>
 
                   {/* 水印 */}

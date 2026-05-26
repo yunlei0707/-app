@@ -13,7 +13,7 @@ import
 { 
   Moon, Sun, Download, Upload, Trash2, ChevronRight, Heart, LogOut, User, 
   Palette, Tag, Tags, Edit3, Plus, X, Check, Image, Users, Trophy, Sparkles, Copy, Check as CheckIcon, ChevronDown,
-  HelpCircle, Shield, FileText, Info, RotateCcw
+  HelpCircle, Shield, FileText, Info
 } from 'lucide-react';
 import 
 { 
@@ -23,7 +23,6 @@ import
   importAllDataV2, 
   importFromZipStream, 
   importMultipleFiles, 
-  clearAllData, 
   PRESET_AVATARS, 
   getAllBabies, 
   getMomentsByBaby, 
@@ -182,7 +181,6 @@ export function ProfilePage(
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportData, setExportData] = useState('');
   // ZIP导出状态
@@ -1077,22 +1075,6 @@ export function ProfilePage(
     navigate('/login');
   }, [logout, navigate]);
   
-  // 清除缓存
-  const handleClearCache = useCallback(async () => 
-{
-    try {
-      await clearAllData();
-      localStorage.setItem('lastDataUpdate', Date.now().toString());
-      showToast('缓存已清除', 'success');
-      setShowClearConfirm(false);
-      // 刷新页面，回到登录页
-      window.location.reload();
-    } catch (error) {
-      console.error('清除缓存失败:', error);
-      showErrorModalFunc('清除失败', '清除失败', 'error');
-    }
-  }, [showToast]);
-  
   // 保存名场面
   const handleSaveMilestone = useCallback(async () => 
 {
@@ -1212,24 +1194,24 @@ export function ProfilePage(
             <div 
               className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center text-lg overflow-hidden shadow-sm"
             >
-              {v2AccountInfo?.accountData?.avatar ? (
-                v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
-                  <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{v2AccountInfo.accountData.avatar}</span>
-                )
-              ) : currentUser?.avatar ? (
+              {currentUser?.avatar ? (
                 currentUser.avatar.startsWith('data:') || currentUser.avatar.startsWith('http') ? (
                   <img src={currentUser.avatar} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span>{currentUser.avatar}</span>
+                )
+              ) : v2AccountInfo?.accountData?.avatar ? (
+                v2AccountInfo.accountData.avatar.startsWith('data:') || v2AccountInfo.accountData.avatar.startsWith('http') ? (
+                  <img src={v2AccountInfo.accountData.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{v2AccountInfo.accountData.avatar}</span>
                 )
               ) : (
                 <User className="w-5 h-5" />
               )}
             </div>
             <h1 className="text-base font-medium text-gray-600 dark:text-gray-300">
-              {v2AccountInfo?.identityName || currentUser?.name || "我的"}
+              {currentUser?.name || "我的"}
             </h1>
             </div>
             <div className="flex items-center gap-2">
@@ -1258,6 +1240,7 @@ export function ProfilePage(
           <div className="space-y-2">
             {/* 主题设置 */}
             <button
+              type="button"
               onClick={() => setShowThemeModal(true)}
               className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
@@ -1360,18 +1343,6 @@ export function ProfilePage(
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
 
-            {/* 清除缓存 */}
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              <RotateCcw className="w-5 h-5 text-red-400" />
-              <div className="flex-1 text-left">
-                <span className="text-sm text-gray-700 dark:text-white">清除缓存</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">谨慎操作，将清除所有本地数据</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
             {/* 退出登录 */}
             <button
               onClick={handleLogout}
@@ -1461,7 +1432,7 @@ export function ProfilePage(
 {/* 导入数据弹窗 */}
       
 {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4">
           <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
             <h3 className="text-lg font-bold mb-4 dark:text-white">导入数据</h3>
             
@@ -1576,36 +1547,6 @@ export function ProfilePage(
         onCancel={handleCancelImport}
         title="导入数据"
       />
-      
-      {/* 清除缓存确认弹窗 */}
-      
-{showClearConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-2 dark:text-white">⚠️ 清除缓存</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              此操作将清除所有本地数据，包括宝宝信息、时光记录等。清除后无法恢复，建议先导出备份！
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick=
-{() => setShowClearConfirm(false)}
-                className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
-              >
-                取消
-              </button>
-              <button
-                onClick=
-{handleClearCache}
-                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium"
-              >
-                确认清除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       
 {/* 导出数据弹窗 */}
       
@@ -1833,7 +1774,7 @@ export function ProfilePage(
 {/* 主题设置弹窗 */}
       
 {showThemeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4">
           <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
             <h3 className="text-lg font-bold mb-6 dark:text-white">选择主题</h3>
             

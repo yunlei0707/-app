@@ -319,6 +319,13 @@ export function AppProvider({ children }) {
       setCurrentUser(user);
       setIsLoggedIn(true);
     },
+    logout: () => {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('lastRoute');
+      setCurrentUser(null);
+      setIsLoggedIn(false);
+    },
     
     // 方法
     showToast,
