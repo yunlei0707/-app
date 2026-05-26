@@ -1398,7 +1398,7 @@ export function ProfilePage(
             <div className="space-y-2">
             {/* 帮助与反馈 */}
             <button
-              onClick={() => window.open('https://support.coze.cn', '_blank')}
+              onClick={() => showToast('帮助与反馈暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <HelpCircle className="w-5 h-5 text-gray-400" />
@@ -1411,7 +1411,7 @@ export function ProfilePage(
 
             {/* 隐私政策 */}
             <button
-              onClick={() => window.open('https://www.coze.cn/privacy', '_blank')}
+              onClick={() => showToast('隐私政策暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <Shield className="w-5 h-5 text-gray-400" />
@@ -1424,7 +1424,7 @@ export function ProfilePage(
 
             {/* 用户协议 */}
             <button
-              onClick={() => window.open('https://www.coze.cn/terms', '_blank')}
+              onClick={() => showToast('用户协议暂未配置', 'info')}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <FileText className="w-5 h-5 text-gray-400" />

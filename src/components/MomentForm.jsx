@@ -13,7 +13,7 @@ import { shouldUseFileStorage } from '../utils/storageCheck';
 import { STORAGE_CONFIG } from '../config/storage';
 import { saveAudioFile, deleteAudioFile, generateFileId, preInitAudioDB, inferAudioMimeType, isSupportedAudioFormat, getFileExtension, hasFileExtension } from '../utils/audioStorage';
 import { getImageSrc, getPodcastCoverSrc } from '../utils/image';
-import { takePhoto, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, getRecordingStatus, pauseRecording as nativePauseRecording, resumeRecording as nativeResumeRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
+import { takePhoto, deleteMediaFile, startRecording as nativeStartRecording, stopRecording as nativeStopRecording, getRecordingStatus, pauseRecording as nativePauseRecording, resumeRecording as nativeResumeRecording, isNativePlatform, assertMediaArraySchema, normalizeMediaItem, assertNoDisplayUrlInPath } from '../repositories/mediaRepository';
 
 const moodOptions = [
   { value: 'happy', emoji: '😊', label: '开心', score: 2 },
@@ -924,10 +924,10 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
         console.log('[Podcast Upload] IndexedDB音频文件已删除:', podcastAudio.audioFileId);
       }
       // 2. 如果是 OPFS 格式，删除文件
-      else if (podcastAudio.filename) {
-        await deleteVideoFromOPFS(podcastAudio.filename);
-        await deleteFileMetadata(podcastAudio.filename);
-        console.log('[Podcast Upload] OPFS文件已删除:', podcastAudio.filename);
+      else if (podcastAudio.path || podcastAudio.filename) {
+        const mediaPath = podcastAudio.path || podcastAudio.filename;
+        await deleteMediaFile(mediaPath);
+        console.log('[Podcast Upload] OPFS文件已删除:', mediaPath);
       }
       
       // 3. 释放临时预览 URL
@@ -1346,10 +1346,9 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const removePhoto = async (index) => {
     const photo = photos[index];
     // 如果是OPFS存储的照片，删除文件
-    if (photo && photo.filename) {
+    if (photo && (photo.path || photo.filename)) {
       try {
-        await deleteVideoFromOPFS(photo.filename);
-        await deleteFileMetadata(photo.filename);
+        await deleteMediaFile(photo.path || photo.filename);
       } catch (e) {
         console.error('[MomentForm] 删除照片文件失败:', e);
       }
@@ -1360,10 +1359,9 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const removeVideo = async (index) => {
     const video = videos[index];
     // 如果是OPFS存储的视频，删除文件
-    if (video && video.filename) {
+    if (video && (video.path || video.filename)) {
       try {
-        await deleteVideo(video.filename, video.storageType);
-        await deleteFileMetadata(video.filename);
+        await deleteVideo(video.path || video.filename, video.storageType);
       } catch (e) {
         console.error('[MomentForm] 删除视频文件失败:', e);
       }

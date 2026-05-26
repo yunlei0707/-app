@@ -209,7 +209,7 @@ export async function deleteMedia(pathOrHash) {
     // 再删除 native
     // 统一处理
     console.log('[MediaRepository] 删除媒体:', pathOrHash);
-    return true;
+    return await deleteMediaPath(pathOrHash);
   } catch (e) {
     console.warn('[MediaRepository] 删除媒体失败:', e.message);
     return false;
