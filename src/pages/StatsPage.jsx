@@ -115,6 +115,10 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     return (Array.isArray(source) ? source : []).filter(m => !m.isDeleted);
   }, [hasV2Baby, v2Moments, moments]);
 
+  const growthStatMoments = useMemo(() => {
+    return activeMoments.filter(moment => moment.type !== 'podcast');
+  }, [activeMoments]);
+
   const allMoodOptions = useMemo(() => {
     const customOptions = typeof getAllMoods === 'function' ? getAllMoods() : [];
     const merged = [...moodOptions];
@@ -210,7 +214,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     const age = calculateAge(displayBaby.birthDate);
     
     // 和 TimelinePage 一致：有 v2 宝宝用 v2Moments，否则用 moments
-    const mediaByMoment = activeMoments.map(moment => ({
+    const mediaByMoment = growthStatMoments.map(moment => ({
       moment,
       ...normalizeMomentMedia(moment),
     }));
@@ -219,7 +223,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     const photoCount = mediaByMoment.reduce((acc, item) => acc + item.photos.length, 0);
     
     // 名场面数量
-    const milestoneCount = activeMoments.filter(m => m.milestone).length;
+    const milestoneCount = growthStatMoments.filter(m => m.milestone).length;
     
     // 按类型统计
     const getMomentType = ({ moment, photos, videos, audios }) => {
@@ -233,11 +237,10 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     const videoMoments = mediaByMoment.filter(item => getMomentType(item) === 'video').length;
     const diaryMoments = mediaByMoment.filter(item => getMomentType(item) === 'diary').length;
     const audioMoments = mediaByMoment.filter(item => getMomentType(item) === 'audio').length;
-    const podcastMoments = mediaByMoment.filter(item => getMomentType(item) === 'podcast').length;
     
     // 按心情统计
     const moodStats = {};
-    activeMoments.forEach(m => {
+    growthStatMoments.forEach(m => {
       if (m.mood) {
         moodStats[m.mood] = (moodStats[m.mood] || 0) + 1;
       }
@@ -256,7 +259,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     return {
       age,
       photoCount,
-      totalMoments: activeMoments.length,
+      totalMoments: growthStatMoments.length,
       milestoneCount,
       unlockedCapsules,
       lockedCapsules,
@@ -264,20 +267,19 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
       videoMoments,
       diaryMoments,
       audioMoments,
-      podcastMoments,
       topMood,
       moodStats,
     };
-  }, [displayBaby, activeMoments, capsules]);
+  }, [displayBaby, growthStatMoments, capsules]);
 
   // 名场面列表
   const milestones = useMemo(() => {
-    return activeMoments.filter(m => m.milestone).slice(0, 5);
-  }, [activeMoments]);
+    return growthStatMoments.filter(m => m.milestone).slice(0, 5);
+  }, [growthStatMoments]);
 
   // 名场面类型统计
   const milestoneStats = useMemo(() => {
-    const milestoneMoments = activeMoments.filter(m => m.milestone);
+    const milestoneMoments = growthStatMoments.filter(m => m.milestone);
     
     // 获取所有名场面选项
     const allOptions = getAllMilestones();
@@ -316,7 +318,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     
     // 按数量降序
     return result.sort((a, b) => b.count - a.count);
-  }, [activeMoments, getAllMilestones]);
+  }, [growthStatMoments, getAllMilestones]);
 
   // 月龄神预言统计
   const predictionStats = useMemo(() => {
@@ -417,7 +419,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
   };
   
   const moodTrackData = useMemo(() => {
-    const moodMoments = activeMoments.filter(m => m.mood);
+    const moodMoments = growthStatMoments.filter(m => m.mood);
     
     if (moodMoments.length === 0) return { points: [], distribution: {} };
     
@@ -481,7 +483,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
     });
     
     return { points, distribution, groupDays };
-  }, [activeMoments, moodTimeRange, moodScoreMap, allMoodOptions]);
+  }, [growthStatMoments, moodTimeRange, moodScoreMap, allMoodOptions]);
 
   const handleDeleteGrowthRecord = useCallback(async () => {
     const record = growthDisplayRecords.find(item => item.id === deleteConfirmId);
@@ -816,26 +818,6 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
                   />
                 </div>
                 <span className="text-sm font-medium text-gray-700 w-8 text-right">{stats.audioMoments}</span>
-              </div>
-            </div>
-            
-            {/* 播客记录 */}
-            <div 
-              className="flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform rounded-lg p-1 -m-1 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => onStatClick({ type: 'filter', filterType: 'podcast' })}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🎧</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">播客记录</span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="w-24 h-2 bg-cream-100 dark:bg-gray-700 rounded-full overflow-hidden flex-shrink-0">
-                  <div 
-                    className="h-full bg-purple-400 rounded-full"
-                    style={{ width: `${(stats.podcastMoments / Math.max(stats.totalMoments, 1)) * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-700 w-8 text-right">{stats.podcastMoments}</span>
               </div>
             </div>
           </div>

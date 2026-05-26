@@ -1,17 +1,16 @@
 /**
  * 宝宝播客首页
  * 展示所有播客内容，点击显示详情和播放器
- * 支持独立创建播客功能
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Mic, Edit3, Trash2, MoreHorizontal, Share2 } from 'lucide-react';
+import { X, Edit3, Trash2, MoreHorizontal, Share2 } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getMediaObjectSrc, getImageSrc } from '../utils/image';
 import { getMediaDisplaySrc } from '../repositories/mediaRepository.js';
-import { getCurrentBabyInfo, getCurrentTimeline, addMomentToCurrentAccount, updateMomentInCurrentAccount, isSystemAccount } from "../repositories/stateRepository.js";
+import { getCurrentBabyInfo, getCurrentTimeline, updateMomentInCurrentAccount } from "../repositories/stateRepository.js";
 import { getMomentsByBaby } from '../repositories/stateRepository';
 import { MomentForm } from '../components/MomentForm';
 import { UserHeader } from '../components/UserHeader';
@@ -70,7 +69,7 @@ export function PodcastPage() {
   const { currentBaby, showToast } = useApp();
   const [podcasts, setPodcasts] = useState([]);
   const [loading, setLoading] = useState(true);
-  // 创建播客模态框状态
+  // 编辑播客模态框状态
   const [showPodcastForm, setShowPodcastForm] = useState(false);
   const [editingPodcast, setEditingPodcast] = useState(null);
   // 选中的播客（用于显示详情和播放）
@@ -146,16 +145,6 @@ export function PodcastPage() {
     setPodcastAudioUrl(null);
   };
 
-  // 打开创建播客表单
-  const handleCreatePodcast = () => {
-    if (isSystemAccount()) {
-      showToast('系统账号不可添加记录', 'error');
-      return;
-    }
-    setEditingPodcast(null);
-    setShowPodcastForm(true);
-  };
-
   const handleEditPodcast = (moment) => {
     setOpenMenuId(null);
     setSelectedPodcast(null);
@@ -209,6 +198,11 @@ export function PodcastPage() {
   // 保存播客
   const handleSavePodcast = async (podcastData) => {
     try {
+      if (!editingPodcast?.id) {
+        showToast('当前不支持创建播客', 'info');
+        setShowPodcastForm(false);
+        return;
+      }
       // 确保类型是 podcast
       const momentData = {
         ...podcastData,
@@ -216,14 +210,9 @@ export function PodcastPage() {
         isDeleted: false
       };
       
-      // 保存到当前账号
-      if (editingPodcast?.id) {
-        await updateMomentInCurrentAccount(editingPodcast.id, momentData);
-      } else {
-        await addMomentToCurrentAccount(momentData);
-      }
+      await updateMomentInCurrentAccount(editingPodcast.id, momentData);
       
-      showToast('播客创建成功！🎉', 'success');
+      showToast('播客已保存', 'success');
       setShowPodcastForm(false);
       setEditingPodcast(null);
       
@@ -237,15 +226,15 @@ export function PodcastPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-      {/* 创建播客模态框 */}
+      {/* 编辑播客模态框 */}
       {showPodcastForm && (
         <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* 模态框头部 */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-                <Mic className="w-5 h-5 text-primary-500" />
-                创建播客
+                <Edit3 className="w-5 h-5 text-primary-500" />
+                编辑播客
               </h2>
               <button
                 onClick={() => setShowPodcastForm(false)}
@@ -254,9 +243,9 @@ export function PodcastPage() {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            {/* 播客表单 - 强制类型为 podcast */}
+            {/* 播客表单 */}
             <MomentForm
-              moment={editingPodcast || { type: 'podcast' }}
+              moment={editingPodcast}
               onSave={handleSavePodcast}
               babyId={currentBaby?.id || getCurrentBabyInfo()?.id}
               onCancel={() => setShowPodcastForm(false)}
@@ -275,13 +264,7 @@ export function PodcastPage() {
         <h1 className="hidden text-xl font-bold text-gray-800 dark:text-white">
           🎙️ 宝宝播客
         </h1>
-        <button
-          onClick={handleCreatePodcast}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-full shadow-md hover:shadow-lg transition-all active:scale-95"
-        >
-          <Mic className="w-4 h-4" />
-          <span className="text-sm font-medium">创建播客</span>
-        </button>
+        <div className="w-16" />
       </div>
 
       {/* 未来时光专区入口 */}
@@ -315,7 +298,7 @@ export function PodcastPage() {
         ) : podcasts.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <p className="text-4xl mb-3">🎙️</p>
-            <p>还没有播客，点击右上角创建第一个吧~</p>
+            <p>暂无播客内容</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
