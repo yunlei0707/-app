@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { formatDateFriendly, formatTime } from '../utils/dateUtils';
-import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X } from 'lucide-react';
+import { Smile, CloudSun, MapPin, MoreHorizontal, Trash2, Edit3, Mic, Share2, X, Play } from 'lucide-react';
 import { getMediaBlob, getMediaDisplaySrc, normalizeMediaItem, normalizeMomentMedia } from '../repositories/mediaRepository.js';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getImageSrc, getMediaObjectSrc, getPodcastCoverSrc } from '../utils/image';
@@ -35,6 +35,7 @@ function LazyImage({ src, alt, className, onClick }) {
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
       }
     };
   }, [src]);
@@ -159,6 +160,7 @@ function AudioItem({ audio }) {
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
       }
     };
   }, [audio]);
@@ -237,30 +239,64 @@ function AudioItem({ audio }) {
 // 视频子组件 - 支持原生/OPFS/Base64三种模式
 function VideoItem({ video }) {
   const [videoUrl, setVideoUrl] = useState(null);
+  const [coverUrl, setCoverUrl] = useState('');
+  const [activated, setActivated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const objectUrlRef = useRef(null);
+  const coverObjectUrlRef = useRef(null);
+  const media = normalizeMediaItem(video, 'video');
+  const mediaUrl = media?.path || video.url || video.path || video.opfsPath || video.filename;
+  const coverPath = video.cover || video.coverPath || video.thumbnailPath;
 
   // 根据视频类型加载
   useEffect(() => {
-    loadVideo();
+    if (activated) loadVideo();
 
     // 清理：组件卸载时释放Blob URL
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
       }
     };
-  }, [video]);
+  }, [activated, mediaUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCover() {
+      if (!coverPath) {
+        setCoverUrl('');
+        return;
+      }
+      try {
+        const nextCoverUrl = coverPath.startsWith?.('data:') ? coverPath : await getMediaDisplaySrc(coverPath);
+        if (cancelled) return;
+        if (coverObjectUrlRef.current) URL.revokeObjectURL(coverObjectUrlRef.current);
+        coverObjectUrlRef.current = nextCoverUrl?.startsWith('blob:') ? nextCoverUrl : null;
+        setCoverUrl(nextCoverUrl || '');
+      } catch (e) {
+        console.warn('[MomentCard] 视频封面加载失败:', e);
+        if (!cancelled) setCoverUrl('');
+      }
+    }
+
+    loadCover();
+    return () => {
+      cancelled = true;
+      if (coverObjectUrlRef.current) {
+        URL.revokeObjectURL(coverObjectUrlRef.current);
+        coverObjectUrlRef.current = null;
+      }
+    };
+  }, [coverPath]);
 
   const loadVideo = async () => {
     try {
       setLoading(true);
       setError(false);
-      
-      const media = normalizeMediaItem(video, 'video');
-      const mediaUrl = media?.path || video.url || video.path || video.opfsPath || video.filename;
-      
+
       // 1. 优先直接使用Base64 url
       if (mediaUrl && mediaUrl.startsWith('data:')) {
         setVideoUrl(mediaUrl);
@@ -270,6 +306,10 @@ function VideoItem({ video }) {
       // 2. 其他格式统一使用mediaRepository获取显示URL
       if (mediaUrl) {
         const url = await getMediaDisplaySrc(mediaUrl);
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = null;
+        }
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }
@@ -283,8 +323,31 @@ function VideoItem({ video }) {
     }
   };
 
+  if (!activated) {
+    return (
+      <button
+        type="button"
+        onClick={() => setActivated(true)}
+        className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-800 text-white"
+      >
+        {coverUrl ? (
+          <img src={coverUrl} alt="视频封面" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-800">
+            <span className="text-sm text-white/70">视频</span>
+          </div>
+        )}
+        <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+          <span className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow">
+            <Play className="w-6 h-6 text-gray-800 ml-0.5" />
+          </span>
+        </span>
+      </button>
+    );
+  }
+
   return (
-    <div className="relative rounded-xl overflow-hidden bg-gray-800">
+    <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-800">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
           <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent"></div>
@@ -299,7 +362,7 @@ function VideoItem({ video }) {
       {videoUrl && (
         <video
           src={videoUrl}
-          poster={video.cover || video.coverPath}
+          poster={coverUrl || video.cover || video.coverPath}
           controls
           className="w-full h-full object-cover"
           playsInline

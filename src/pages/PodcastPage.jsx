@@ -313,30 +313,10 @@ export function PodcastPage() {
                     </div>
                   )}
                   {/* 播放按钮小图标 */}
-                  <div className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow">
-                    <Play className="w-4 h-4 text-gray-700" />
-                  </div>
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleEditPodcast(moment);
-                      }}
-                      className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow"
-                      title="编辑播客"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-gray-700" />
-                    </button>
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDeletePodcast(moment);
-                      }}
-                      className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow"
-                      title="删除播客"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                    </button>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                    <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow">
+                      <Play className="w-4 h-4 text-gray-700" />
+                    </div>
                   </div>
                 </div>
                 {/* 播客标题 */}
@@ -349,6 +329,30 @@ export function PodcastPage() {
                       {moment.podcast.description}
                     </p>
                   )}
+                  <div className="mt-2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEditPodcast(moment);
+                      }}
+                      className="flex-1 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
+                      title="编辑播客"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeletePodcast(moment);
+                      }}
+                      className="flex-1 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
+                      title="删除播客"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

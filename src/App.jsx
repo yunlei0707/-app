@@ -262,8 +262,10 @@ function AppContent() {
       const babyInfo = getCurrentBabyInfo();
       
       // 如果没有 babyId，优先使用当前选中的普通宝宝ID，其次是v2账号ID
-      if (!momentData.babyId) {
-        momentData.babyId = currentBaby?.id || babyInfo?.id || 'user';
+      if (babyInfo?.id) {
+        momentData.babyId = babyInfo.id;
+      } else if (!momentData.babyId) {
+        momentData.babyId = currentBaby?.id || 'user';
       }
       
       // 确保有 babyId
@@ -273,7 +275,7 @@ function AppContent() {
       
       // 根据账号类型使用不同的添加方法
       // 只有两种情况是v2账号：1)没有普通宝宝 且 2)babyId匹配v2账号id
-      const isV2Account = !currentBaby && babyInfo && babyInfo.id === momentData.babyId;
+      const isV2Account = !!babyInfo;
       
       if (isV2Account && babyInfo?.isSystem) {
         // 系统账号不支持添加

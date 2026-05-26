@@ -258,7 +258,7 @@ export function ProfilePage(
     // 监听 localStorage 变化
     window.addEventListener('storage', updateV2Info);
     // 轮询更新
-    const interval = setInterval(updateV2Info, 500);
+    const interval = setInterval(updateV2Info, 5000);
     
     return () => 
 {
@@ -269,6 +269,11 @@ export function ProfilePage(
   
   // 检查是否为系统账号
   const isSystemAccount = v2AccountInfo?.isSystem === true;
+  const openThemeModal = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    setShowThemeModal(true);
+  }, []);
   
   const generateWaveform = useCallback(() => 
 {
@@ -1241,7 +1246,8 @@ export function ProfilePage(
             {/* 主题设置 */}
             <button
               type="button"
-              onClick={() => setShowThemeModal(true)}
+              onClick={openThemeModal}
+              onPointerUp={openThemeModal}
               className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <Palette className="w-5 h-5 text-primary-500" />
