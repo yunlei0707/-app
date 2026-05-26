@@ -868,7 +868,7 @@ export function ProfilePage(
       // 从剪贴板粘贴的文本 - 已经解析为 data 了
       console.log('[Import] 使用剪贴板数据');
     } else {
-      showErrorModalFunc('提示', '请先选择备份文件或粘贴备份数据', 'warning');
+      showErrorModalFunc('提示', '请先选择备份文件', 'warning');
       return;
     }
 
@@ -1258,7 +1258,11 @@ export function ProfilePage(
 
             {/* 导入数据 */}
             <button
-              onClick={() => setShowImportModal(true)}
+              onClick={() => {
+                setImportMode('merge');
+                setImportText('');
+                setShowImportModal(true);
+              }}
               className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <Upload className="w-6 h-6 text-gray-400" />
@@ -1349,7 +1353,7 @@ export function ProfilePage(
               <Info className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
                 <span className="text-base font-medium text-gray-700 dark:text-white">版本信息</span>
-                <p className="text-sm text-gray-400 dark:text-gray-400">当前版本 v2.53.0</p>
+                <p className="text-sm text-gray-400 dark:text-gray-400">当前版本 v2.54.0</p>
               </div>
             </div>
           </div>
@@ -1371,47 +1375,21 @@ export function ProfilePage(
       
 {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4">
-          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-4 dark:text-white">导入数据</h3>
+          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold dark:text-white">导入数据</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">选择备份文件后，将以合并方式导入。</p>
+            </div>
             
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">导入模式</label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    checked=
-{importMode === 'merge'}
-                    onChange=
-{() => setImportMode('merge')}
-                    className="w-4 h-4 text-primary-500"
-                  />
-                  <div>
-                    <p className="font-medium dark:text-white">合并导入</p>
-                    <p className="text-xs text-gray-400">保留现有数据，只添加新内容</p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    checked=
-{importMode === 'replace'}
-                    onChange=
-{() => setImportMode('replace')}
-                    className="w-4 h-4 text-primary-500"
-                  />
-                  <div>
-                    <p className="font-medium dark:text-white">覆盖导入</p>
-                    <p className="text-xs text-gray-400">删除现有数据，完全替换</p>
-                  </div>
-                </label>
+              <div className="rounded-xl border border-primary-100 dark:border-primary-900/40 bg-primary-50/70 dark:bg-primary-900/20 p-4">
+                <p className="font-semibold text-primary-700 dark:text-primary-300">合并导入</p>
+                <p className="text-sm text-primary-600/80 dark:text-primary-300/80 mt-1">保留现有数据，只添加备份文件中的新内容。</p>
               </div>
             </div>
             
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">选择备份文件</label>
+              <label className="block text-sm font-semibold mb-2 dark:text-gray-300">备份文件</label>
               <input
                 ref=
 {fileInputRef}
@@ -1419,53 +1397,27 @@ export function ProfilePage(
                 accept=".json,.zip"
                 onChange=
 {(e) => { setImportFile(e.target.files?.[0] || null); setImportText(''); }}
-                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 file:cursor-pointer dark:file:bg-primary-900/30 dark:file:text-primary-400"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-3 text-sm text-gray-700 dark:text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 file:cursor-pointer dark:file:bg-primary-900/30 dark:file:text-primary-400"
               />
               
 {importFile && (
-                <p className="text-sm text-green-600 mt-2">已选择: 
-{importFile.name}</p>
+                <p className="text-sm text-green-600 mt-2 truncate">已选择: {importFile.name}</p>
               )}
-              <p className="text-xs text-gray-400 mt-2">支持 .json 和 .zip 格式的备份文件</p>
-              
-              <div className="flex items-center gap-2 my-3">
-                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-600"></div>
-                <span className="text-xs text-gray-400">或者</span>
-                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-600"></div>
-              </div>
-              
-              <label className="block text-sm font-medium mb-2 dark:text-gray-300">从剪贴板粘贴</label>
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick=
-{async () => { try { const text = await navigator.clipboard.readText(); setImportText(text); setImportFile(null); } catch(e) { showErrorModalFunc('提示', '无法读取剪贴板，请手动粘贴', 'warning'); } }}
-                  className="px-3 py-1.5 text-xs bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 dark:bg-primary-900/30 dark:text-primary-400"
-                >
-                  读取剪贴板
-                </button>
-              </div>
-              <textarea
-                value=
-{importText}
-                onChange=
-{(e) => { setImportText(e.target.value); if (e.target.value) setImportFile(null); }}
-                placeholder="粘贴备份数据（JSON格式）..."
-                className="w-full h-24 text-xs p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
-              />
+              <p className="text-xs text-gray-400 mt-2">支持 .zip 备份包，也兼容旧版 .json 文件。</p>
             </div>
             
             <div className="flex gap-3">
               <button
                 onClick=
 {() => { setShowImportModal(false); setImportText(''); }}
-                className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium"
+                className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium"
               >
                 取消
               </button>
               <button
                 onClick={handleImport}
-                disabled={(!importFile && !importText.trim()) || isImporting}
-                className="flex-1 py-2 bg-primary-500 text-white rounded-lg font-medium disabled:opacity-50"
+                disabled={!importFile || isImporting}
+                className="flex-1 py-3 bg-primary-500 text-white rounded-xl font-medium disabled:opacity-50"
               >
                 {isImporting ? '导入中...' : '开始导入'}
               </button>
@@ -1535,56 +1487,36 @@ export function ProfilePage(
       {/* ZIP导出选择弹窗 */}
       {showZipExportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-4 dark:text-white">📦 选择导出方式</h3>
+          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold mb-2 dark:text-white">📦 导出数据</h3>
             
             {!isExporting ? (
               <>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  ZIP格式可同时导出数据和视频文件，推荐使用
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                  将数据和媒体文件打包成 ZIP 备份，导出后可在文件管理中查看。
                 </p>
                 
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleExportZIP(true)}
-                    className="w-full py-3 bg-primary-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
-                  >
-                    <FileText className="w-5 h-5" />
-                    <div className="text-left">
-                      <div>导出为ZIP（推荐）</div>
-                      <div className="text-xs opacity-80">包含所有数据 + 视频文件</div>
+                <div className="rounded-xl border border-primary-100 dark:border-primary-900/40 bg-primary-50/70 dark:bg-primary-900/20 p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <FileText className="w-6 h-6 text-primary-500 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-primary-700 dark:text-primary-300">ZIP 备份包</p>
+                      <p className="text-sm text-primary-600/80 dark:text-primary-300/80 mt-1">包含 JS 数据文件、照片、音频、视频等完整内容。</p>
                     </div>
-                  </button>
-                  
-                  <button
-                    onClick={() => handleExportZIP(false)}
-                    className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors"
-                  >
-                    <FileText className="w-5 h-5" />
-                    <div className="text-left">
-                      <div>仅导出数据</div>
-                      <div className="text-xs opacity-80">不含视频，文件较小</div>
-                    </div>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowZipExportModal(false);
-                      handleExportJSON();
-                    }}
-                    className="w-full py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <Shield className="w-5 h-5" />
-                    <div className="text-left">
-                      <div>传统JSON导出</div>
-                      <div className="text-xs opacity-80">纯文本格式</div>
-                    </div>
-                  </button>
+                  </div>
                 </div>
+
+                <button
+                  onClick={() => handleExportZIP(true)}
+                  className="w-full py-3.5 bg-primary-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary-600 transition-colors"
+                >
+                  <Download className="w-5 h-5" />
+                  开始导出备份
+                </button>
                 
                 <button
                   onClick={handleCancelExport}
-                  className="mt-4 w-full py-2 text-gray-500 dark:text-gray-400 text-sm font-medium"
+                  className="mt-3 w-full py-2.5 text-gray-500 dark:text-gray-400 text-sm font-medium"
                 >
                   取消
                 </button>
