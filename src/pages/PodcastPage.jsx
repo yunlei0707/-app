@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, X, Mic, Edit3, Trash2 } from 'lucide-react';
+import { X, Mic, Edit3, Trash2, MoreHorizontal, Share2 } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { getPodcastPlayUrl } from '../utils/audioStorage';
 import { getMediaObjectSrc, getImageSrc } from '../utils/image';
@@ -79,6 +79,7 @@ export function PodcastPage() {
   const [podcastAudioUrl, setPodcastAudioUrl] = useState(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // 从localStorage或IndexedDB加载所有播客数据
   useEffect(() => {
@@ -156,13 +157,38 @@ export function PodcastPage() {
   };
 
   const handleEditPodcast = (moment) => {
+    setOpenMenuId(null);
     setSelectedPodcast(null);
     setPodcastAudioUrl(null);
     setEditingPodcast(moment);
     setShowPodcastForm(true);
   };
 
+  const handleSharePodcast = async (moment) => {
+    setOpenMenuId(null);
+    const title = moment?.podcast?.title || '未命名播客';
+    const text = moment?.podcast?.description
+      ? `${title}\n${moment.podcast.description}`
+      : title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast('分享内容已复制', 'success');
+      } else {
+        showToast('当前环境暂不支持分享', 'info');
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.warn('分享播客失败:', error);
+        showToast('分享失败，请重试', 'error');
+      }
+    }
+  };
+
   const handleDeletePodcast = async (moment) => {
+    setOpenMenuId(null);
     if (!moment?.id) return;
     if (!window.confirm('确定删除这个播客吗？删除后可在回收站查看。')) return;
     try {
@@ -296,11 +322,53 @@ export function PodcastPage() {
             {podcasts.map(moment => (
               <div 
                 key={moment.id}
-                className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                className="relative bg-white dark:bg-gray-800 rounded-xl overflow-visible shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handlePodcastClick(moment)}
               >
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpenMenuId(openMenuId === moment.id ? null : moment.id);
+                  }}
+                  className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/90 dark:bg-gray-800/90 shadow flex items-center justify-center text-gray-500 hover:bg-white dark:hover:bg-gray-700"
+                  title="更多操作"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {openMenuId === moment.id && (
+                  <div
+                    className="absolute right-2 top-11 z-30 w-32 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleEditPodcast(moment)}
+                      className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>编辑</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSharePodcast(moment)}
+                      className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>分享</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePodcast(moment)}
+                      className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>删除</span>
+                    </button>
+                  </div>
+                )}
                 {/* 播客封面 */}
-                <div className="aspect-square relative">
+                <div className="aspect-square relative overflow-hidden rounded-t-xl">
                   {moment.podcast.cover ? (
                     <PodcastCoverImage
                       cover={moment.podcast.cover}
@@ -313,11 +381,6 @@ export function PodcastPage() {
                     </div>
                   )}
                   {/* 播放按钮小图标 */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                    <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow">
-                      <Play className="w-4 h-4 text-gray-700" />
-                    </div>
-                  </div>
                 </div>
                 {/* 播客标题 */}
                 <div className="p-2">
@@ -329,7 +392,7 @@ export function PodcastPage() {
                       {moment.podcast.description}
                     </p>
                   )}
-                  <div className="mt-2 flex items-center gap-1">
+                  <div className="hidden mt-2 items-center gap-1">
                     <button
                       type="button"
                       onClick={(event) => {

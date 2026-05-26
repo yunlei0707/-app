@@ -732,12 +732,23 @@ export async function deleteCustomMood(id) {
  */
 export function applyThemePreset(preset) {
   const colors = {
-    pink: { primary: '#EC4899', primaryLight: '#FDF2F8' },
-    blue: { primary: '#3B82F6', primaryLight: '#EFF6FF' },
-    green: { primary: '#10B981', primaryLight: '#F0FDF4' },
-    purple: { primary: '#8B5CF6', primaryLight: '#F5F3FF' },
+    pink: { primary: '#FF7B70', primaryLight: '#FFB5B0', primaryDark: '#FF5247', warm: '#FFC997', warmLight: '#FFEBD6', bg: '#FFFCF8', bgSecondary: '#FFF8F0' },
+    forest: { primary: '#34D399', primaryLight: '#6EE7B7', primaryDark: '#10B981', warm: '#A7F3D0', warmLight: '#D1FAE5', bg: '#F0FDF4', bgSecondary: '#ECFDF5' },
+    ocean: { primary: '#60A5FA', primaryLight: '#93C5FD', primaryDark: '#3B82F6', warm: '#BFDBFE', warmLight: '#DBEAFE', bg: '#EFF6FF', bgSecondary: '#F0F9FF' },
+    lavender: { primary: '#A78BFA', primaryLight: '#C4B5FD', primaryDark: '#8B5CF6', warm: '#DDD6FE', warmLight: '#EDE9FE', bg: '#FAF5FF', bgSecondary: '#F5F3FF' },
+    sunshine: { primary: '#FBBF24', primaryLight: '#FCD34D', primaryDark: '#F59E0B', warm: '#FDE68A', warmLight: '#FEF3C7', bg: '#FFFBEB', bgSecondary: '#FFFBEB' },
+    blue: { primary: '#60A5FA', primaryLight: '#93C5FD', primaryDark: '#3B82F6', warm: '#BFDBFE', warmLight: '#DBEAFE', bg: '#EFF6FF', bgSecondary: '#F0F9FF' },
+    green: { primary: '#34D399', primaryLight: '#6EE7B7', primaryDark: '#10B981', warm: '#A7F3D0', warmLight: '#D1FAE5', bg: '#F0FDF4', bgSecondary: '#ECFDF5' },
+    purple: { primary: '#A78BFA', primaryLight: '#C4B5FD', primaryDark: '#8B5CF6', warm: '#DDD6FE', warmLight: '#EDE9FE', bg: '#FAF5FF', bgSecondary: '#F5F3FF' },
   };
   const color = colors[preset] || colors.pink;
+  document.documentElement.style.setProperty('--color-primary', color.primary);
+  document.documentElement.style.setProperty('--color-primary-light', color.primaryLight);
+  document.documentElement.style.setProperty('--color-primary-dark', color.primaryDark);
+  document.documentElement.style.setProperty('--color-warm', color.warm);
+  document.documentElement.style.setProperty('--color-warm-light', color.warmLight);
+  document.documentElement.style.setProperty('--color-bg', color.bg);
+  document.documentElement.style.setProperty('--color-bg-secondary', color.bgSecondary);
   document.documentElement.style.setProperty('--primary-color', color.primary);
   document.documentElement.style.setProperty('--primary-light', color.primaryLight);
 }
@@ -746,6 +757,12 @@ export function applyThemePreset(preset) {
  * 应用自定义主题色
  */
 export function applyCustomTheme(color) {
+  document.documentElement.style.setProperty('--color-primary', color);
+  document.documentElement.style.setProperty('--color-primary-light', color + '80');
+  document.documentElement.style.setProperty('--color-primary-dark', color);
+  document.documentElement.style.setProperty('--color-warm', color + '66');
+  document.documentElement.style.setProperty('--color-warm-light', color + '22');
+  document.documentElement.style.setProperty('--color-bg-secondary', color + '10');
   document.documentElement.style.setProperty('--primary-color', color);
   // 生成浅色版本（简单的透明度处理）
   document.documentElement.style.setProperty('--primary-light', color + '15');
