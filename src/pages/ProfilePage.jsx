@@ -1239,74 +1239,6 @@ export function ProfilePage(
       {/* 功能菜单 - 分组结构 */}
       <main className="px-4 -mt-4 max-w-lg mx-auto space-y-3">
         
-        {/* 个性化分组 */}
-        <div>
-          <p className="text-sm font-medium text-gray-500 mb-2 px-1">个性化</p>
-          <div className="space-y-2">
-            {/* 主题设置 */}
-            <button
-              type="button"
-              onClick={openThemeModal}
-              onPointerUp={openThemeModal}
-              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              <Palette className="w-5 h-5 text-primary-500" />
-              <div className="flex-1 text-left">
-                <span className="text-sm dark:text-white">主题设置</span>
-                <p className="text-xs text-gray-400 dark:text-gray-400">自定义应用颜色主题</p>
-              </div>
-            </button>
-
-            {/* 标签自定义 */}
-            <button
-              onClick={() => setShowTagGroup(!showTagGroup)}
-              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              <Tags className="w-5 h-5 text-amber-500" />
-              <div className="flex-1 text-left">
-                <span className="text-sm dark:text-white">标签自定义</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400">管理名场面、心情、虚拟时光标签</p>
-              </div>
-              <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showTagGroup ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showTagGroup && (
-              <div className="space-y-2 pl-4">
-                {/* 名场面标签自定义 */}
-                <button
-                  onClick={() => {
-                    setEditingMilestone(null);
-                    setMilestoneForm({ label: '', emoji: '⭐', color: '#FF7B70' });
-                    setShowMilestoneModal(true);
-                  }}
-                  className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  <span className="text-sm text-primary-500">⭐</span>
-                  <div className="flex-1 text-left">
-                    <span className="text-sm dark:text-white">名场面标签自定义</span>
-                  </div>
-                </button>
-
-                {/* 心情标签自定义 */}
-                <button
-                  onClick={() => {
-                    setEditingMood(null);
-                    setMoodForm({ label: '', emoji: '😊' });
-                    setShowMoodModal(true);
-                  }}
-                  className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  <span className="text-sm text-amber-500">😊</span>
-                  <div className="flex-1 text-left">
-                    <span className="font-medium text-sm dark:text-white">心情标签自定义</span>
-                  </div>
-                </button>
-
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* 数据管理分组 */}
         <div className="mt-4">
           <p className="text-sm font-medium text-gray-500 mb-2 px-1">数据管理</p>
@@ -1779,7 +1711,7 @@ export function ProfilePage(
       
 {/* 主题设置弹窗 */}
       
-{showThemeModal && (
+{false && showThemeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4">
           <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6">
             <h3 className="text-lg font-bold mb-6 dark:text-white">选择主题</h3>
@@ -1843,7 +1775,7 @@ export function ProfilePage(
       
 {/* 名场面编辑弹窗 */}
       
-{showMilestoneModal && (
+{false && showMilestoneModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-6 dark:text-white">
@@ -1982,7 +1914,7 @@ export function ProfilePage(
       
 {/* 心情标签编辑弹窗 */}
       
-{showMoodModal && (
+{false && showMoodModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-6 dark:text-white">
