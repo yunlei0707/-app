@@ -95,6 +95,8 @@ const weatherOptions = [
   { value: 'rainy', emoji: '🌧️', label: '雨天' },
 ];
 
+const tagExamples = ['第一次', '生日', '全家福'];
+
 // 格式化时间
 const formatTime2 = (seconds) => {
   const mins = Math.floor(seconds / 60);
@@ -110,7 +112,7 @@ const withTimeout = (promise, timeoutMs, message) => Promise.race([
 ]);
 
 export function MomentForm({ moment, onSave, onCancel, babyId }) {
-  const { getAllMilestones, getAllMoods, currentBaby, showToast } = useApp();
+  const { getAllMilestones, getAllMoods, addMilestone, currentBaby, showToast } = useApp();
   const [type, setType] = useState(moment?.type || 'photo');
   // 是否强制使用播客类型（隐藏类型选择）
   const isPodcastOnly = moment?.type === 'podcast' && !moment?.id;
@@ -130,6 +132,8 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const [milestone, setMilestone] = useState(moment?.milestone || '');
   const [milestoneLabel, setMilestoneLabel] = useState(moment?.milestoneLabel || '');
   const [milestoneEmoji, setMilestoneEmoji] = useState(moment?.milestoneEmoji || '');
+  const [showTagCreator, setShowTagCreator] = useState(false);
+  const [tagInput, setTagInput] = useState('');
   const [date, setDate] = useState(
     moment?.date 
       ? (() => { const d = new Date(moment.date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()
@@ -167,8 +171,64 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
   const markerRef = useRef(null);
   const geocoderRef = useRef(null);
 
-  // 获取所有名场面选项
-  const milestoneOptions = getAllMilestones();
+  // 获取所有标签选项
+  const milestoneOptions = useMemo(() => (
+    typeof getAllMilestones === 'function' ? getAllMilestones() : []
+  ), [getAllMilestones]);
+  const selectedTagOption = useMemo(() => (
+    milestoneOptions.find(option => option.id === milestone)
+  ), [milestone, milestoneOptions]);
+  const selectedTagLabel = milestoneLabel || selectedTagOption?.label || '';
+  const selectedTagEmoji = milestoneEmoji || selectedTagOption?.emoji || '✨';
+
+  const selectTag = useCallback((option) => {
+    if (!option) return;
+    setMilestone(option.id);
+    setMilestoneLabel(option.label);
+    setMilestoneEmoji(option.emoji || '✨');
+  }, []);
+
+  const clearTag = useCallback(() => {
+    setMilestone('');
+    setMilestoneLabel('');
+    setMilestoneEmoji('');
+  }, []);
+
+  const createOrSelectTag = useCallback(async (rawName) => {
+    const name = String(rawName || '').trim();
+    if (!name) return;
+
+    try {
+      const existing = milestoneOptions.find(option => (
+        option.id === name ||
+        option.label === name ||
+        option.shortLabel === name
+      ));
+
+      if (existing) {
+        selectTag(existing);
+      } else {
+        const newTag = {
+          id: `tag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          label: name,
+          shortLabel: name,
+          emoji: '✨',
+          color: '#F97316',
+        };
+        if (typeof addMilestone === 'function') {
+          await addMilestone(newTag);
+        }
+        selectTag(newTag);
+      }
+
+      setTagInput('');
+      setShowTagCreator(false);
+    } catch (error) {
+      console.error('[MomentForm] 添加标签失败:', error);
+      showToast?.('标签保存失败，请重试', 'error');
+    }
+  }, [addMilestone, milestoneOptions, selectTag, showToast]);
+
   const allMoodOptions = useMemo(() => {
     const contextMoods = typeof getAllMoods === 'function' ? getAllMoods() : [];
     const existing = new Set(moodOptions.map(option => option.value));
@@ -1620,36 +1680,68 @@ export function MomentForm({ moment, onSave, onCancel, babyId }) {
           />
         </div>
         
-        {/* 名场面 - 使用自定义名场面列表 */}
+        {/* 标签 */}
         <div>
           <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
             <Star className="w-4 h-4 inline mr-1" />
-            名场面标签
+            标签
           </label>
-          <div className="flex flex-wrap gap-2">
-            {milestoneOptions.map(option => (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedTagLabel && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm bg-primary-500 text-white">
+                  <span>{selectedTagEmoji}</span>
+                  <span>{selectedTagLabel}</span>
+                  <button
+                    type="button"
+                    onClick={clearTag}
+                    className="ml-1 rounded-full hover:bg-white/20"
+                    aria-label="移除标签"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
               <button
-                key={option.id}
-                onClick={() => {
-                  if (milestone === option.id) {
-                    setMilestone('');
-                    setMilestoneLabel('');
-                    setMilestoneEmoji('');
-                  } else {
-                    setMilestone(option.id);
-                    setMilestoneLabel(option.label);
-                    setMilestoneEmoji(option.emoji);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                  milestone === option.id
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-cream-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                }`}
+                type="button"
+                onClick={() => setShowTagCreator(prev => !prev)}
+                className="px-3 py-1.5 rounded-full text-sm bg-cream-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 active:scale-[0.98]"
               >
-                {option.emoji} {option.label}
+                + 添加标签
               </button>
-            ))}
+            </div>
+
+            {showTagCreator && (
+              <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="输入标签名..."
+                  className="w-full px-0 pb-3 text-base bg-transparent border-0 border-b border-gray-200 dark:border-gray-700 focus:ring-0 focus:border-primary-400 outline-none"
+                />
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {tagExamples.map(example => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => createOrSelectTag(example)}
+                      className="px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-200 active:scale-[0.98]"
+                    >
+                      + {example}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => createOrSelectTag(tagInput)}
+                  disabled={!tagInput.trim()}
+                  className="mt-6 w-full py-3 rounded-xl text-white font-medium bg-primary-500 disabled:bg-gray-300 disabled:text-white"
+                >
+                  确认
+                </button>
+              </div>
+            )}
           </div>
         </div>
         

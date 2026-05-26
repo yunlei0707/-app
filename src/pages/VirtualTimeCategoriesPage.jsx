@@ -6,7 +6,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Edit3, Trash2, ChevronRight, X, Check, Folder, FileText, Sparkles } from 'lucide-react';
-import { BabyHeader } from '../components/BabyHeader';
 import { useApp } from '../store/AppContext';
 import {
   getVirtualTimeCategories,
@@ -231,9 +230,6 @@ export function VirtualTimeCategoriesPage() {
           <h1 className="flex-1 text-center font-bold text-gray-800 dark:text-white pr-10">未来宝宝自定义</h1>
         </div>
       </header>
-      
-      {/* 账号切换器 */}
-      <BabyHeader />
       
       {/* 内容 */}
       <main className="px-4 py-4 max-w-lg mx-auto space-y-3">

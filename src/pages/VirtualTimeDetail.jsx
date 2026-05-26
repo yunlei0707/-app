@@ -8,7 +8,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Clock, Plus, Trash2, X, Share2, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { virtualTimeTopics } from '../data/virtualTimeData';
-import { BabyHeader } from '../components/BabyHeader';
 import { useApp } from '../store/AppContext';
 import {
   getVirtualTimeContents,
@@ -276,9 +275,6 @@ export function VirtualTimeDetail() {
           <p className="text-white/80 text-sm">{topic.description}</p>
         </div>
       </header>
-      
-      {/* 账号切换器 */}
-      <BabyHeader />
       
       {/* 添加按钮 */}
       {false && !isSystemAccount && (

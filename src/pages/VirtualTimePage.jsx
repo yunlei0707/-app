@@ -9,7 +9,6 @@ import { Sparkles, Share2, Mail } from 'lucide-react';
 import { virtualTimeTopics } from '../data/virtualTimeData';
 import { useApp } from '../store/AppContext';
 import { ShareCard } from '../components/ShareCard';
-import { BabyHeader } from '../components/BabyHeader';
 import { BabyLetter } from '../components/BabyLetter';
 import { 
   getCurrentV2Account, 
@@ -242,8 +241,6 @@ export function VirtualTimePage() {
             </button>
             </div>
           </div>
-          
-          <BabyHeader />
         </div>
       </header>
 

@@ -7,7 +7,6 @@
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
-import { BabyHeader } from '../components/BabyHeader';
 import { MomentCard } from '../components/MomentCard';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { ShareCard } from '../components/ShareCard';
@@ -15,7 +14,7 @@ import { groupByYearAndMonth } from '../utils/dateUtils';
 // ✅ 引入 Zustand 状态管理用于分页加载
 import { useMomentStore } from '../store/momentStore';
 import { PredictionPage } from '../components/PredictionPage';
-import { Plus, Sparkles, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { deleteUnreferencedMomentMedia } from '../repositories/mediaRepository.js';
 import { UserHeader } from '../components/UserHeader';
 import { 
@@ -39,23 +38,22 @@ import { mergeMoments, shouldMergeDisplay, isV1Moment, getDataOrigin } from '../
 
 // 类型筛选选项 - 移除播客，播客功能独立到专门页面
 const typeFilters = [
-  { value: '', label: '📚 类型多' },
+  { value: 'photo', label: '照片' },
+  { value: 'video', label: '视频' },
+  { value: 'audio', label: '语音' },
+  { value: 'diary', label: '文字' },
+];
+
+const defaultTypeFilter = {
+  value: '',
+  label: '记录类型',
+};
+
+const legacyTypeFilters = [
   { value: 'photo', label: '📷 照片' },
   { value: 'video', label: '🎬 视频' },
   { value: 'audio', label: '🎤 语音' },
   { value: 'diary', label: '✏️ 文字' },
-];
-
-// 预设心情选项（确保总是有值）
-const DEFAULT_MOODS_INLINE = [
-  { id: 'happy', label: '开心', emoji: '😊' },
-  { id: 'excited', label: '兴奋', emoji: '🎉' },
-  { id: 'touched', label: '感动', emoji: '🥰' },
-  { id: 'calm', label: '平静', emoji: '😌' },
-  { id: 'sleepy', label: '困倦', emoji: '😴' },
-  { id: 'sad', label: '难过', emoji: '😢' },
-  { id: 'angry', label: '生气', emoji: '😠' },
-  { id: 'sick', label: '不舒服', emoji: '🤒' },
 ];
 
 // 预设名场面选项（确保总是有值）
@@ -74,14 +72,11 @@ const DEFAULT_MILESTONES_INLINE = [
 export function TimelinePage({ 
   onAddMoment, 
   onEditMoment, 
-  onSwitchBaby, 
-  onAddBaby, 
   filterType, 
-  filterMood, 
   filterMilestone,
   onClearFilters 
 }) {
-  const { moments, setMoments, currentBaby, currentUser, showToast, getAllMilestones, getAllMoods } = useApp();
+  const { setMoments, currentBaby, showToast, getAllMilestones } = useApp();
   
   // v2 账号系统状态
   const [v2Moments, setV2Moments] = useState([]);
@@ -219,100 +214,67 @@ export function TimelinePage({
     };
   }, []);
   
-  // 获取所有名场面选项（包含预设和自定义）
-  // ✅ 修复：确保名场面下拉框有子选项显示
+  // 获取所有标签选项：只展示用户自定义标签，以及已保存记录里实际用过的标签
   const milestoneFilters = useMemo(() => {
     try {
-      // 优先使用内置的预设选项，确保总有内容显示
-      let allMilestones = DEFAULT_MILESTONES_INLINE;
-      
-      // 尝试从 Context 获取（包含自定义选项）
+      const defaultIds = new Set(DEFAULT_MILESTONES_INLINE.map(m => m.id));
+      const options = new Map();
+      const addOption = (item) => {
+        if (!item) return;
+        const value = item.id || item.value || item.label;
+        const label = item.label || item.shortLabel || value;
+        if (!value || !label) return;
+        options.set(value, {
+          value,
+          label,
+          emoji: item.emoji || '✨',
+          color: item.color || '#8B5CF6',
+          shortLabel: item.shortLabel || label,
+        });
+      };
+
       if (typeof getAllMilestones === 'function') {
         const contextMilestones = getAllMilestones();
         if (Array.isArray(contextMilestones) && contextMilestones.length > 0) {
-          // 合并去重
-          const existingIds = new Set(DEFAULT_MILESTONES_INLINE.map(m => m.id));
-          const customMilestones = contextMilestones.filter(m => !existingIds.has(m.id));
-          allMilestones = [...DEFAULT_MILESTONES_INLINE, ...customMilestones];
+          contextMilestones
+            .filter(m => m?.id && !defaultIds.has(m.id))
+            .forEach(addOption);
         }
       }
-      
-      return [
-        { value: '', label: '全部', emoji: '✨', color: '#8B5CF6', shortLabel: '全部' },
-        ...allMilestones.map(m => ({
-          value: m.id,
-          label: m.label,
-          emoji: m.emoji,
-          color: m.color || '#8B5CF6',
-          shortLabel: m.shortLabel || m.label
-        }))
-      ];
-    } catch (error) {
-      console.error('[TimelinePage] 获取名场面选项出错:', error);
-      // 出错时也返回默认选项
-      return [
-        { value: '', label: '全部', emoji: '✨', color: '#8B5CF6', shortLabel: '全部' },
-        ...DEFAULT_MILESTONES_INLINE.map(m => ({
-          value: m.id,
-          label: m.label,
-          emoji: m.emoji,
-          color: m.color || '#8B5CF6',
-          shortLabel: m.shortLabel || m.label
-        }))
-      ];
-    }
-  }, [getAllMilestones]);
 
-  // 获取所有心情选项（包含预设和自定义）
-  // ✅ 修复：确保心情下拉框有子选项显示
-  const moodFilters = useMemo(() => {
-    try {
-      // 优先使用内置的预设选项，确保总有内容显示
-      let allMoods = DEFAULT_MOODS_INLINE;
-      
-      // 尝试从 Context 获取（包含自定义选项）
-      if (typeof getAllMoods === 'function') {
-        const contextMoods = getAllMoods();
-        if (Array.isArray(contextMoods) && contextMoods.length > 0) {
-          // 合并去重
-          const existingIds = new Set(DEFAULT_MOODS_INLINE.map(m => m.id));
-          const customMoods = contextMoods.filter(m => !existingIds.has(m.id));
-          allMoods = [...DEFAULT_MOODS_INLINE, ...customMoods];
+      const allSourceMoments = [
+        ...(Array.isArray(storeMoments) ? storeMoments : []),
+        ...(Array.isArray(v2Moments) ? v2Moments : []),
+      ];
+      allSourceMoments.forEach(moment => {
+        const value = moment?.milestone || moment?.milestoneLabel;
+        const label = moment?.milestoneLabel || moment?.milestone;
+        if (value && label) {
+          addOption({
+            id: value,
+            label,
+            shortLabel: label,
+            emoji: moment?.milestoneEmoji || '✨',
+          });
         }
-      }
+      });
       
-      return [
-        { value: '', label: '😊 心情好' },
-        ...allMoods.map(m => ({
-          value: m.id,
-          label: `${m.emoji || '😊'} ${m.label}`
-        }))
-      ];
+      return Array.from(options.values());
     } catch (error) {
-      console.error('[TimelinePage] 获取心情选项出错:', error);
-      // 出错时也返回默认选项
-      return [
-        { value: '', label: '😊 心情好' },
-        ...DEFAULT_MOODS_INLINE.map(m => ({
-          value: m.id,
-          label: `${m.emoji || '😊'} ${m.label}`
-        }))
-      ];
+      console.error('[TimelinePage] 获取标签选项出错:', error);
+      return [];
     }
-  }, [getAllMoods]);
+  }, [getAllMilestones, storeMoments, v2Moments]);
   const [selectedPhotos, setSelectedPhotos] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedMilestone, setSelectedMilestone] = useState('');
   const [selectedType, setSelectedType] = useState('');
-  const [selectedMood, setSelectedMood] = useState('');
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showMoodDropdown, setShowMoodDropdown] = useState(false);
   const [showPrediction, setShowPrediction] = useState(false);
   const [sharingMoment, setSharingMoment] = useState(null);
   const milestoneDropdownRef = useRef(null);
   const typeDropdownRef = useRef(null);
-  const moodDropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
 
   
@@ -330,13 +292,10 @@ export function TimelinePage({
     if (filterType && filterType !== 'specific' && filterType !== '') {
       setSelectedType(filterType);
     }
-    if (filterMood) {
-      setSelectedMood(filterMood);
-    }
     if (filterMilestone) {
       setSelectedMilestone(filterMilestone);
     }
-  }, [filterType, filterMood, filterMilestone]);
+  }, [filterType, filterMilestone]);
 
   // 点击外部关闭所有下拉框
   useEffect(() => {
@@ -349,9 +308,6 @@ export function TimelinePage({
       }
       if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target)) {
         setShowTypeDropdown(false);
-      }
-      if (moodDropdownRef.current && !moodDropdownRef.current.contains(event.target)) {
-        setShowMoodDropdown(false);
       }
     };
 
@@ -454,11 +410,8 @@ export function TimelinePage({
       if (selectedType) {
         result = result.filter(m => m.type === selectedType);
       }
-      if (selectedMood) {
-        result = result.filter(m => m.mood === selectedMood);
-      }
       if (selectedMilestone) {
-        result = result.filter(m => m.milestone === selectedMilestone);
+        result = result.filter(m => m.milestone === selectedMilestone || m.milestoneLabel === selectedMilestone);
       }
       
       return result;
@@ -467,7 +420,7 @@ export function TimelinePage({
       return [];
     }
     // ✅ 添加 currentAccountId 和 storeMoments 到依赖，确保账号切换和数据更新时重新计算
-  }, [v2Moments, storeMoments, selectedType, selectedMood, selectedMilestone, currentAccountId]);
+  }, [v2Moments, storeMoments, selectedType, selectedMilestone, currentAccountId]);
   
   // 按年月分组 - 传入宝宝生日以显示相对时间
   const groupedMoments = useMemo(() => {
@@ -493,19 +446,15 @@ export function TimelinePage({
   
   // 是否有激活的筛选条件
   const hasActiveFilters = useMemo(() => {
-    return selectedType || selectedMood || selectedMilestone;
-  }, [selectedType, selectedMood, selectedMilestone]);
+    return selectedType || selectedMilestone;
+  }, [selectedType, selectedMilestone]);
   
   // 获取当前筛选条件的显示文本
   const getActiveFilterLabel = () => {
     const labels = [];
     if (selectedType) {
-      const typeFilter = typeFilters.find(f => f.value === selectedType);
+      const typeFilter = legacyTypeFilters.find(f => f.value === selectedType);
       if (typeFilter) labels.push(typeFilter.label);
-    }
-    if (selectedMood) {
-      const moodFilter = moodFilters.find(f => f.value === selectedMood);
-      if (moodFilter) labels.push(moodFilter.label);
     }
     if (selectedMilestone) {
       const milestoneFilter = milestoneFilters.find(f => f.value === selectedMilestone);
@@ -517,7 +466,6 @@ export function TimelinePage({
   // 清除所有筛选
   const handleClearAllFilters = () => {
     setSelectedType('');
-    setSelectedMood('');
     setSelectedMilestone('');
     onClearFilters?.();
   };
@@ -645,28 +593,26 @@ export function TimelinePage({
   // 统计
   const totalCount = filteredMoments.length;
   const filteredCount = filteredMoments.length;
-  const activeFilterPanel = showTypeDropdown ? 'type' : showMoodDropdown ? 'mood' : showMilestoneDropdown ? 'milestone' : null;
+  const activeFilterPanel = showTypeDropdown ? 'type' : showMilestoneDropdown ? 'milestone' : null;
   const filterPanelOptions = activeFilterPanel === 'type'
     ? typeFilters
-    : activeFilterPanel === 'mood'
-      ? moodFilters
-      : activeFilterPanel === 'milestone'
-        ? milestoneFilters
-        : [];
+    : activeFilterPanel === 'milestone'
+      ? milestoneFilters
+      : [];
   const selectFilterOption = (value) => {
     if (activeFilterPanel === 'type') setSelectedType(value);
-    if (activeFilterPanel === 'mood') setSelectedMood(value);
     if (activeFilterPanel === 'milestone') setSelectedMilestone(value);
     setShowTypeDropdown(false);
-    setShowMoodDropdown(false);
     setShowMilestoneDropdown(false);
   };
   const isSelectedFilterOption = (value) => {
     if (activeFilterPanel === 'type') return selectedType === value;
-    if (activeFilterPanel === 'mood') return selectedMood === value;
     if (activeFilterPanel === 'milestone') return selectedMilestone === value;
     return false;
   };
+  const selectedMilestoneFilter = selectedMilestone
+    ? milestoneFilters.find(f => f.value === selectedMilestone)
+    : null;
 
   return (
     <div 
@@ -747,138 +693,54 @@ export function TimelinePage({
             </div>
           </div>
           
-          {/* 第二行：宝宝切换组件 */}
-          <BabyHeader 
-            baby={currentBaby} 
-            v2Baby={v2AccountInfo?.accountData}
-            onSwitchBaby={onSwitchBaby} 
-          />
-          
-          {/* 第三行：筛选栏 - 三个标签保持同一行 */}
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {/* 类型筛选 */}
+          {/* 第二行：筛选栏 */}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {/* 记录类型筛选 */}
             <div ref={typeDropdownRef} className="relative z-50 min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowTypeDropdown(!showTypeDropdown);
+                  setShowMilestoneDropdown(false);
                 }}
                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
               >
                 {selectedType ? (
-                  typeFilters.find(f => f.value === selectedType)?.label
+                  legacyTypeFilters.find(f => f.value === selectedType)?.label
                 ) : (
-                  '📚 类型多'
+                  defaultTypeFilter.label
                 )}
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
               </button>
-              
-              {false && showTypeDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
-                  {typeFilters.map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedType(filter.value);
-                        setShowTypeDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                        selectedType === filter.value ? 'bg-primary-50 text-primary-600' : ''
-                      }`}
-                    >
-                      <span className="text-sm">{filter.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             
-            {/* 心情筛选 */}
-            <div ref={moodDropdownRef} className="relative z-50 min-w-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowMoodDropdown(!showMoodDropdown);
-                }}
-                className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
-              >
-                {selectedMood ? (
-                  moodFilters.find(f => f.value === selectedMood)?.label
-                ) : (
-                  '😊 心情好'
-                )}
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showMoodDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {false && showMoodDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
-                  {moodFilters.map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMood(filter.value);
-                        setShowMoodDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                        selectedMood === filter.value ? 'bg-primary-50 text-primary-600' : ''
-                      }`}
-                    >
-                      <span className="text-sm">{filter.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* 名场面筛选 */}
+            {/* 我的标签筛选 */}
             <div ref={milestoneDropdownRef} className="relative z-50 min-w-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMilestoneDropdown(!showMilestoneDropdown);
+                  setShowTypeDropdown(false);
                 }}
                 className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-sm bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 whitespace-nowrap overflow-hidden"
               >
                 {selectedMilestone ? (
                   <>
-                    {milestoneFilters.find(f => f.value === selectedMilestone)?.emoji}
-                    {milestoneFilters.find(f => f.value === selectedMilestone)?.shortLabel}
+                    {selectedMilestoneFilter?.emoji || '✨'}
+                    {selectedMilestoneFilter?.shortLabel || selectedMilestone}
                   </>
                 ) : (
-                  '✨ 名场面'
+                  '我的标签'
                 )}
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showMilestoneDropdown ? 'rotate-180' : ''}`} />
               </button>
-              
-              {false && showMilestoneDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-[100] overflow-hidden">
-                  {milestoneFilters.map(filter => (
-                    <button
-                      key={filter.value}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMilestone(filter.value);
-                        setShowMilestoneDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                        selectedMilestone === filter.value ? 'bg-primary-50 text-primary-600' : ''
-                      }`}
-                    >
-                      <span>{filter.emoji}</span>
-                      <span className="text-sm">{filter.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
             
             {/* 清除筛选 */}
             {hasActiveFilters && (
               <button
                 onClick={handleClearAllFilters}
-                className="col-span-3 flex items-center justify-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+                className="col-span-2 flex items-center justify-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
               >
                 <X className="w-4 h-4" />
                 清除
@@ -887,7 +749,7 @@ export function TimelinePage({
           </div>
           
           {/* 第四行：添加记录按钮 - 宽度和筛选栏左右对齐 */}
-          {activeFilterPanel && (
+          {activeFilterPanel && filterPanelOptions.length > 0 && (
             <div ref={filterPanelRef} className="mt-3 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
               {filterPanelOptions.map(option => (
                 <button

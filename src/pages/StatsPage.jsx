@@ -5,7 +5,6 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
-import { BabyHeader } from '../components/BabyHeader';
 import { calculateAge } from '../utils/dateUtils';
 import { getMomentsByBaby, getCapsulesByBaby } from '../repositories/stateRepository';
 import { Gift, TrendingUp, Camera, Star, BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Edit3, BarChart2 } from 'lucide-react'
@@ -617,8 +616,6 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
               <TimeBlindBox moments={activeMoments} babyName={v2BabyInfo?.nickname || v2BabyInfo?.name || displayBaby?.name || '宝宝'} />
             </div>
           </div>
-          
-          <BabyHeader />
           
           {/* 系统账号提示 */}
           {isSystemAccount && (
