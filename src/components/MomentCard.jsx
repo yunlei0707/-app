@@ -20,12 +20,21 @@ function shouldLoadMediaBlob(path) {
     path.includes('/_capacitor_file_');
 }
 
+function getPodcastAudioKey(audio) {
+  if (!audio) return '';
+  if (typeof audio === 'string') return audio;
+  return audio.audioFileId || audio.fileId || audio.path || audio.url || audio.filename || audio.name || '';
+}
+
 // 图片组件 - 支持所有媒体格式，自动归一化
 function LazyImage({ src, alt, className, onClick }) {
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const objectUrlRef = useRef(null);
+  const media = normalizeMediaItem(src, 'photo');
+  const displayPath = media?.thumbnailPath || media?.path || '';
+  const fallbackPath = media?.path || '';
 
   // 异步加载图片URL
   useEffect(() => {
@@ -38,7 +47,7 @@ function LazyImage({ src, alt, className, onClick }) {
         objectUrlRef.current = null;
       }
     };
-  }, [src]);
+  }, [displayPath, fallbackPath]);
 
   const loadImage = async () => {
     try {
@@ -46,21 +55,19 @@ function LazyImage({ src, alt, className, onClick }) {
       setError(false);
       
       // ✅ 使用 Schema 统一工具自动归一化所有格式
-      const media = normalizeMediaItem(src, 'photo');
       if (!media) {
         setError(true);
         return;
       }
       
       // 优先使用 getImageSrc 处理 Capacitor 文件路径
-      const displayPath = media.thumbnailPath || media.path;
       let url = shouldLoadMediaBlob(displayPath) ? '' : getImageSrc(displayPath);
       
       // 如果需要OPFS处理，使用 mediaRepository 统一入口
       if (!url) {
         url = await getMediaDisplaySrc(displayPath);
-        if (!url && displayPath !== media.path) {
-          url = await getMediaDisplaySrc(media.path);
+        if (!url && displayPath !== fallbackPath) {
+          url = await getMediaDisplaySrc(fallbackPath);
         }
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
@@ -152,6 +159,8 @@ function AudioItem({ audio }) {
   const [audioUrl, setAudioUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const objectUrlRef = useRef(null);
+  const media = normalizeMediaItem(audio, 'audio');
+  const mediaPath = media?.path || '';
 
   useEffect(() => {
     loadAudio();
@@ -163,15 +172,15 @@ function AudioItem({ audio }) {
         objectUrlRef.current = null;
       }
     };
-  }, [audio]);
+  }, [mediaPath]);
 
   const loadAudio = async () => {
     try {
       setLoading(true);
       
       // ✅ 使用 Schema 统一工具自动归一化所有格式
-      const media = normalizeMediaItem(audio, 'audio');
       if (!media) {
+        setAudioUrl(null);
         return;
       }
       
@@ -184,6 +193,10 @@ function AudioItem({ audio }) {
       // 2. 其他格式统一使用mediaRepository获取显示URL
       if (media.path) {
         const url = await getMediaDisplaySrc(media.path);
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = null;
+        }
         if (url && url.startsWith('blob:')) {
           objectUrlRef.current = url;
         }
@@ -381,6 +394,7 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
   const [audioError, setAudioError] = useState(false);
   const objectUrlsRef = useRef([]); // 追踪所有创建的 Object URL
   const { photos, videos, audios } = normalizeMomentMedia(moment);
+  const podcastAudioKey = getPodcastAudioKey(moment.podcast?.audio);
   
   const typeIcons = {
     photo: '📷',
@@ -417,10 +431,10 @@ export function MomentCard({ moment, onEdit, onDelete, onClick, onShare, isSyste
   // 组件加载时获取播客音频URL
   useEffect(() => {
     console.log('[MomentCard] useEffect 触发，moment.type:', moment.type, 'moment.podcast:', !!moment.podcast);
-    if (moment.type === 'podcast' && moment.podcast) {
+    if (moment.type === 'podcast' && moment.podcast && podcastAudioKey) {
       loadPodcastAudio();
     }
-  }, [moment.type, moment.podcast]);
+  }, [moment.type, podcastAudioKey]);
   
   // 加载播客音频 URL（支持多种格式）
   const loadPodcastAudio = async () => {

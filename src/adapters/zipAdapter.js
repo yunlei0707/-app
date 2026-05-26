@@ -21,8 +21,7 @@ export function createZip() {
         {
           type: 'blob',
           streamFiles: true,
-          compression: 'DEFLATE',
-          compressionOptions: { level: 3 }
+          compression: 'STORE'
         },
         metadata => onProgress?.(metadata.percent)
       );

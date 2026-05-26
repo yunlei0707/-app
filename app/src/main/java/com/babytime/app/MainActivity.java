@@ -8,6 +8,7 @@ import android.webkit.WebView;
 import com.capacitorjs.plugins.camera.CameraPlugin;
 import com.capacitorjs.plugins.filesystem.FilesystemPlugin;
 import com.capacitorjs.plugins.share.SharePlugin;
+import com.equimaps.capacitorblobwriter.BlobWriter;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -17,6 +18,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(CameraPlugin.class);
         registerPlugin(FilesystemPlugin.class);
         registerPlugin(SharePlugin.class);
+        registerPlugin(BlobWriter.class);
         super.onCreate(savedInstanceState);
         
         // 延迟到 Bridge 完全初始化后再配置 WebView

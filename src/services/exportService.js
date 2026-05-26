@@ -1,6 +1,7 @@
 import { processVideos } from './mediaService.js';
 import { createZip } from '../adapters/zipAdapter.js';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import writeBlob from 'capacitor-blob-writer';
 // 旧版 IDB 数据兼容（可空）
 function exportDBData() {
   return Promise.resolve(null);
@@ -601,11 +602,29 @@ function extractAudiosFromData(data) {
 }
 
 async function saveToLocal(blob, path, filename) {
-  const base64 = await blobToBase64(blob);
   const fullPath = path || `BabyTimeBackup/${filename}`;
   
   console.log('[Export] 保存文件到:', fullPath);
   
+  if (isNativePlatform()) {
+    try {
+      await writeBlob({
+        path: fullPath,
+        directory: Directory.Documents,
+        blob,
+        recursive: true,
+        fast_mode: true,
+        on_fallback(error) {
+          console.warn('[Export] BlobWriter 快速写入失败，切换到分块写入:', error?.message || error);
+        }
+      });
+      return await getSavedFileUri(fullPath);
+    } catch (e) {
+      console.warn('[Export] BlobWriter 写入失败，降级到 Filesystem.writeFile:', e.message);
+    }
+  }
+
+  const base64 = await blobToBase64(blob);
   await Filesystem.writeFile({
     path: fullPath,
     data: base64,
@@ -613,6 +632,10 @@ async function saveToLocal(blob, path, filename) {
     recursive: true
   });
 
+  return await getSavedFileUri(fullPath);
+}
+
+async function getSavedFileUri(fullPath) {
   let uri = '';
   try {
     const result = await Filesystem.getUri({
