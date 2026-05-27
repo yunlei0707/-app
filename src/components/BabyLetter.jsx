@@ -6,6 +6,8 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { X, RefreshCw, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { babyLetterPresets } from '../data/babyLetterPresets';
+import { saveDataUrlImage } from '../utils/shareImageSaver';
 
 // 随机选择一个未来年份（15-35年后）
 const getRandomFutureYear = () => {
@@ -57,57 +59,27 @@ const rewriteAsLetter = (item, babyName, parentName) => {
   return letterText;
 };
 
-// 默认信件（当没有记录时）
-const getDefaultLetter = (babyName) => ({
-  paragraphs: [`亲爱的妈妈，我在未来的某一天等你。现在你记录的每一刻，都是我成长的养分。`],
-  year: getRandomFutureYear(),
-  isDefault: true
-});
+function fillPresetText(text, babyName, parentName) {
+  return String(text || '')
+    .replaceAll('{babyName}', babyName || '宝宝')
+    .replaceAll('{parentName}', parentName || '家人');
+}
 
-// 从记录生成信件
-const generateLetterFromRecords = (records, babyName, parentName) => {
-  if (!records || records.length === 0) {
-    return getDefaultLetter(babyName);
-  }
-  
-  // 随机抽取1-3条记录
-  const count = Math.min(Math.ceil(Math.random() * 3), records.length);
-  const shuffled = [...records].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, count);
-  
-  // 生成称呼
-  const greeting = Math.random() > 0.5 ? '妈妈' : '爸爸';
-  
-  // 生成段落
-  const paragraphs = selected.map((item, index) => {
-    const text = rewriteAsLetter(item, babyName, parentName);
-    
-    // 第一段加称呼
-    if (index === 0) {
-      return `${greeting}，${text}`;
-    }
-    return text;
-  });
-  
-  // 添加结尾段落
-  const closingTexts = [
-    '这些都是你为我播下的种子，慢慢生根发芽。',
-    '我想告诉你，我一切都好，就像你当初期盼的那样。',
-    '谢谢你一直爱我，我现在很幸福。',
-    '每一年的今天，我都想对你说声谢谢。',
-    '未来的我，会继续努力，让你骄傲。'
-  ];
-  
-  if (paragraphs.length < 3) {
-    const closingText = closingTexts[Math.floor(Math.random() * closingTexts.length)];
-    paragraphs.push(closingText);
-  }
-  
+function generatePresetLetter(babyName, parentName) {
+  const presets = babyLetterPresets.length > 0
+    ? babyLetterPresets
+    : [[`亲爱的${parentName || '家人'}，我在未来的某一天等你。现在你记录的每一刻，都是我成长的养分。`]];
+  const preset = presets[Math.floor(Math.random() * presets.length)];
   return {
-    paragraphs,
+    paragraphs: preset.map(text => fillPresetText(text, babyName, parentName)),
     year: getRandomFutureYear(),
     isDefault: false
   };
+}
+
+// 先使用预设真实育儿反馈文案，保证每次随机切换都有稳定内容。
+const generateLetterFromRecords = (records, babyName, parentName) => {
+  return generatePresetLetter(babyName, parentName);
 };
 
 export function BabyLetter({ 
@@ -127,6 +99,9 @@ export function BabyLetter({
   // 加载静音偏好
   useEffect(() => {
     if (visible) {
+      setLetter(generateLetterFromRecords(virtualTimeRecords, babyName, parentName));
+      setIsOpened(false);
+      setShareImage(null);
     }
   }, [visible]);
 
@@ -176,17 +151,22 @@ export function BabyLetter({
   };
 
   // 下载图片
-  const downloadImage = () => {
+  const downloadImage = async () => {
     if (!shareImage) return;
-    const link = document.createElement('a');
-    link.download = `来自宝宝的信_${letter.year}.png`;
-    link.href = shareImage;
-    link.click();
+    try {
+      const result = await saveDataUrlImage(shareImage, `baby-letter-${letter.year}-${Date.now()}.png`);
+      if (result.native) {
+        alert(`图片已保存到 ${result.path}`);
+      }
+    } catch (error) {
+      console.error('保存来自宝宝的信图片失败:', error);
+      alert('保存图片失败，请重试');
+    }
   };
 
   if (!visible) return null;
 
-  const hasRecords = virtualTimeRecords && virtualTimeRecords.length > 0;
+  const hasPresetLetters = babyLetterPresets.length > 0;
 
   return (
     <div 
@@ -236,10 +216,7 @@ export function BabyLetter({
             <div className="bg-gradient-to-b from-primary-300 to-amber-300 px-6 py-8">
               <div className="bg-[#FFF8DC] rounded-lg p-4 shadow-inner">
                 <p className="text-primary-700 text-center text-sm leading-relaxed">
-                  {hasRecords 
-                    ? '这封信装载着未来的美好祝愿，请查收~'
-                    : '虽然还没有未来的记录，但这封信会带着宝宝的爱先寄出~'
-                  }
+                  这封信装载着未来的温柔提醒，请查收~
                 </p>
               </div>
             </div>
@@ -305,15 +282,11 @@ export function BabyLetter({
             <div className="px-6 pb-6 flex gap-3">
               <button
                 onClick={handleRefresh}
-                disabled={!hasRecords}
-                className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all ${
-                  hasRecords
-                    ? 'bg-white text-primary-600 hover:bg-primary-50 active:scale-[0.98] border border-primary-200'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
+                disabled={!hasPresetLetters}
+                className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all bg-white text-primary-600 hover:bg-primary-50 active:scale-[0.98] border border-primary-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                <RefreshCw className={`w-4 h-4 ${hasRecords ? '' : 'opacity-50'}`} />
-                <span>{hasRecords ? '再来一封' : '暂无记录'}</span>
+                <RefreshCw className="w-4 h-4" />
+                <span>再来一封</span>
               </button>
               
               {shareImage ? (

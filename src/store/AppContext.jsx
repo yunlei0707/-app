@@ -27,6 +27,7 @@ import {
   deleteBaby,
   addMoment,
   getGrowthRecordsByBaby,
+  getCurrentBabyInfo,
 } from '../repositories/stateRepository';
 
 // 别名兼容（避免重命名）
@@ -202,9 +203,10 @@ export function AppProvider({ children }) {
         }
         
         // ✅ 只加载胶囊数据，不加载动态数据（动态在页面内按需加载）
-        if (baby) {
+        const effectiveBaby = baby || getCurrentBabyInfo();
+        if (effectiveBaby) {
           try {
-            const babyCapsules = await getCapsulesByBaby(baby.id);
+            const babyCapsules = await getCapsulesByBaby(effectiveBaby.id);
             setCapsules(babyCapsules);
           } catch (e) {
             console.error('加载胶囊失败:', e);

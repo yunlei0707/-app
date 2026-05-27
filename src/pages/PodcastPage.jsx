@@ -310,18 +310,20 @@ export function PodcastPage() {
                 className="relative bg-white dark:bg-gray-800 rounded-xl overflow-visible shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handlePodcastClick(moment)}
               >
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setOpenMenuId(openMenuId === moment.id ? null : moment.id);
-                  }}
-                  className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/90 dark:bg-gray-800/90 shadow flex items-center justify-center text-gray-500 hover:bg-white dark:hover:bg-gray-700"
-                  title="更多操作"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                {openMenuId === moment.id && (
+                {!moment.isPreset && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpenMenuId(openMenuId === moment.id ? null : moment.id);
+                    }}
+                    className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-white/90 dark:bg-gray-800/90 shadow flex items-center justify-center text-gray-500 hover:bg-white dark:hover:bg-gray-700"
+                    title="更多操作"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                )}
+                {!moment.isPreset && openMenuId === moment.id && (
                   <div
                     className="absolute right-2 top-11 z-30 w-32 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700"
                     onClick={(event) => event.stopPropagation()}
@@ -357,12 +359,12 @@ export function PodcastPage() {
                   </div>
                 )}
                 {/* 播客封面 */}
-                <div className="aspect-square relative overflow-hidden rounded-t-xl">
+                <div className={`${moment.isPreset ? 'aspect-[3/4] rounded-xl bg-gray-100 dark:bg-gray-900' : 'aspect-square rounded-t-xl'} relative overflow-hidden`}>
                   {moment.podcast.cover ? (
                     <PodcastCoverImage
                       cover={moment.podcast.cover}
                       alt=""
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full ${moment.isPreset ? 'object-contain' : 'object-cover'}`}
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
@@ -372,6 +374,7 @@ export function PodcastPage() {
                   {/* 播放按钮小图标 */}
                 </div>
                 {/* 播客标题 */}
+                {!moment.isPreset && (
                 <div className="p-2">
                   <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
                     {moment.podcast.title || '未命名播客'}
@@ -406,6 +409,7 @@ export function PodcastPage() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             ))}
           </div>
@@ -450,23 +454,27 @@ export function PodcastPage() {
             
             {/* 播客封面 */}
             {selectedPodcast.podcast.cover && (
-              <div className="aspect-square rounded-xl overflow-hidden mb-4">
+              <div className={`${selectedPodcast.isPreset ? 'aspect-[3/4] max-h-[65vh] bg-gray-100 dark:bg-gray-900' : 'aspect-square'} rounded-xl overflow-hidden mb-4`}>
                 <PodcastCoverImage
                   cover={selectedPodcast.podcast.cover}
                   alt=""
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full ${selectedPodcast.isPreset ? 'object-contain' : 'object-cover'}`}
                 />
               </div>
             )}
             
             {/* 播客标题和描述 */}
-            <h4 className="text-base font-medium text-gray-800 dark:text-white mb-2">
-              {selectedPodcast.podcast.title || '未命名播客'}
-            </h4>
-            {selectedPodcast.podcast.description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                {selectedPodcast.podcast.description}
-              </p>
+            {!selectedPodcast.isPreset && (
+              <>
+                <h4 className="text-base font-medium text-gray-800 dark:text-white mb-2">
+                  {selectedPodcast.podcast.title || '未命名播客'}
+                </h4>
+                {selectedPodcast.podcast.description && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    {selectedPodcast.podcast.description}
+                  </p>
+                )}
+              </>
             )}
             
             {/* 播放器 */}

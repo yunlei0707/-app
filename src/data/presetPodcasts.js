@@ -7,8 +7,8 @@ export const presetPodcasts = [
     isDeleted: false,
     isPreset: true,
     podcast: {
-      title: '搞砸育儿俱乐部第一期',
-      description: '你今天搞砸了吗？搞砸育儿俱乐部',
+      title: '',
+      description: '',
       audio: {
         url: '/presets/podcasts/messed-up-parenting-club-ep1.mp3',
         path: '/presets/podcasts/messed-up-parenting-club-ep1.mp3',

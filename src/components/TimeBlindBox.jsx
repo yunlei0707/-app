@@ -8,6 +8,79 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Image as ImageIcon, Gift } from 'lucide-react';
+import { getMediaDisplaySrc, normalizeMediaItem } from '../repositories/mediaRepository.js';
+import { getImageSrc, getMediaObjectSrc } from '../utils/image';
+import { saveDataUrlImage } from '../utils/shareImageSaver';
+
+function shouldLoadMediaBlob(path) {
+  if (!path || typeof path !== 'string') return false;
+  return path.startsWith('BabyTime/') ||
+    path.startsWith('opfs:') ||
+    path.startsWith('fs://') ||
+    path.startsWith('file://') ||
+    path.startsWith('content://') ||
+    path.includes('/_capacitor_file_');
+}
+
+function BlindBoxImage({ photo }) {
+  const [src, setSrc] = useState('');
+
+  useEffect(() => {
+    let revokedUrl = '';
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const media = normalizeMediaItem(photo, 'photo');
+        const raw = media?.thumbnailPath || media?.path || getMediaObjectSrc(photo);
+        const fallback = media?.path || getMediaObjectSrc(photo);
+
+        if (!raw) {
+          setSrc('');
+          return;
+        }
+
+        let nextSrc = shouldLoadMediaBlob(raw) ? await getMediaDisplaySrc(raw) : getImageSrc(raw);
+        if (!nextSrc && fallback && fallback !== raw) {
+          nextSrc = shouldLoadMediaBlob(fallback) ? await getMediaDisplaySrc(fallback) : getImageSrc(fallback);
+        }
+
+        if (cancelled) {
+          if (nextSrc?.startsWith?.('blob:')) URL.revokeObjectURL(nextSrc);
+          return;
+        }
+        revokedUrl = nextSrc?.startsWith?.('blob:') ? nextSrc : '';
+        setSrc(nextSrc || '');
+      } catch (error) {
+        console.warn('[TimeBlindBox] 图片加载失败:', error);
+        if (!cancelled) setSrc('');
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+  }, [photo]);
+
+  if (!src) {
+    return (
+      <div className="w-full h-full bg-cream-100 dark:bg-gray-700 flex items-center justify-center">
+        <span className="text-xl opacity-50">图片加载中</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-full h-full object-cover"
+      crossOrigin="anonymous"
+    />
+  );
+}
 
 // 格式化日期显示
 const formatDate = (dateStr) => {
@@ -148,12 +221,17 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
   };
 
   // 下载图片
-  const downloadImage = () => {
+  const downloadImage = async () => {
     if (!shareImage) return;
-    const link = document.createElement('a');
-    link.download = `时光盲盒_${Date.now()}.png`;
-    link.href = shareImage;
-    link.click();
+    try {
+      const result = await saveDataUrlImage(shareImage, `time-blind-box-${Date.now()}.png`);
+      if (result.native) {
+        alert(`图片已保存到 ${result.path}`);
+      }
+    } catch (error) {
+      console.error('保存时光盲盒图片失败:', error);
+      alert('保存图片失败，请重试');
+    }
   };
 
   const hasMoments = moments && moments.length > 0;
@@ -225,12 +303,7 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
                   }`}>
                     {selectedMoment.photos.slice(0, 4).map((photo, idx) => (
                       <div key={idx} className="relative rounded-xl overflow-hidden aspect-square">
-                        <img 
-                          src={photo} 
-                          alt="" 
-                          className="w-full h-full object-cover"
-                          crossOrigin="anonymous"
-                        />
+                        <BlindBoxImage photo={photo} />
                         {idx === 3 && selectedMoment.photos.length > 4 && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold">
                             +{selectedMoment.photos.length - 4}

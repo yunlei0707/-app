@@ -13,7 +13,7 @@ import { ShareCard } from '../components/ShareCard';
 import { groupByYearAndMonth } from '../utils/dateUtils';
 // ✅ 引入 Zustand 状态管理用于分页加载
 import { useMomentStore } from '../store/momentStore';
-import { PredictionPage } from '../components/PredictionPage';
+import { TimeBlindBox } from '../components/TimeBlindBox';
 import { Plus, X, ChevronDown, Lock, Trash2, AlertTriangle } from 'lucide-react';
 import { deleteUnreferencedMomentMedia } from '../repositories/mediaRepository.js';
 import { UserHeader } from '../components/UserHeader';
@@ -271,7 +271,6 @@ export function TimelinePage({
   const [selectedType, setSelectedType] = useState('');
   const [showMilestoneDropdown, setShowMilestoneDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showPrediction, setShowPrediction] = useState(false);
   const [sharingMoment, setSharingMoment] = useState(null);
   const milestoneDropdownRef = useRef(null);
   const typeDropdownRef = useRef(null);
@@ -682,14 +681,10 @@ export function TimelinePage({
             
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowPrediction(true)}
-                className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-full transition-all shadow-sm border border-purple-100/50"
-                title="月龄神预言"
-              >
-                <span className="text-sm">✨</span>
-                <span className="text-sm font-medium text-purple-600">月龄神预言</span>
-              </button>
+              <TimeBlindBox
+                moments={filteredMoments}
+                babyName={v2AccountInfo?.accountData?.nickname || v2AccountInfo?.accountData?.name || currentBaby?.name || '宝宝'}
+              />
             </div>
           </div>
           
@@ -873,17 +868,6 @@ export function TimelinePage({
           moment={sharingMoment}
           babyName={v2AccountInfo?.accountData?.name || currentBaby?.name || '宝宝'}
           onClose={() => setSharingMoment(null)}
-        />
-      )}
-      
-      {/* 预产期预测弹窗 */}
-      {showPrediction && (
-        <PredictionPage
-          onClose={() => setShowPrediction(false)}
-          onConfirm={(dueDate) => {
-            // TODO: 更新宝宝预产期
-            setShowPrediction(false);
-          }}
         />
       )}
       

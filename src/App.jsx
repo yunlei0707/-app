@@ -367,8 +367,9 @@ function AppContent() {
   // 保存胶囊
   const handleSaveCapsule = async (capsuleData) => {
     try {
+      const babyId = capsuleData.babyId || currentBaby?.id || getCurrentBabyInfo()?.id || 'user';
       if (!capsuleData.babyId) {
-        capsuleData.babyId = currentBaby?.id;
+        capsuleData.babyId = babyId;
       }
       
       if (capsuleData.id) {
@@ -382,7 +383,7 @@ function AppContent() {
       setShowCapsuleForm(false);
       setEditingCapsule(null);
       // 刷新胶囊列表
-      refreshCapsules(currentBaby?.id);
+      refreshCapsules(babyId);
       
     } catch (error) {
       console.error('[Moment] Save error:', error); showToast('保存失败: ' + error.message, 'error');

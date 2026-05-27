@@ -6,14 +6,21 @@ import { useState } from 'react';
 import { isSystemAccount } from "../repositories/stateRepository.js";
 import { X, Image, Gift, AlertCircle } from 'lucide-react';
 
+function toDateInputValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
+}
+
 export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
   const [title, setTitle] = useState(capsule?.title || '');
   const [content, setContent] = useState(capsule?.content || '');
   const [photos, setPhotos] = useState(capsule?.photos || []);
   const [videos, setVideos] = useState([]);
-  const [unlockType, setUnlockType] = useState('date');
-  const [unlockDate, setUnlockDate] = useState('');
-  const [quickOption, setQuickOption] = useState('');
+  const [unlockType, setUnlockType] = useState(capsule?.unlockDate ? 'date' : 'quick');
+  const [unlockDate, setUnlockDate] = useState(toDateInputValue(capsule?.unlockDate));
+  const [quickOption, setQuickOption] = useState(capsule?.unlockDate ? '' : '1year');
   const [saving, setSaving] = useState(false);
   
   // 计算快速选项的日期
@@ -90,11 +97,6 @@ export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
       return;
     }
 
-    if (!title.trim()) {
-      alert('请输入胶囊标题');
-      return;
-    }
-    
     if (!content.trim() && photos.length === 0 && videos.length === 0) {
       alert('请添加内容、照片或视频');
       return;
@@ -117,7 +119,7 @@ export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
     
     const capsuleData = {
       babyId: babyId,
-      title: title.trim(),
+      title: title.trim() || '给宝宝的信',
       content: content.trim(),
       photos,
       videos,

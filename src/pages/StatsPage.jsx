@@ -10,7 +10,7 @@ import { getMomentsByBaby, getCapsulesByBaby } from '../repositories/stateReposi
 import { Gift, TrendingUp, Camera, Star, BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Edit3, BarChart2 } from 'lucide-react'
 import { getCurrentV2Account, getCurrentTimeline, getCurrentGrowth, updateCurrentGrowth, isSystemAccount as checkIsSystemAccount, isV1Account as checkIsV1Account, getCurrentBabyInfo } from "../repositories/stateRepository.js";
 import { mergeGrowthRecords, shouldMergeDisplay } from '../utils/dataMerger';
-import { TimeBlindBox } from '../components/TimeBlindBox';
+import { PredictionPage } from '../components/PredictionPage';
 import { GROWTH_LABELS, GROWTH_UNITS, GROWTH_ICONS } from '../utils/growthMilestones';
 import { moodScoreMap as importedMoodScoreMap } from '../components/MomentForm';
 import { normalizeMomentMedia } from '../repositories/mediaRepository.js';
@@ -164,6 +164,7 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
   // 折叠状态 - 成长概览默认展开，其他折叠
   const [showGrowthOverview, setShowGrowthOverview] = useState(true);
   const [showMilestoneStats, setShowMilestoneStats] = useState(false);
+  const [showPrediction, setShowPrediction] = useState(false);
   const [showPredictionStats, setShowPredictionStats] = useState(false);
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [showGrowthRecords, setShowGrowthRecords] = useState(false);
@@ -619,7 +620,14 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <TimeBlindBox moments={activeMoments} babyName={v2BabyInfo?.nickname || v2BabyInfo?.name || displayBaby?.name || '宝宝'} />
+              <button
+                onClick={() => setShowPrediction(true)}
+                className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-full transition-all shadow-sm border border-purple-100/50"
+                title="月龄神预言"
+              >
+                <span className="text-sm">✨</span>
+                <span className="text-sm font-medium text-purple-600">月龄神预言</span>
+              </button>
             </div>
           </div>
           
@@ -1278,6 +1286,12 @@ export function StatsPage({ onOpenCapsules, onStatClick, onOpenMonthlyReport, on
 
 
       </main>
+      {showPrediction && (
+        <PredictionPage
+          onClose={() => setShowPrediction(false)}
+          onConfirm={() => setShowPrediction(false)}
+        />
+      )}
     </div>
   );
 }
