@@ -1353,7 +1353,7 @@ export function ProfilePage(
               <Info className="w-6 h-6 text-gray-400" />
               <div className="flex-1 text-left">
                 <span className="text-base font-medium text-gray-700 dark:text-white">版本信息</span>
-                <p className="text-sm text-gray-400 dark:text-gray-400">当前版本 v2.54.0</p>
+                <p className="text-sm text-gray-400 dark:text-gray-400">当前版本 v2.55.0</p>
               </div>
             </div>
           </div>

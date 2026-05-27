@@ -35,6 +35,14 @@ export function getImageSrc(uri) {
       uri.startsWith('blob:')) {
     return uri;
   }
+
+  if (
+    uri.startsWith('/presets/') ||
+    uri.startsWith('/static/') ||
+    uri.startsWith('/icons/')
+  ) {
+    return uri;
+  }
   
   // 2. ⚠️ 关键：只在原生环境调用 convertFileSrc，Web 端直接用
   const Capacitor = getCapacitor();

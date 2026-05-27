@@ -483,6 +483,29 @@ export async function getPodcastPlayUrl(podcastAudio, readOPFSFile = null, useBa
     return null;
   }
 
+  const isDirectAudioUrl = (value) => (
+    typeof value === 'string' &&
+    (
+      value.startsWith('http://') ||
+      value.startsWith('https://') ||
+      value.startsWith('/presets/') ||
+      value.startsWith('/static/') ||
+      value.startsWith('./') ||
+      value.startsWith('data:')
+    )
+  );
+
+  if (isDirectAudioUrl(podcastAudio)) {
+    return podcastAudio;
+  }
+
+  if (typeof podcastAudio === 'object') {
+    const directUrl = podcastAudio.url || podcastAudio.path || podcastAudio.src;
+    if (isDirectAudioUrl(directUrl)) {
+      return directUrl;
+    }
+  }
+
   // 情况 1: 新格式 - audioFileId 引用 IndexedDB 存储
   if (typeof podcastAudio === 'object' && podcastAudio.audioFileId) {
     console.log('[AudioStorage] 匹配格式 1: IndexedDB audioFileId');

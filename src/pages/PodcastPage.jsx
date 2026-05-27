@@ -14,6 +14,7 @@ import { getCurrentBabyInfo, getCurrentTimeline, updateMomentInCurrentAccount } 
 import { getMomentsByBaby } from '../repositories/stateRepository';
 import { MomentForm } from '../components/MomentForm';
 import { UserHeader } from '../components/UserHeader';
+import { presetPodcasts } from '../data/presetPodcasts';
 
 function shouldLoadMediaBlob(path) {
   if (!path || typeof path !== 'string') return false;
@@ -90,7 +91,7 @@ export function PodcastPage() {
       setLoading(true);
       
       // ✅ 合并 v1 + v2 的播客数据
-      const allPodcasts = [];
+      const allPodcasts = [...presetPodcasts];
       
       // 1. 从 v2（localStorage）加载播客
       const v2Timeline = getCurrentTimeline() || [];
@@ -146,6 +147,7 @@ export function PodcastPage() {
   };
 
   const handleEditPodcast = (moment) => {
+    if (moment?.isPreset) return;
     setOpenMenuId(null);
     setSelectedPodcast(null);
     setPodcastAudioUrl(null);
@@ -178,7 +180,7 @@ export function PodcastPage() {
 
   const handleDeletePodcast = async (moment) => {
     setOpenMenuId(null);
-    if (!moment?.id) return;
+    if (!moment?.id || moment?.isPreset) return;
     if (!window.confirm('确定删除这个播客吗？删除后可在回收站查看。')) return;
     try {
       await updateMomentInCurrentAccount(moment.id, {
@@ -324,14 +326,16 @@ export function PodcastPage() {
                     className="absolute right-2 top-11 z-30 w-32 overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleEditPodcast(moment)}
-                      className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      <span>编辑</span>
-                    </button>
+                    {!moment.isPreset && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditPodcast(moment)}
+                        className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        <span>编辑</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleSharePodcast(moment)}
@@ -340,14 +344,16 @@ export function PodcastPage() {
                       <Share2 className="w-4 h-4" />
                       <span>分享</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePodcast(moment)}
-                      className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>删除</span>
-                    </button>
+                    {!moment.isPreset && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePodcast(moment)}
+                        className="w-full px-3 py-2.5 flex items-center gap-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>删除</span>
+                      </button>
+                    )}
                   </div>
                 )}
                 {/* 播客封面 */}
@@ -414,20 +420,24 @@ export function PodcastPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-800 dark:text-white">播客详情</h3>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleEditPodcast(selectedPodcast)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                  title="编辑播客"
-                >
-                  <Edit3 className="w-5 h-5 text-gray-500" />
-                </button>
-                <button
-                  onClick={() => handleDeletePodcast(selectedPodcast)}
-                  className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
-                  title="删除播客"
-                >
-                  <Trash2 className="w-5 h-5 text-red-500" />
-                </button>
+                {!selectedPodcast.isPreset && (
+                  <>
+                    <button
+                      onClick={() => handleEditPodcast(selectedPodcast)}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                      title="编辑播客"
+                    >
+                      <Edit3 className="w-5 h-5 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePodcast(selectedPodcast)}
+                      className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
+                      title="删除播客"
+                    >
+                      <Trash2 className="w-5 h-5 text-red-500" />
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={handleClosePodcast}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
