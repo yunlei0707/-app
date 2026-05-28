@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Image as ImageIcon, Music, Video, Camera, BookOpen } from 'lucide-react';
 import { getMediaDisplaySrc, normalizeMomentMedia } from '../repositories/mediaRepository.js';
+import { saveDataUrlImage } from '../utils/shareImageSaver';
 
 // 心情图标映射
 const moodIcons = {
@@ -41,7 +42,6 @@ export function ShareCard({
   milestoneLabel = '',
 }) {
   const [generating, setGenerating] = useState(false);
-  const [shareImage, setShareImage] = useState(null);
   const [resolvedThumbnail, setResolvedThumbnail] = useState('');
   const cardRef = useRef(null);
   const media = useMemo(() => moment ? normalizeMomentMedia(moment) : null, [moment]);
@@ -109,8 +109,8 @@ export function ShareCard({
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
-  // 生成分享图片
-  const generateShareImage = async () => {
+  // 直接保存分享图片到相册
+  const downloadImage = async () => {
     if (!cardRef?.current) return;
     
     setGenerating(true);
@@ -123,10 +123,13 @@ export function ShareCard({
         logging: false
       });
       
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
-      setShareImage(dataUrl);
+      const result = await saveDataUrlImage(canvas.toDataURL('image/png', 1.0), `babytime-share-${Date.now()}.png`);
+      if (result.native) {
+        alert(`图片已保存到 ${result.path}`);
+      }
     } catch (error) {
-      console.error('生成分享图片失败:', error);
+      console.error('保存分享图片失败:', error);
+      alert('保存图片失败，请重试');
     } finally {
       setGenerating(false);
     }
@@ -134,18 +137,7 @@ export function ShareCard({
 
   // 关闭时重置状态
   const handleClose = () => {
-    setShareImage(null);
     onClose();
-  };
-
-  // 下载图片
-  const downloadImage = () => {
-    if (!shareImage) return;
-    
-    const link = document.createElement('a');
-    link.download = `宝贝时光分享_${Date.now()}.png`;
-    link.href = shareImage;
-    link.click();
   };
 
   if (!isVisible) return null;
@@ -157,7 +149,7 @@ export function ShareCard({
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-primary-500" />
-            生成分享图片
+            保存分享图片
           </h3>
           <button
             onClick={handleClose}
@@ -169,8 +161,7 @@ export function ShareCard({
 
         {/* 内容区 */}
         <div className="p-4">
-          {!shareImage ? (
-            <div className="space-y-4">
+          <div className="space-y-4">
               {/* 预览卡片 - 这是真正要截图的部分 */}
               <div 
                 ref={cardRef}
@@ -232,55 +223,25 @@ export function ShareCard({
                 </div>
               </div>
 
-              {/* 生成按钮 */}
+              {/* 下载按钮 */}
               <button
-                onClick={generateShareImage}
+                onClick={downloadImage}
                 disabled={generating}
                 className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-bold hover:from-primary-600 hover:to-primary-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {generating ? (
                   <>
                     <span className="animate-spin">⏳</span>
-                    生成中...
+                    保存中...
                   </>
                 ) : (
                   <>
-                    <ImageIcon className="w-5 h-5" />
-                    生成分享图片
+                    <Download className="w-5 h-5" />
+                    下载图片
                   </>
                 )}
               </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {/* 生成后的图片预览 */}
-              <div className="relative rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
-                <img 
-                  src={shareImage} 
-                  alt="分享图片预览" 
-                  className="w-full h-auto"
-                />
-              </div>
-              <p className="text-sm text-center text-gray-500 dark:text-gray-400">
-                长按图片保存，或点击下方按钮下载
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShareImage(null)}
-                  className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  重新生成
-                </button>
-                <button
-                  onClick={downloadImage}
-                  className="flex-1 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-bold hover:from-primary-600 hover:to-primary-700 transition-all flex items-center justify-center gap-2"
-                >
-                  <Download className="w-5 h-5" />
-                  下载图片
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

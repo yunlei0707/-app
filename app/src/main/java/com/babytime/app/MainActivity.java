@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FilesystemPlugin.class);
         registerPlugin(SharePlugin.class);
         registerPlugin(BlobWriter.class);
+        registerPlugin(GallerySaverPlugin.class);
         super.onCreate(savedInstanceState);
         
         // 延迟到 Bridge 完全初始化后再配置 WebView

@@ -3,7 +3,6 @@
  */
 
 import { useState } from 'react';
-import { isSystemAccount } from "../repositories/stateRepository.js";
 import { X, Image, Gift, AlertCircle } from 'lucide-react';
 
 function toDateInputValue(value) {
@@ -17,7 +16,7 @@ export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
   const [title, setTitle] = useState(capsule?.title || '');
   const [content, setContent] = useState(capsule?.content || '');
   const [photos, setPhotos] = useState(capsule?.photos || []);
-  const [videos, setVideos] = useState([]);
+  const [videos, setVideos] = useState(capsule?.videos || []);
   const [unlockType, setUnlockType] = useState(capsule?.unlockDate ? 'date' : 'quick');
   const [unlockDate, setUnlockDate] = useState(toDateInputValue(capsule?.unlockDate));
   const [quickOption, setQuickOption] = useState(capsule?.unlockDate ? '' : '1year');
@@ -91,12 +90,6 @@ export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
   };
   
   const handleSubmit = async () => {
-    // 系统账号不可添加胶囊记录
-    if (isSystemAccount()) {
-      alert("系统账号不可添加胶囊记录");
-      return;
-    }
-
     if (!content.trim() && photos.length === 0 && videos.length === 0) {
       alert('请添加内容、照片或视频');
       return;
@@ -118,6 +111,7 @@ export function CapsuleForm({ capsule, onSave, onCancel, babyId }) {
     }
     
     const capsuleData = {
+      ...(capsule || {}),
       babyId: babyId,
       title: title.trim() || '给宝宝的信',
       content: content.trim(),

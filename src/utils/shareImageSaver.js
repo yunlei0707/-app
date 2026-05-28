@@ -1,4 +1,7 @@
-import { isNativePlatform, writeFile } from './nativeApi';
+import { registerPlugin } from '@capacitor/core';
+import { isNativePlatform } from './nativeApi';
+
+const GallerySaver = registerPlugin('GallerySaver');
 
 function getBase64Payload(dataUrl) {
   if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
@@ -12,10 +15,15 @@ export async function saveDataUrlImage(dataUrl, filename) {
     .replace(/[\\/:*?"<>|]/g, '_');
 
   if (isNativePlatform()) {
-    const base64 = getBase64Payload(dataUrl);
-    const path = `BabyTimeShares/${safeFilename}`;
-    await writeFile(path, base64);
-    return { native: true, path };
+    const result = await GallerySaver.saveImage({
+      fileName: safeFilename,
+      data: getBase64Payload(dataUrl)
+    });
+    return {
+      native: true,
+      path: result?.path || `Pictures/宝贝时光/${safeFilename}`,
+      uri: result?.uri
+    };
   }
 
   const link = document.createElement('a');

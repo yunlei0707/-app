@@ -952,6 +952,7 @@ export function exportV2AccountData() {
       isSystem: current.accountData?.isSystem,
     },
     timeline: userTimeline,
+    capsules: current.accountData?.capsules || [],
     growth: current.accountData?.growth || { height: null, weight: null, records: [] },
     virtualTime: current.accountData?.virtualTime || [],
     virtualTimeContents: current.accountData?.virtualTimeContents || {},
@@ -990,6 +991,7 @@ export function importV2AccountData(data, mode = 'merge') {
       birthDate: data.accountData?.birthDate || '',
       gender: data.accountData?.gender || 'girl',
       timeline: data.timeline || [],
+      capsules: data.capsules || [],
       growth: data.growth || { height: null, weight: null, records: [] },
       virtualTime: data.virtualTime || [],
       virtualTimeContents: data.virtualTimeContents || {},
@@ -1000,12 +1002,20 @@ export function importV2AccountData(data, mode = 'merge') {
     // 合并模式：只合并 timeline
     const currentTimeline = current.accountData?.timeline || [];
     const newTimeline = data.timeline || [];
+    const currentCapsules = current.accountData?.capsules || [];
+    const newCapsules = data.capsules || [];
     
     // 合并去重
     const existingIds = new Set(currentTimeline.map(m => m.id));
     const mergedTimeline = [
       ...currentTimeline,
       ...newTimeline.filter(m => !existingIds.has(m.id))
+    ];
+
+    const existingCapsuleIds = new Set(currentCapsules.map(c => c.id));
+    const mergedCapsules = [
+      ...currentCapsules,
+      ...newCapsules.filter(c => !existingCapsuleIds.has(c.id))
     ];
     
     // 合并虚拟时光内容
@@ -1035,6 +1045,7 @@ export function importV2AccountData(data, mode = 'merge') {
     
     updateV2AccountData(identityName, accountId, {
       timeline: mergedTimeline,
+      capsules: mergedCapsules,
       // 虚拟时光也合并
       virtualTime: [
         ...(current.accountData?.virtualTime || []),

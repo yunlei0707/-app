@@ -91,7 +91,7 @@ function RoutePersistence({ children }) {
 
 // 主应用内容
 function AppContent() {
-  const { showToast, babies, currentBaby, setCurrentBaby, setMoments, setCapsules, setBabies, currentUser, refreshGrowthRecords } = useApp();
+  const { showToast, babies, currentBaby, setCurrentBaby, setMoments, setCapsules, setBabies, currentUser, refreshGrowthRecords, refreshCapsules } = useApp();
   
   const [activeTab, setActiveTab] = useState(() => {
     try {
@@ -488,13 +488,7 @@ function AppContent() {
         return (
           <StatsPage
             onOpenCapsules={() => setShowCapsulesPage(true)}
-            onAddCapsule={() => {
-              if (isSystemAccount()) {
-                showToast("系统账号不可添加胶囊记录", "error");
-                return;
-              }
-              setShowCapsuleForm(true);
-            }}
+            onAddCapsule={() => setShowCapsuleForm(true)}
             onOpenMonthlyReport={() => setShowGrowthReport(true)}
             onAddGrowthRecord={() => {
               if (isSystemAccount()) {
@@ -567,7 +561,7 @@ function AppContent() {
       {showCapsulesPage && (
         <CapsulesPage
           onClose={() => setShowCapsulesPage(false)}
-          onAddCapsule={() => { if (isSystemAccount()) { showToast("系统账号不可添加胶囊记录", "error"); return; } setShowCapsuleForm(true); }}
+          onAddCapsule={() => setShowCapsuleForm(true)}
           onEditCapsule={(capsule) => {
             setEditingCapsule(capsule);
             setShowCapsuleForm(true);

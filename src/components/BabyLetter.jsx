@@ -121,11 +121,9 @@ export function BabyLetter({
 
   // 再来一封
   const handleRefresh = useCallback(() => {
-    setIsOpened(false);
     setShareImage(null);
-    setTimeout(() => {
-      setLetter(generateLetterFromRecords(virtualTimeRecords, babyName, parentName));
-    }, 300);
+    setLetter(generateLetterFromRecords(virtualTimeRecords, babyName, parentName));
+    setIsOpened(true);
   }, [virtualTimeRecords, babyName, parentName]);
 
   // 生成分享图片

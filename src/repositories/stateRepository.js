@@ -31,8 +31,8 @@ import {
   // 动态管理
   updateMoment,
   // 胶囊管理
-  addCapsule,
-  updateCapsule,
+  addCapsule as addCapsuleV1,
+  updateCapsule as updateCapsuleV1,
   // 成长记录
   addGrowthRecord,
   updateGrowthRecord,
@@ -61,8 +61,8 @@ import {
   deleteMomentPermanently,
   emptyRecycleBin,
   // 时空胶囊
-  deleteCapsule,
-  getCapsulesByBaby,
+  deleteCapsule as deleteCapsuleV1,
+  getCapsulesByBaby as getCapsulesByBabyV1,
   // 用户/注册
   registerUser,
   updateSecurityQuestion,
@@ -165,7 +165,114 @@ export { getAllBabies, getBabiesByUser, getCurrentBaby, addBaby, updateBaby, del
 export { updateMoment };
 
 // 胶囊管理
-export { addCapsule, updateCapsule };
+function getCapsuleBabyId(fallbackBabyId) {
+  return fallbackBabyId || dbV2.getCurrentBabyInfo()?.id || dbV2.getCurrentV2Account()?.accountData?.id || 'user';
+}
+
+function getCurrentCapsulesForBaby(babyId) {
+  const current = dbV2.getCurrentV2Account();
+  if (!current?.accountData) return [];
+
+  const normalizedBabyId = getCapsuleBabyId(babyId);
+  return (current.accountData.capsules || [])
+    .filter(capsule => !capsule.babyId || capsule.babyId === normalizedBabyId);
+}
+
+function saveCurrentCapsules(capsules) {
+  const current = dbV2.getCurrentV2Account();
+  if (!current?.accountData) return false;
+
+  dbV2.updateV2AccountData(current.identityName, current.accountId, {
+    capsules,
+    updatedAt: new Date().toISOString()
+  });
+  return true;
+}
+
+function sortCapsules(capsules) {
+  return [...capsules].sort((a, b) => new Date(b.unlockDate || b.createdAt || 0) - new Date(a.unlockDate || a.createdAt || 0));
+}
+
+export async function getCapsulesByBaby(babyId) {
+  const normalizedBabyId = getCapsuleBabyId(babyId);
+  const v2Capsules = getCurrentCapsulesForBaby(normalizedBabyId);
+  let v1Capsules = [];
+
+  try {
+    v1Capsules = await getCapsulesByBabyV1(normalizedBabyId);
+  } catch (error) {
+    console.warn('[Capsule] 读取旧版胶囊失败，已使用V2数据:', error);
+  }
+
+  const seen = new Set();
+  const merged = [...v2Capsules, ...v1Capsules].filter(capsule => {
+    if (!capsule?.id) return false;
+    if (seen.has(capsule.id)) return false;
+    seen.add(capsule.id);
+    return true;
+  });
+
+  return sortCapsules(merged);
+}
+
+export async function addCapsule(capsuleData) {
+  const babyId = getCapsuleBabyId(capsuleData?.babyId);
+  const capsule = {
+    ...capsuleData,
+    id: capsuleData?.id || `capsule-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    babyId,
+    title: capsuleData?.title || '给宝宝的信',
+    createdAt: capsuleData?.createdAt || new Date().toISOString(),
+    isUnlocked: capsuleData?.isUnlocked ?? false,
+  };
+
+  const current = dbV2.getCurrentV2Account();
+  if (current?.accountData) {
+    const capsules = current.accountData.capsules || [];
+    saveCurrentCapsules([capsule, ...capsules.filter(item => item.id !== capsule.id)]);
+  }
+
+  try {
+    await addCapsuleV1(capsule);
+  } catch (error) {
+    console.warn('[Capsule] 写入旧版胶囊失败，V2数据已保存:', error);
+  }
+
+  return capsule;
+}
+
+export async function updateCapsule(id, updates) {
+  const current = dbV2.getCurrentV2Account();
+  let updatedCapsule = null;
+
+  if (current?.accountData) {
+    const capsules = current.accountData.capsules || [];
+    const nextCapsules = capsules.map(capsule => {
+      if (capsule.id !== id) return capsule;
+      updatedCapsule = {
+        ...capsule,
+        ...updates,
+        id,
+        updatedAt: new Date().toISOString()
+      };
+      return updatedCapsule;
+    });
+
+    if (updatedCapsule) {
+      saveCurrentCapsules(nextCapsules);
+    }
+  }
+
+  try {
+    const v1Updated = await updateCapsuleV1(id, updates);
+    updatedCapsule = updatedCapsule || v1Updated;
+  } catch (error) {
+    console.warn('[Capsule] 更新旧版胶囊失败，已保留V2更新:', error);
+  }
+
+  if (!updatedCapsule) throw new Error('胶囊不存在');
+  return updatedCapsule;
+}
 
 // 成长记录
 export { addGrowthRecord, updateGrowthRecord };
@@ -197,7 +304,21 @@ export { getGrowthReportStats, getGrowthRecordsByBaby };
 export { getDeletedMomentsByBaby, restoreMoment, deleteMomentPermanently, emptyRecycleBin };
 
 // 时空胶囊
-export { deleteCapsule, getCapsulesByBaby };
+export async function deleteCapsule(id) {
+  const current = dbV2.getCurrentV2Account();
+  if (current?.accountData) {
+    const capsules = current.accountData.capsules || [];
+    saveCurrentCapsules(capsules.filter(capsule => capsule.id !== id));
+  }
+
+  try {
+    await deleteCapsuleV1(id);
+  } catch (error) {
+    console.warn('[Capsule] 删除旧版胶囊失败，已删除V2数据:', error);
+  }
+
+  return true;
+}
 
 // 用户/注册相关
 export { registerUser, updateSecurityQuestion, PRESET_AVATARS };
@@ -352,6 +473,12 @@ export default {
   updateMomentInCurrentAccount,
   deleteMomentFromCurrentAccount,
   deleteLinkedContentByRecordId,
+
+  // 胶囊
+  getCapsulesByBaby,
+  addCapsule,
+  updateCapsule,
+  deleteCapsule,
 
   // 成长
   getCurrentGrowth,

@@ -108,14 +108,14 @@ export function AppProvider({ children }) {
 
   // 刷新胶囊列表
   const refreshCapsules = useCallback(async (babyId) => {
-    if (!babyId) return;
+    const targetBabyId = babyId || currentBaby?.id || getCurrentBabyInfo()?.id || 'user';
     try {
-      const babyCapsules = await getCapsulesByBaby(babyId);
+      const babyCapsules = await getCapsulesByBaby(targetBabyId);
       setCapsules(babyCapsules);
     } catch (e) {
       console.error('加载胶囊失败:', e);
     }
-  }, []);
+  }, [currentBaby?.id]);
 
   // 刷新成长记录
   const refreshGrowthRecords = useCallback(async (babyId) => {

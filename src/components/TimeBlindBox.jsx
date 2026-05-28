@@ -2,12 +2,12 @@
  * 时光盲盒组件
  * 随机从时光轴弹出一条历史记录的精美卡片
  * 加权随机：照片x3权重、语音x2、时间越久越容易被选中、50%概率命中"去年今日"
- * 支持生成分享图片（html2canvas）
+ * 支持直接保存分享图片到相册（html2canvas）
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
-import { X, Download, Image as ImageIcon, Gift } from 'lucide-react';
+import { X, Download, Gift } from 'lucide-react';
 import { getMediaDisplaySrc, normalizeMediaItem } from '../repositories/mediaRepository.js';
 import { getImageSrc, getMediaObjectSrc } from '../utils/image';
 import { saveDataUrlImage } from '../utils/shareImageSaver';
@@ -158,7 +158,6 @@ const moodIcons = {
 export function TimeBlindBox({ moments, babyName = '宝宝' }) {
   const [showCard, setShowCard] = useState(false);
   const [selectedMoment, setSelectedMoment] = useState(null);
-  const [shareImage, setShareImage] = useState(null);
   const [generating, setGenerating] = useState(false);
   const shareCardRef = useRef(null);
 
@@ -174,14 +173,12 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
     const selected = weightedRandom(moments);
     setSelectedMoment(selected);
     setShowCard(true);
-    setShareImage(null);
   }, [moments, showCard]);
 
   // 再来一次
   const handleAgain = useCallback(() => {
     setShowCard(false);
     setSelectedMoment(null);
-    setShareImage(null);
     setTimeout(() => {
       const selected = weightedRandom(moments);
       setSelectedMoment(selected);
@@ -193,15 +190,14 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
   const handleClose = useCallback(() => {
     setShowCard(false);
     setSelectedMoment(null);
-    setShareImage(null);
   }, []);
 
   // 静音切换, []);
 
-  // 生成分享图片
-  const generateShareImage = async () => {
+  // 下载图片
+  const downloadImage = async () => {
     if (!shareCardRef?.current) return;
-    
+
     setGenerating(true);
     try {
       const canvas = await html2canvas(shareCardRef.current, {
@@ -211,26 +207,15 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
         scale: 2,
         logging: false
       });
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
-      setShareImage(dataUrl);
-    } catch (error) {
-      console.error('生成分享图片失败:', error);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  // 下载图片
-  const downloadImage = async () => {
-    if (!shareImage) return;
-    try {
-      const result = await saveDataUrlImage(shareImage, `time-blind-box-${Date.now()}.png`);
+      const result = await saveDataUrlImage(canvas.toDataURL('image/png', 1.0), `time-blind-box-${Date.now()}.png`);
       if (result.native) {
         alert(`图片已保存到 ${result.path}`);
       }
     } catch (error) {
       console.error('保存时光盲盒图片失败:', error);
       alert('保存图片失败，请重试');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -352,56 +337,32 @@ export function TimeBlindBox({ moments, babyName = '宝宝' }) {
             </div>
 
             {/* 底部操作区 */}
-            <div className="px-5 pb-5 space-y-2">
-              {/* 分享图片区 */}
-              {shareImage ? (
-                <div className="space-y-2">
-                  <div className="relative rounded-xl overflow-hidden bg-gray-100">
-                    <img src={shareImage} alt="分享图片" className="w-full h-auto" />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleAgain}
-                      className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm active:scale-95 transition-transform"
-                    >
-                      ✨ 再来一次
-                    </button>
-                    <button
-                      onClick={downloadImage}
-                      className="flex-1 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform flex items-center justify-center gap-1"
-                    >
+            <div className="px-5 pb-5">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAgain}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform"
+                >
+                  ✨ 再来一次
+                </button>
+                <button
+                  onClick={downloadImage}
+                  disabled={generating}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform flex items-center justify-center gap-1 disabled:opacity-50"
+                >
+                  {generating ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      保存中...
+                    </>
+                  ) : (
+                    <>
                       <Download className="w-4 h-4" />
                       下载图片
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAgain}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform"
-                  >
-                    ✨ 再来一次
-                  </button>
-                  <button
-                    onClick={generateShareImage}
-                    disabled={generating}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform flex items-center justify-center gap-1 disabled:opacity-50"
-                  >
-                    {generating ? (
-                      <>
-                        <span className="animate-spin">⏳</span>
-                        生成中...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4" />
-                        生成图片
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
