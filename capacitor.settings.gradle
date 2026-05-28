@@ -2,6 +2,9 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File(rootDir, 'node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-app'
+project(':capacitor-app').projectDir = new File(rootDir, 'node_modules/@capacitor/app/android')
+
 include ':capacitor-camera'
 project(':capacitor-camera').projectDir = new File(rootDir, 'node_modules/@capacitor/camera/android')
 
@@ -13,3 +16,6 @@ project(':capacitor-share').projectDir = new File(rootDir, 'node_modules/@capaci
 
 include ':capacitor-blob-writer'
 project(':capacitor-blob-writer').projectDir = new File(rootDir, 'node_modules/capacitor-blob-writer/android')
+
+include ':capacitor-voice-recorder'
+project(':capacitor-voice-recorder').projectDir = new File(rootDir, 'node_modules/capacitor-voice-recorder/android')

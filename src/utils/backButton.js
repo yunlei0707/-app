@@ -1,34 +1,48 @@
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+let activeHandler = null;
+let isInitialized = false;
+let lastExitAttemptAt = 0;
+
+export function setBackButtonHandler(handler) {
+  activeHandler = typeof handler === 'function' ? handler : null;
+
+  return () => {
+    if (activeHandler === handler) {
+      activeHandler = null;
+    }
+  };
+}
+
 export function setupBackButton() {
-  // 只在APP环境生效
-  if (!(window.Capacitor?.isNativePlatform?.())) return;
+  if (isInitialized || !Capacitor.isNativePlatform()) return;
+  isInitialized = true;
 
-  const App = window.Capacitor.Plugins?.App;
-  if (!App) return;
+  CapacitorApp.addListener('backButton', async (event) => {
+    try {
+      if (activeHandler) {
+        const handled = await activeHandler(event);
+        if (handled) return;
+      }
 
-  App.addListener('backButton', () => {
-    // 1. 优先关闭弹窗
-    const modalClose = document.querySelector('[data-modal-close], .modal-close');
-    if (modalClose && modalClose.offsetParent) {
-      modalClose.click();
-      return;
-    }
+      if (event?.canGoBack && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
 
-    // 2. 不在首页就返回上一页
-    if (window.location.pathname !== '/' && window.history.length > 1) {
-      window.history.back();
-      return;
-    }
+      const now = Date.now();
+      if (now - lastExitAttemptAt < 2000) {
+        CapacitorApp.exitApp();
+        return;
+      }
 
-    // 3. 首页确认退出
-    if (confirm('确定要退出宝贝时光吗？')) {
-      App.exitApp();
+      lastExitAttemptAt = now;
+      window.dispatchEvent(new CustomEvent('babytime:back-exit-prompt'));
+    } catch (error) {
+      console.warn('[BackButton] 返回事件处理失败:', error);
     }
   });
 }
 
-// 页面加载完成后初始化
-if (document.readyState === 'complete') {
-  setTimeout(setupBackButton, 1000);
-} else {
-  window.addEventListener('load', () => setTimeout(setupBackButton, 1000));
-}
+setupBackButton();

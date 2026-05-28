@@ -3,7 +3,8 @@
  * ✅ 稳定极简版本 - 只保留核心功能，确保构建通过
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './store/AppContext';
 import { TabBar } from './components/TabBar';
@@ -49,6 +50,7 @@ import { executeSync, setupVisibilitySync, formatLastSyncTime, isSyncing } from 
 import { startPeriodicCleanup, stopPeriodicCleanup } from './utils/mediaCleanup';
 // P4阶段：媒体上传状态管理
 import { initMediaUpload, cleanupMediaUpload } from './utils/mediaUpload';
+import { setBackButtonHandler } from './utils/backButton.js';
 
 // 登录保护
 function AuthGuard({ children }) {
@@ -105,13 +107,13 @@ function AppContent() {
     } catch { return 'timeline'; }
   });
   
-  const handleTabChange = (tab) => {
+  const handleTabChange = useCallback((tab) => {
     setActiveTab(tab);
     try {
       window.location.hash = tab;
       localStorage.setItem('activeTab', tab);
     } catch {}
-  };
+  }, []);
   
   const [showMomentForm, setShowMomentForm] = useState(false);
   const [showCapsuleForm, setShowCapsuleForm] = useState(false);
@@ -124,6 +126,63 @@ function AppContent() {
   const [showGrowthReport, setShowGrowthReport] = useState(false);
   const [showGrowthForm, setShowGrowthForm] = useState(false);
   const [editingGrowthRecord, setEditingGrowthRecord] = useState(null);
+  const lastExitAttemptAtRef = useRef(0);
+
+  useEffect(() => {
+    const closeEditableForm = (closeForm, clearEditing) => {
+      const shouldClose = window.confirm('当前内容还未保存，确定退出吗？');
+      if (!shouldClose) return true;
+      closeForm(false);
+      clearEditing?.(null);
+      return true;
+    };
+
+    return setBackButtonHandler(() => {
+      if (showMomentForm) return closeEditableForm(setShowMomentForm, setEditingMoment);
+      if (showCapsuleForm) return closeEditableForm(setShowCapsuleForm, setEditingCapsule);
+      if (showGrowthForm) return closeEditableForm(setShowGrowthForm, setEditingGrowthRecord);
+      if (showBabyForm) return closeEditableForm(setShowBabyForm, setEditingBaby);
+
+      if (showRecycleBin) {
+        setShowRecycleBin(false);
+        return true;
+      }
+      if (showGrowthReport) {
+        setShowGrowthReport(false);
+        return true;
+      }
+      if (showCapsulesPage) {
+        setShowCapsulesPage(false);
+        return true;
+      }
+
+      if (activeTab !== 'timeline') {
+        handleTabChange('timeline');
+        return true;
+      }
+
+      const now = Date.now();
+      if (now - lastExitAttemptAtRef.current < 2000) {
+        CapacitorApp.exitApp();
+        return true;
+      }
+
+      lastExitAttemptAtRef.current = now;
+      showToast('再按一次退出宝贝时光', 'info');
+      return true;
+    });
+  }, [
+    activeTab,
+    handleTabChange,
+    showBabyForm,
+    showCapsuleForm,
+    showCapsulesPage,
+    showGrowthForm,
+    showGrowthReport,
+    showMomentForm,
+    showRecycleBin,
+    showToast,
+  ]);
   
   // v2 双账号系统初始化
   useEffect(() => {
