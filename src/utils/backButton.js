@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 let activeHandler = null;
 let isInitialized = false;
 let lastExitAttemptAt = 0;
+let lastBackHandledAt = 0;
 
 export function setBackButtonHandler(handler) {
   activeHandler = typeof handler === 'function' ? handler : null;
@@ -19,7 +20,11 @@ export function setupBackButton() {
   if (isInitialized || !Capacitor.isNativePlatform()) return;
   isInitialized = true;
 
-  CapacitorApp.addListener('backButton', async (event) => {
+  const handleBack = async (event = {}) => {
+    const nowForDebounce = Date.now();
+    if (nowForDebounce - lastBackHandledAt < 250) return;
+    lastBackHandledAt = nowForDebounce;
+
     try {
       if (activeHandler) {
         const handled = await activeHandler(event);
@@ -42,6 +47,11 @@ export function setupBackButton() {
     } catch (error) {
       console.warn('[BackButton] 返回事件处理失败:', error);
     }
+  };
+
+  CapacitorApp.addListener('backButton', handleBack);
+  window.addEventListener('babytime:native-back', () => {
+    handleBack({ canGoBack: window.history.length > 1, source: 'native' });
   });
 }
 

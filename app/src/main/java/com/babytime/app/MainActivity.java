@@ -5,6 +5,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
+import com.capacitorjs.plugins.app.AppPlugin;
 import com.capacitorjs.plugins.camera.CameraPlugin;
 import com.capacitorjs.plugins.filesystem.FilesystemPlugin;
 import com.capacitorjs.plugins.share.SharePlugin;
@@ -12,15 +14,19 @@ import com.equimaps.capacitorblobwriter.BlobWriter;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static final String BACK_EVENT_JS =
+        "window.dispatchEvent(new CustomEvent('babytime:native-back'))";
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(AppPlugin.class);
         registerPlugin(CameraPlugin.class);
         registerPlugin(FilesystemPlugin.class);
         registerPlugin(SharePlugin.class);
         registerPlugin(BlobWriter.class);
         registerPlugin(GallerySaverPlugin.class);
         super.onCreate(savedInstanceState);
+        setupBackGestureBridge();
         
         // 延迟到 Bridge 完全初始化后再配置 WebView
         runOnUiThread(() -> {
@@ -82,6 +88,27 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception e) {
             // WebView配置失败不影响APP启动，只是部分功能可能受限
             android.util.Log.w("MainActivity", "WebView配置失败: " + e.getMessage());
+        }
+    }
+
+    private void setupBackGestureBridge() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                dispatchBackToWeb();
+            }
+        });
+    }
+
+    private void dispatchBackToWeb() {
+        try {
+            WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+            if (webView == null) {
+                return;
+            }
+            webView.post(() -> webView.evaluateJavascript(BACK_EVENT_JS, null));
+        } catch (Exception e) {
+            android.util.Log.w("MainActivity", "返回手势转发失败: " + e.getMessage());
         }
     }
 }
