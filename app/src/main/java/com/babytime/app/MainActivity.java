@@ -5,6 +5,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import androidx.activity.OnBackPressedCallback;
 import com.capacitorjs.plugins.app.AppPlugin;
 import com.capacitorjs.plugins.camera.CameraPlugin;
@@ -16,6 +18,9 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     private static final String BACK_EVENT_JS =
         "window.dispatchEvent(new CustomEvent('babytime:native-back'))";
+    private static final long BACK_EVENT_DEBOUNCE_MS = 250L;
+    private long lastNativeBackAt = 0L;
+    private Object backInvokedCallback;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,10 +103,26 @@ public class MainActivity extends BridgeActivity {
                 dispatchBackToWeb();
             }
         });
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backInvokedCallback = BackInvokedBridge.register(this, this::dispatchBackToWeb);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        dispatchBackToWeb();
     }
 
     private void dispatchBackToWeb() {
         try {
+            long now = System.currentTimeMillis();
+            if (now - lastNativeBackAt < BACK_EVENT_DEBOUNCE_MS) {
+                return;
+            }
+            lastNativeBackAt = now;
+
             WebView webView = getBridge() != null ? getBridge().getWebView() : null;
             if (webView == null) {
                 return;
@@ -109,6 +130,30 @@ public class MainActivity extends BridgeActivity {
             webView.post(() -> webView.evaluateJavascript(BACK_EVENT_JS, null));
         } catch (Exception e) {
             android.util.Log.w("MainActivity", "返回手势转发失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backInvokedCallback != null) {
+            BackInvokedBridge.unregister(this, backInvokedCallback);
+            backInvokedCallback = null;
+        }
+        super.onDestroy();
+    }
+
+    private static final class BackInvokedBridge {
+        private static Object register(MainActivity activity, Runnable onBack) {
+            OnBackInvokedCallback callback = onBack::run;
+            activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                callback
+            );
+            return callback;
+        }
+
+        private static void unregister(MainActivity activity, Object callback) {
+            activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
         }
     }
 }
